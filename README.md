@@ -1,30 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LetHub
 
-## Getting Started
+LetHub is a multi-role UK property-management platform built with Next.js 15, React 19 and Supabase.
 
-First, run the development server:
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run typecheck
+npm run build
+```
 
-## Learn More
+The repository does not currently contain a dependency lockfile or GitHub Actions workflow, so automated build validation is not yet enforced.
 
-To learn more about Next.js, take a look at the following resources:
+## Production runtime
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+LetHub requires a Next.js server runtime. Static export hosting is unsupported because the application uses:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- authenticated role-based dashboards;
+- request-time route handlers and redirects;
+- Supabase-backed dynamic UUID routes;
+- records that are created after the application build.
+
+Build and run the production server with:
+
+```bash
+npm run build
+npm run start
+```
+
+Use `GET /api/health` as the deployment health check. See `DEPLOYMENT.md` for environment variables, proxy rules and the post-deployment smoke-test checklist.
+
+## Current branch sequence
+
+Security and architecture work is being delivered as stacked pull requests:
+
+1. Batch 1 — credential, entitlement and PWA cache containment.
+2. Batch 2 — authentication and dashboard RBAC.
+3. Batch 3 — server deployment and runtime dynamic routes.
+
+Merge the batches in order.
