@@ -1,0 +1,26 @@
+:root {
+  --color-primary-bg: #FBF9F4;
+  --color-secondary-bg: #EBE5DA;
+  --color-accent: #C28A78;
+  --color-accent-hover: #B07A69;
+  --color-text-main: #3A3F3A;
+  --color-text-secondary: #687068;
+  --color-border: #D5D9D5;
+  --color-success: #7A9A7E;
+  --color-success-light: rgba(122, 154, 126, 0.10);
+  --color-warning: #D4A85C;
+  --color-warning-light: rgba(212, 168, 92, 0.10);
+  --color-error: #C46868;
+  --color-error-light: rgba(196, 104, 104, 0.10);
+  --color-info: #8A9FB0;
+  --color-info-light: rgba(138, 159, 176, 0.10);
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}

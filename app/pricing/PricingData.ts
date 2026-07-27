@@ -1,0 +1,225 @@
+export const pricingPlans = [
+  {
+    id: "starter",
+    name: "Starter",
+    description: "Perfect for small landlords with up to 5 properties",
+    monthlyPrice: 29,
+    annualPrice: 24,
+    annualDiscount: "17%",
+    trialDays: 14,
+    popular: false,
+    features: [
+      "Up to 5 properties",
+      "2 team members",
+      "Maintenance management",
+      "Basic compliance tracking",
+      "Document storage (5GB)",
+      "Email notifications",
+      "Basic reporting",
+      "Community support",
+    ],
+    notIncluded: [
+      "AI Property Assistant",
+      "Quote workflow",
+      "Contractor management",
+      "Advanced compliance",
+      "API access",
+    ],
+    color: "#64748B",
+    ctaText: "Start Free Trial",
+  },
+  {
+    id: "professional",
+    name: "Professional",
+    description: "For growing agencies managing up to 25 properties",
+    monthlyPrice: 79,
+    annualPrice: 66,
+    annualDiscount: "16%",
+    trialDays: 14,
+    popular: true,
+    features: [
+      "Up to 25 properties",
+      "5 team members",
+      "Maintenance management",
+      "Full compliance tracking",
+      "Document storage (50GB)",
+      "Email & SMS notifications",
+      "Advanced reporting",
+      "AI Property Assistant",
+      "Quote workflow",
+      "Contractor panel",
+      "Priority support",
+    ],
+    notIncluded: [
+      "API access",
+      "Custom integrations",
+      "Dedicated account manager",
+    ],
+    color: "#C28A78",
+    ctaText: "Start Free Trial",
+  },
+  {
+    id: "business",
+    name: "Business",
+    description: "For established agencies with up to 100 properties",
+    monthlyPrice: 199,
+    annualPrice: 166,
+    annualDiscount: "17%",
+    trialDays: 14,
+    popular: false,
+    features: [
+      "Up to 100 properties",
+      "15 team members",
+      "Everything in Professional",
+      "Document storage (200GB)",
+      "White-label tenant portal",
+      "API access",
+      "Bulk operations",
+      "Custom workflows",
+      "Financial tracking",
+      "Advanced analytics",
+      "Phone support",
+    ],
+    notIncluded: [
+      "Dedicated account manager",
+      "Custom SLA",
+    ],
+    color: "#3B82F6",
+    ctaText: "Start Free Trial",
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    description: "Unlimited scale for large property portfolios",
+    monthlyPrice: null,
+    annualPrice: null,
+    annualDiscount: null,
+    trialDays: 30,
+    popular: false,
+    features: [
+      "Unlimited properties",
+      "Unlimited team members",
+      "Everything in Business",
+      "Unlimited storage",
+      "Custom integrations",
+      "SSO & SAML",
+      "Dedicated account manager",
+      "Custom SLA",
+      "Onboarding training",
+      "24/7 priority support",
+      "On-site training option",
+    ],
+    notIncluded: [],
+    color: "#8B5CF6",
+    ctaText: "Contact Sales",
+  },
+];
+
+export const billingFAQ = [
+  {
+    question: "Can I change my plan at any time?",
+    answer: "Yes, you can upgrade or downgrade your plan at any time. Upgrades take effect immediately, while downgrades apply at the end of your current billing cycle.",
+  },
+  {
+    question: "What happens after my free trial?",
+    answer: "After your 14-day free trial, you can choose to subscribe to any plan. If you don't subscribe, your account will be downgraded to a free read-only mode with limited access.",
+  },
+  {
+    question: "Is there a discount for annual billing?",
+    answer: "Yes, annual billing offers a 16-17% discount compared to monthly billing. You can switch between monthly and annual billing at any time.",
+  },
+  {
+    question: "What payment methods do you accept?",
+    answer: "We accept all major credit and debit cards (Visa, Mastercard, American Express), as well as Direct Debit for UK customers. Enterprise plans also support invoice billing.",
+  },
+  {
+    question: "Are there any setup fees?",
+    answer: "No, there are no setup fees for any of our plans. You only pay the monthly or annual subscription fee. Enterprise plans may include optional onboarding services.",
+  },
+  {
+    question: "Is there a limit on tenants or tenancies?",
+    answer: "There is no per-plan limit on tenants or tenancies — you can manage as many as your property allowance supports. For example, Starter (5 properties) can handle all tenancies across those 5 properties, whether single or multi-unit.",
+  },
+];
+
+export const billingFeatures = [
+  {
+    category: "Property Management",
+    items: [
+      { name: "Property listings", starter: "5", professional: "25", business: "100", enterprise: "Unlimited" },
+      { name: "Team members", starter: "2", professional: "5", business: "15", enterprise: "Unlimited" },
+      { name: "Tenancy management", starter: true, professional: true, business: true, enterprise: true },
+      { name: "Tenant portal", starter: true, professional: true, business: "White-label", enterprise: "White-label" },
+      { name: "Landlord portal", starter: true, professional: true, business: true, enterprise: true },
+    ],
+  },
+  {
+    category: "Maintenance & Contractors",
+    items: [
+      { name: "Maintenance tracking", starter: true, professional: true, business: true, enterprise: true },
+      { name: "Quote workflow", starter: false, professional: true, business: true, enterprise: true },
+      { name: "Contractor management", starter: false, professional: true, business: true, enterprise: true },
+      { name: "Job scheduling", starter: "Basic", professional: "Advanced", business: "Advanced", enterprise: "Custom" },
+    ],
+  },
+  {
+    category: "Compliance & Documents",
+    items: [
+      { name: "Compliance tracking", starter: "Basic", professional: "Full", business: "Full", enterprise: "Full" },
+      { name: "Document storage", starter: "5GB", professional: "50GB", business: "200GB", enterprise: "Unlimited" },
+      { name: "Version history", starter: false, professional: true, business: true, enterprise: true },
+      { name: "Custom compliance", starter: false, professional: false, business: true, enterprise: true },
+    ],
+  },
+  {
+    category: "AI & Automation",
+    items: [
+      { name: "AI Property Assistant", starter: false, professional: true, business: true, enterprise: true },
+      { name: "Automated reminders", starter: "Basic", professional: "Advanced", business: "Advanced", enterprise: "Custom" },
+      { name: "Report generation", starter: false, professional: true, business: true, enterprise: true },
+      { name: "Bulk operations", starter: false, professional: false, business: true, enterprise: true },
+    ],
+  },
+  {
+    category: "Integrations & Support",
+    items: [
+      { name: "API access", starter: false, professional: false, business: true, enterprise: true },
+      { name: "Custom integrations", starter: false, professional: false, business: false, enterprise: true },
+      { name: "Support", starter: "Community", professional: "Priority", business: "Phone", enterprise: "24/7" },
+      { name: "SSO / SAML", starter: false, professional: false, business: false, enterprise: true },
+    ],
+  },
+];
+
+export const usageData = [
+  { month: "Jan", properties: 12, documents: 45, maintenance: 8, invoices: 2 },
+  { month: "Feb", properties: 12, documents: 52, maintenance: 12, invoices: 2 },
+  { month: "Mar", properties: 15, documents: 68, maintenance: 6, invoices: 2 },
+  { month: "Apr", properties: 15, documents: 74, maintenance: 15, invoices: 2 },
+  { month: "May", properties: 18, documents: 89, maintenance: 10, invoices: 2 },
+  { month: "Jun", properties: 20, documents: 102, maintenance: 14, invoices: 2 },
+];
+
+export const invoices = [
+  { id: "INV-2026-006", date: "31 May 2026", amount: 79, plan: "Professional", status: "Paid", period: "1 Jun 2026 - 30 Jun 2026" },
+  { id: "INV-2026-005", date: "30 Apr 2026", amount: 79, plan: "Professional", status: "Paid", period: "1 May 2026 - 31 May 2026" },
+  { id: "INV-2026-004", date: "31 Mar 2026", amount: 79, plan: "Professional", status: "Paid", period: "1 Apr 2026 - 30 Apr 2026" },
+  { id: "INV-2026-003", date: "28 Feb 2026", amount: 79, plan: "Professional", status: "Paid", period: "1 Mar 2026 - 31 Mar 2026" },
+  { id: "INV-2026-002", date: "31 Jan 2026", amount: 79, plan: "Professional", status: "Paid", period: "1 Feb 2026 - 28 Feb 2026" },
+  { id: "INV-2026-001", date: "31 Dec 2025", amount: 79, plan: "Professional", status: "Paid", period: "1 Jan 2026 - 31 Jan 2026" },
+];
+
+export const currentSubscription = {
+  plan: "Professional",
+  billingCycle: "Monthly",
+  nextBillingDate: "1 Jul 2026",
+  amount: 79,
+  propertiesUsed: 18,
+  propertiesLimit: 25,
+  teamUsed: 3,
+  teamLimit: 5,
+  storageUsed: 12.4,
+  storageLimit: 50,
+  trialEnds: null,
+  status: "Active",
+};
