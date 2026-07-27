@@ -13,7 +13,7 @@ export interface PaymentRecord {
   paymentDate: string | null
   paymentMethod: string
   reference: string
-  status: "due" | "paid" | "part_paid" | "overdue" | "waived"
+  status: "due" | "paid" | "part_paid" | "partial" | "overdue" | "failed" | "refunded" | "waived"
   month: string
   notes: string
   hasReceipt: boolean

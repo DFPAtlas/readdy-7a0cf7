@@ -391,68 +391,44 @@ export default function ContractorsPage() {
   const docsNeededCount = contractors.filter((c) => isExpiringSoon(c.insuranceExpiry) || isExpired(c.insuranceExpiry)).length;
   const atRiskCount = contractors.filter((c) => c.status === "Inactive").length;
 
-  const actionItems: ContractorAction[] = contractors
-    .filter((c) => c.status === "Pending")
-    .map((c) => ({
-      id: `review-${c.id}`,
-      contractorId: c.id,
-      contractorName: c.companyName,
-      trade: c.trade,
-      issue: "Application awaiting review",
-      deadline: "No deadline set",
-      priority: "high" as const,
-      actionLabel: "Review",
-    }))
-    .concat(
-      contractors
-        .filter((c) => isExpired(c.insuranceExpiry))
-        .map((c) => ({
-          id: `insurance-${c.id}`,
-          contractorId: c.id,
-          contractorName: c.companyName,
-          trade: c.trade,
-          issue: `Insurance expired — ${c.insuranceExpiry}`,
-          deadline: "Overdue",
-          priority: "critical" as const,
-          actionLabel: "Request",
-        }))
-    )
-    .concat(
-      contractors
-        .filter((c) => isExpiringSoon(c.insuranceExpiry) && !isExpired(c.insuranceExpiry))
-        .map((c) => ({
-          id: `expiring-${c.id}`,
-          contractorId: c.id,
-          contractorName: c.companyName,
-          trade: c.trade,
-          issue: `Insurance expiring — ${c.insuranceExpiry}`,
-          deadline: c.insuranceExpiry,
-          priority: "high" as const,
-          actionLabel: "Remind",
-        }))
-    )
-    .slice(0, 6);
-
-  const expiringSoon = contractors.filter((c) => {
-    if (!c.insuranceExpiry || c.insuranceExpiry === "—") return false;
-    const expiry = new Date(c.insuranceExpiry);
-    const now = new Date();
-    const diffDays = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays < 60 && diffDays > 0;
-  }).length;
-
-  const isExpiringSoon = (expiry: string) => {
-    if (!expiry || expiry === "—") return false;
-    const exp = new Date(expiry);
-    const now = new Date();
-    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff < 60 && diff > 0;
-  };
-
-  const isExpired = (expiry: string) => {
-    if (!expiry || expiry === "—") return false;
-    return new Date(expiry) < new Date();
-  };
+  const actionItems: ContractorAction[] = [
+    ...contractors
+      .filter((c) => c.status === "Pending")
+      .map((c): ContractorAction => ({
+        id: `review-${c.id}`,
+        contractorId: c.id,
+        contractorName: c.companyName,
+        trade: c.trade,
+        issue: "Application awaiting review",
+        deadline: "No deadline set",
+        priority: "high",
+        actionLabel: "Review",
+      })),
+    ...contractors
+      .filter((c) => isExpired(c.insuranceExpiry))
+      .map((c): ContractorAction => ({
+        id: `insurance-${c.id}`,
+        contractorId: c.id,
+        contractorName: c.companyName,
+        trade: c.trade,
+        issue: `Insurance expired — ${c.insuranceExpiry}`,
+        deadline: "Overdue",
+        priority: "critical",
+        actionLabel: "Request",
+      })),
+    ...contractors
+      .filter((c) => isExpiringSoon(c.insuranceExpiry) && !isExpired(c.insuranceExpiry))
+      .map((c): ContractorAction => ({
+        id: `expiring-${c.id}`,
+        contractorId: c.id,
+        contractorName: c.companyName,
+        trade: c.trade,
+        issue: `Insurance expiring — ${c.insuranceExpiry}`,
+        deadline: c.insuranceExpiry,
+        priority: "high",
+        actionLabel: "Remind",
+      })),
+  ].slice(0, 6);
 
   if (loading) {
     return (
