@@ -27,7 +27,7 @@ const leadershipActions: LeadershipAction[] = [
 ]
 
 const topStats = [
-  { label: "Properties", value: aggregateStats.totalPortfolio, icon: "ri-home-4-line", color: "#3B82F6", secondary: `${offices.length} offices` },
+  { label: "Properties", value: aggregateStats.totalPortfolio.toString(), icon: "ri-home-4-line", color: "#3B82F6", secondary: `${offices.length} offices` },
   { label: "Rent Collection", value: "94%", icon: "ri-coins-line", color: "#10B981", secondary: formatCurrency(offices.reduce((s, o) => s + o.revenueMonthly, 0)) + "/mo collected" },
   { label: "Avg Compliance", value: aggregateStats.avgCompliance + "%", icon: "ri-shield-check-line", color: "#C28A78", secondary: "Bristol leads at 98%" },
   { label: "Open Maintenance", value: aggregateStats.totalMaintenance.toString(), icon: "ri-tools-line", color: "#F59E0B", secondary: "London HQ: 8 jobs" },

@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   getPlanEntitlements,
   canUseFeature,
-  getUpgradeReason,
   isReadOnlySubscription,
   PlanEntitlements,
 } from "@/lib/entitlements";
@@ -118,7 +117,7 @@ export default function FeatureGate({
             <p className="text-sm font-semibold text-[#3A3F3A]">
               {readOnlyBlocked ? "Account is read-only" : "Upgrade required"}
             </p>
-            <p className="mt-1 text-xs text-[#687068]">{getUpgradeReason(featureKey)}</p>
+            <p className="mt-1 text-xs text-[#687068]">{readOnlyBlocked ? "Restore an active Stripe subscription to continue using write features." : "This feature is not included in your current plan."}</p>
             <Link href="/pricing" className="mt-4 inline-block rounded-lg bg-[#C28A78] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B07A69]">
               View plans
             </Link>

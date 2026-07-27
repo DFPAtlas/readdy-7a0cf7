@@ -48,6 +48,7 @@ export default function ContractorDetail({ contractorId }: { contractorId: strin
 
   const expiringDocs = contractor.insurance.filter((i) => i.status === "Expiring Soon" || i.status === "Expired").length;
   const hasAttention = expiringDocs > 0;
+  const recentJobs = contractor.recentQuotes.filter((quote) => quote.status === "Completed" || quote.status === "Approved");
 
   return (
     <div className="space-y-6">
@@ -195,10 +196,10 @@ export default function ContractorDetail({ contractorId }: { contractorId: strin
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#3A3F3A]">Recent Jobs</h3>
               </div>
-              {contractor.recentJobs.length === 0 ? (
+              {recentJobs.length === 0 ? (
                 <p className="text-sm text-[#94A3B8] py-4 text-center">No recent jobs</p>
               ) : (
-                contractor.recentJobs.map((job, idx) => (
+                recentJobs.map((job, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5]">
                     <div>
                       <p className="text-sm font-medium text-[#3A3F3A]">{job.jobTitle}</p>

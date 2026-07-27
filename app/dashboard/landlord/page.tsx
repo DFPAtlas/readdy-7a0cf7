@@ -71,7 +71,6 @@ export default function LandlordPortalPage() {
                   <div key={idx} className="bg-white rounded-lg border border-[#D5D9D5] p-3.5">
                     <div className="flex items-center gap-1.5 mb-2">
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                        item.priority === "Critical" ? "bg-[#EF4444]/10 text-[#EF4444]" :
                         item.priority === "High" ? "bg-[#F59E0B]/10 text-[#F59E0B]" :
                         "bg-[#3B82F6]/10 text-[#3B82F6]"
                       }`}>{item.priority}</span>

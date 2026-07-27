@@ -214,6 +214,18 @@ export default function TenantDashboardPage() {
     channelName: "rt-tenant-messages",
   });
 
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".dropdown-trigger")) {
+        setCategoryDropdown(false);
+        setPriorityDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+
   if (!sessionReady) {
     return (
       <div className="min-h-screen bg-[#FBF9F4] flex items-center justify-center">
@@ -298,18 +310,6 @@ export default function TenantDashboardPage() {
     High: "bg-[#EF4444]/10 text-[#EF4444]",
     Emergency: "bg-[#EF4444] text-white",
   };
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".dropdown-trigger")) {
-        setCategoryDropdown(false);
-        setPriorityDropdown(false);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, []);
 
   if (loading) {
     return (

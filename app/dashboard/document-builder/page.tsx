@@ -45,6 +45,11 @@ export default function DocumentBuilderPage() {
     setFilledContent(fillTemplate(selectedTemplate.content, newValues));
   };
 
+  const handleDownloadDocx = () => {
+    if (!selectedTemplate) return;
+    generateDocxDownload(filledContent, selectedTemplate.name);
+  };
+
   const toggleCategory = (label: string) => { setCategoryOpen(prev => ({ ...prev, [label]: !prev[label] })); };
 
   if (loading) {

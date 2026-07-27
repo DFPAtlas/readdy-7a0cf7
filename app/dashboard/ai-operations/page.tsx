@@ -32,7 +32,7 @@ export default function AIOperationsPage() {
 
   const attentionItems = [
     ...agents.filter(a => a.status === "error").map(a => ({
-      id: a.id, agentName: a.name, issue: "Agent encountered errors during last run", relatedRecord: `${a.recordsProcessed.toLocaleString()} records`, time: a.lastRun, urgency: "critical" as const, actionLabel: "Investigate"
+      id: a.id, agentName: a.name, issue: "Agent encountered errors during last run", relatedRecord: `${a.recordsProcessed.toLocaleString()} records`, time: a.lastRun, urgency: "critical" as const, actionLabel: "Investigate", actionHref: undefined
     })),
     ...todaysWork.items.filter(i => i.urgency === "critical").map((item, idx) => ({
       id: `work-${idx}`, agentName: "Operations", issue: item.message, relatedRecord: "", time: "Today", urgency: item.urgency, actionLabel: item.linkLabel, actionHref: item.linkHref

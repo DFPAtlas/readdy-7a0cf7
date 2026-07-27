@@ -21,6 +21,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
+Use `.env.example` as the local template. Environment files other than examples must not be committed.
+
 ## Supabase Edge Function secrets
 
 The security and billing functions require:
@@ -80,26 +82,47 @@ The webhook still rejects every request without a valid Stripe signature.
 
 ## Database migrations
 
-Apply the migrations in sequence:
+Apply every migration in filename order:
 
 ```text
+001_core_schema.sql
+002_schema_foundation.sql
 003_security_containment.sql
 004_auth_rbac_hardening.sql
 005_billing_authority.sql
 ```
 
+Run `npm run check:migrations` before deployment. It rejects gaps, duplicate numbers, invalid filenames, empty SQL files and unresolved merge markers.
+
 Migration 005 removes browser write access to subscription state and changes any paid/trial row without a Stripe subscription ID to `incomplete`.
 
 ## Build and start
 
+Install exactly the dependency graph recorded in `package-lock.json`:
+
 ```bash
-npm install
+npm ci
+npm run check:repo
+npm run check:migrations
 npm run typecheck
+npm run lint
 npm run build
 npm run start
 ```
 
-The repository does not currently contain a lockfile, so `npm install` is required until dependency-locking work is completed in a later batch.
+Do not replace `npm ci` with an unlocked production install. Update `package.json` and `package-lock.json` together through a reviewed pull request.
+
+## GitHub merge controls
+
+The permanent workflow `.github/workflows/ci.yml` runs these pull-request checks:
+
+```text
+Repository controls
+TypeScript and ESLint
+Production build
+```
+
+Configure the `main` branch ruleset to require a pull request and all three checks. The workflow also runs after pushes to `main` as a post-merge confirmation.
 
 ## Runtime checks
 
@@ -125,4 +148,4 @@ After deployment, verify:
 
 ## Rollback
 
-If Batch 4 must be rolled back, disable new Checkout links first and keep the Stripe webhook running while existing events drain. Do not restore browser mutation rights on `account_subscriptions`. Reverting the UI without reverting the database authority boundary is safer than allowing the client to assign plans or trials again.
+If Batch 5 must be rolled back, deploy the Batch 4 application branch and keep the Batch 4 database and Stripe authority boundary intact. Do not restore tracked environment files, unlocked dependency installation or browser mutation rights on `account_subscriptions`.
