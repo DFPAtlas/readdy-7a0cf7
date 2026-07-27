@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import PropertyDetailView, { PropertyDetailData } from "@/components/property/PropertyDetailView";
 
 const nationLabels: Record<string, string> = {
-  england: "England", wales: "Wales", scotland: "Scotland", northern_ireland: "Northern Ireland",
+  england: "England",
+  wales: "Wales",
+  scotland: "Scotland",
+  northern_ireland: "Northern Ireland",
 };
 
 const propertyImages = [
@@ -24,29 +27,42 @@ const enrichedMock: Record<string, Partial<PropertyDetailData>> = {
   "4": { landlordName: "Fiona MacLeod", tenantName: null, status: "Vacant", rentAmount: 2200, complianceStatus: "Valid", maintenanceOpen: 1, ownerPortal: "not-invited", tenantPortal: "not-invited" },
 };
 
+function stableImageForId(id: string): string {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = ((hash << 5) - hash + id.charCodeAt(index)) | 0;
+  }
+  return propertyImages[Math.abs(hash) % propertyImages.length];
+}
+
 export default function PropertyDetail({ propertyId }: { propertyId: string }) {
   const [property, setProperty] = useState<PropertyDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     const fetchProperty = async () => {
+      setLoading(true);
+      setNotFound(false);
+
       const { data, error } = await supabase
         .from("properties")
         .select("*")
         .eq("id", propertyId)
         .maybeSingle();
 
+      if (!active) return;
+
       if (error || !data) {
+        setProperty(null);
         setNotFound(true);
         setLoading(false);
         return;
       }
 
       const enriched = enrichedMock[propertyId] || {};
-      const imageIdx = parseInt(propertyId, 10) - 1;
-      const imgSrc = propertyImages[imageIdx % propertyImages.length];
-
       const mapped: PropertyDetailData = {
         id: data.id,
         name: data.line1 || "—",
@@ -58,12 +74,12 @@ export default function PropertyDetail({ propertyId }: { propertyId: string }) {
         bathrooms: 0,
         nation: data.nation || "england",
         nationLabel: nationLabels[data.nation] || data.nation || "—",
-        status: (enriched as any).status || "—",
-        rentAmount: (enriched as any).rentAmount || 0,
-        depositAmount: (enriched as any).depositAmount || 0,
-        landlordName: (enriched as any).landlordName || null,
+        status: enriched.status || "—",
+        rentAmount: enriched.rentAmount || 0,
+        depositAmount: enriched.depositAmount || 0,
+        landlordName: enriched.landlordName || null,
         landlordEmail: null,
-        tenantName: (enriched as any).tenantName || null,
+        tenantName: enriched.tenantName || null,
         tenantEmail: null,
         propertyManager: null,
         tenancyStart: null,
@@ -71,21 +87,25 @@ export default function PropertyDetail({ propertyId }: { propertyId: string }) {
         epcRating: data.epc_rating || "—",
         gasExpiry: null,
         eicrExpiry: null,
-        complianceStatus: (enriched as any).complianceStatus || "—",
-        maintenanceOpen: (enriched as any).maintenanceOpen || 0,
-        ownerPortal: (enriched as any).ownerPortal || "not-invited",
-        tenantPortal: (enriched as any).tenantPortal || "not-invited",
+        complianceStatus: enriched.complianceStatus || "—",
+        maintenanceOpen: enriched.maintenanceOpen || 0,
+        ownerPortal: enriched.ownerPortal || "not-invited",
+        tenantPortal: enriched.tenantPortal || "not-invited",
         isHmo: data.is_hmo || false,
         isFurnished: data.is_furnished || false,
         dateAdded: data.created_at ? new Date(data.created_at).toISOString().split("T")[0] : "—",
-        image: imgSrc,
+        image: stableImageForId(propertyId),
         isLiveData: true,
       };
 
       setProperty(mapped);
       setLoading(false);
     };
+
     fetchProperty();
+    return () => {
+      active = false;
+    };
   }, [propertyId]);
 
   return <PropertyDetailView property={property} loading={loading} notFound={notFound} />;
