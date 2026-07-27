@@ -37,6 +37,24 @@ DROP POLICY IF EXISTS "webhooks_delete_own" ON webhook_endpoints;
 REVOKE INSERT, UPDATE, DELETE ON api_keys FROM authenticated;
 REVOKE INSERT, UPDATE, DELETE ON webhook_endpoints FROM authenticated;
 
+-- Reject obvious SSRF targets. The webhook delivery worker must also resolve DNS
+-- and reject private/reserved IP addresses immediately before making a request.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'webhook_endpoints_public_https_url'
+  ) THEN
+    ALTER TABLE webhook_endpoints
+      ADD CONSTRAINT webhook_endpoints_public_https_url
+      CHECK (
+        url ~* '^https://'
+        AND url !~* '^https://[^/]*@'
+        AND url !~* '^https://(localhost|0\.0\.0\.0|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|\[?::1\]?|[^/]+\.local([:/]|$))'
+      ) NOT VALID;
+  END IF;
+END $$;
+
 COMMENT ON COLUMN api_keys.key_hash IS
   'SHA-256 hash of the API key. The raw key is returned once by api-security-admin and is never stored.';
 COMMENT ON COLUMN webhook_endpoints.secret_hash IS
