@@ -4,179 +4,154 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const swCode = `
-const CACHE_VERSION = "lethub-v3";
+const CACHE_VERSION = "lethub-v4-security";
 const STATIC_CACHE = CACHE_VERSION + "-static";
-const PAGE_CACHE = CACHE_VERSION + "-pages";
-const API_CACHE = CACHE_VERSION + "-api";
-const PUSH_DB = "lethub-push-store";
-
-const PRELOAD_PAGES = [
-  "/mobile/role",
-  "/mobile/agent",
-  "/mobile/landlord",
-  "/mobile/tenant",
-  "/mobile/contractor",
-  "/mobile/maintenance",
-  "/mobile/inspections",
-  "/mobile/documents",
-  "/mobile/rent",
-  "/mobile/compliance",
-  "/offline",
-];
+const PUBLIC_PAGE_CACHE = CACHE_VERSION + "-public-pages";
+const PUBLIC_PRELOAD_PAGES = ["/offline", "/mobile/role"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const pageCache = await caches.open(PAGE_CACHE);
-      try {
-        await pageCache.addAll(PRELOAD_PAGES);
-      } catch (e) {}
-      return self.skipWaiting();
-    })()
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(PUBLIC_PAGE_CACHE);
+    try { await cache.addAll(PUBLIC_PRELOAD_PAGES); } catch (_) {}
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cacheNames = await caches.keys();
-      const validCaches = [STATIC_CACHE, PAGE_CACHE, API_CACHE];
-      await Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith("lethub-") && !validCaches.includes(name))
-          .map((name) => caches.delete(name))
-      );
-      return self.clients.claim();
-    })()
-  );
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    const allowed = new Set([STATIC_CACHE, PUBLIC_PAGE_CACHE]);
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith("lethub-") && !allowed.has(name))
+        .map((name) => caches.delete(name))
+    );
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
-
   let payload;
   try {
     payload = event.data.json();
-  } catch {
-    payload = { title: "LetHub", body: event.data.text(), icon: "/icon-192.png" };
+  } catch (_) {
+    payload = { title: "LetHub", body: event.data.text() };
   }
 
   const options = {
     body: payload.body || "",
-    icon: payload.icon || "https://readdy.ai/api/search-image?query=A%20simple%20elegant%20square%20app%20icon%20with%20the%20letter%20L%20in%20white%20on%20a%20dark%20forest%20green%20background%20minimal%20modern%20design%20192x192&width=192&height=192&seq=lethub-push-icon&orientation=squarish",
-    badge: "https://readdy.ai/api/search-image?query=A%20simple%20elegant%20square%20app%20icon%20with%20the%20letter%20L%20in%20white%20on%20a%20dark%20forest%20green%20background%20minimal%20modern%20design%2096x96&width=96&height=96&seq=lethub-push-badge&orientation=squarish",
-    data: {
-      url: payload.url || "/dashboard/notifications",
-      type: payload.type || "info",
-      timestamp: Date.now(),
-    },
+    icon: payload.icon || "/icon-192.png",
+    badge: payload.badge || "/icon-192.png",
+    data: { url: payload.url || "/dashboard/notifications" },
     tag: payload.tag || "lethub-notification",
-    renotify: true,
-    requireInteraction: payload.requireInteraction || false,
-    vibrate: [200, 100, 200],
-    actions: payload.actions || [],
+    renotify: Boolean(payload.renotify),
+    requireInteraction: Boolean(payload.requireInteraction),
+    actions: Array.isArray(payload.actions) ? payload.actions : [],
   };
 
   event.waitUntil(
-    (async () => {
-      const allClients = await self.clients.matchAll({ type: "window" });
-      const hasFocused = allClients.some((client) => client.focused);
-
-      if (!hasFocused) {
-        await self.registration.showNotification(payload.title || "LetHub", options);
-      }
-
-      const db = await self.caches.open(PUSH_DB);
-      const storedNotifications = await db.match("notifications");
-      let notifications = storedNotifications ? await storedNotifications.json() : [];
-      notifications.unshift({
-        id: "push-" + Date.now(),
-        title: payload.title,
-        body: payload.body,
-        type: payload.type,
-        url: payload.url,
-        timestamp: new Date().toISOString(),
-      });
-      if (notifications.length > 50) notifications = notifications.slice(0, 50);
-      await db.put(
-        new Response(JSON.stringify(notifications), {
-          headers: { "Content-Type": "application/json" },
-        }),
-        "notifications"
-      );
-    })()
+    self.registration.showNotification(payload.title || "LetHub", options)
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-
   const urlToOpen = event.notification.data?.url || "/dashboard/notifications";
-
-  event.waitUntil(
-    (async () => {
-      const allClients = await self.clients.matchAll({ type: "window" });
-      const matchingClient = allClients.find(
-        (c) => c.url.includes(self.location.origin) && "focus" in c
-      );
-
-      if (matchingClient) {
-        await matchingClient.focus();
-        matchingClient.postMessage({
-          type: "NOTIFICATION_CLICK",
-          url: urlToOpen,
-        });
-      } else {
-        await self.clients.openWindow(urlToOpen);
-      }
-    })()
-  );
+  event.waitUntil((async () => {
+    const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = clientsList.find((client) => client.url.startsWith(self.location.origin));
+    if (existing && "focus" in existing) {
+      await existing.focus();
+      existing.postMessage({ type: "NOTIFICATION_CLICK", url: urlToOpen });
+      return;
+    }
+    await self.clients.openWindow(urlToOpen);
+  })());
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "GET_STORED_NOTIFICATIONS") {
-    event.waitUntil(
-      (async () => {
-        const db = await self.caches.open(PUSH_DB);
-        const stored = await db.match("notifications");
-        const notifications = stored ? await stored.json() : [];
-        const client = event.source;
-        if (client) {
-          client.postMessage({
-            type: "STORED_NOTIFICATIONS",
-            notifications,
-          });
-        }
-      })()
-    );
-  }
-});
-
-function isApiRequest(url) {
-  return url.pathname.includes("/api/") || url.hostname.includes("supabase");
+function isSupabaseRequest(url) {
+  return url.hostname.endsWith("supabase.co") ||
+    url.pathname.includes("/rest/v1/") ||
+    url.pathname.includes("/auth/v1/") ||
+    url.pathname.includes("/storage/v1/") ||
+    url.pathname.includes("/functions/v1/");
 }
 
-function isPageRequest(url) {
-  const path = url.pathname;
-  return !path.includes(".") || path.endsWith(".html");
+function isPrivatePath(pathname) {
+  return [
+    "/dashboard",
+    "/owner",
+    "/tenant",
+    "/contractor",
+    "/portal",
+    "/mobile/agent",
+    "/mobile/landlord",
+    "/mobile/tenant",
+    "/mobile/contractor",
+    "/mobile/account",
+    "/mobile/documents",
+    "/mobile/rent",
+    "/mobile/compliance",
+    "/mobile/maintenance",
+    "/mobile/inspections",
+  ].some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+}
+
+function isSensitiveRequest(request, url) {
+  return Boolean(request.headers.get("authorization")) ||
+    isSupabaseRequest(url) ||
+    isPrivatePath(url.pathname) ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname === "/sw";
 }
 
 function isStaticAsset(url) {
-  const path = url.pathname;
-  return (
-    path.match(/\\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|eot)$/) ||
-    path.includes("/_next/")
-  );
+  return url.pathname.includes("/_next/static/") ||
+    /\\.(?:css|js|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname);
+}
+
+function isPublicNavigation(request, url) {
+  return request.mode === "navigate" && !isPrivatePath(url.pathname);
+}
+
+function mayStore(response) {
+  if (!response || !response.ok || response.type === "opaque") return false;
+  const cacheControl = response.headers.get("cache-control") || "";
+  return !/no-store|private/i.test(cacheControl) && !response.headers.has("set-cookie");
+}
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (mayStore(response)) await cache.put(request, response.clone());
+  return response;
+}
+
+async function networkFirstPublicPage(request) {
+  try {
+    const response = await fetch(request);
+    if (mayStore(response)) {
+      const cache = await caches.open(PUBLIC_PAGE_CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    return (await caches.match(request)) || (await caches.match("/offline")) ||
+      new Response("Offline", { status: 503 });
+  }
 }
 
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
+  const request = event.request;
+  if (request.method !== "GET") return;
   const url = new URL(request.url);
 
-  if (request.method !== "GET") return;
-
-  if (isApiRequest(url)) {
-    event.respondWith(networkFirst(request, API_CACHE));
+  // Never cache authenticated, tenant-specific, payment, Supabase or Edge Function data.
+  if (isSensitiveRequest(request, url)) {
+    event.respondWith(fetch(request));
     return;
   }
 
@@ -185,64 +160,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isPageRequest(url)) {
-    event.respondWith(networkFirst(request, PAGE_CACHE));
-    return;
+  if (isPublicNavigation(request, url)) {
+    event.respondWith(networkFirstPublicPage(request));
   }
-
-  event.respondWith(fetch(request));
 });
-
-async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-
-  if (cached) {
-    fetch(request)
-      .then((response) => {
-        if (response.ok) cache.put(request, response.clone());
-      })
-      .catch(() => {});
-    return cached;
-  }
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
-    return response;
-  } catch {
-    return new Response("Offline", { status: 503, statusText: "Service Unavailable" });
-  }
-}
-
-async function networkFirst(request, cacheName) {
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-
-    if (isPageRequest(new URL(request.url))) {
-      return caches.match("/offline");
-    }
-
-    return new Response(
-      JSON.stringify({ error: "You are offline", cached: false }),
-      { status: 503, headers: { "Content-Type": "application/json" } }
-    );
-  }
-}`;
+`;
 
   return new NextResponse(swCode, {
     headers: {
       "Content-Type": "application/javascript",
       "Service-Worker-Allowed": "/",
       "Cache-Control": "public, max-age=0, must-revalidate",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
