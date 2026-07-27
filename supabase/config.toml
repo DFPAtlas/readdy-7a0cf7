@@ -1,0 +1,16 @@
+project_id = "lethub"
+
+[functions.complete-registration]
+verify_jwt = true
+
+[functions.create-subscription-checkout]
+verify_jwt = true
+
+[functions.create-billing-portal-session]
+verify_jwt = true
+
+[functions.api-security-admin]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

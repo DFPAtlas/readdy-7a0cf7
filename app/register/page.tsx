@@ -1,709 +1,268 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Suspense } from "react"
-import { supabase } from "@/lib/supabaseClient"
+import { Suspense, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
-const planNames: Record<string, string> = {
-  starter: "Starter",
-  professional: "Professional",
-  business: "Business",
+const plans = {
+  starter: { name: "Starter", monthly: 29, annual: 24 },
+  professional: { name: "Professional", monthly: 79, annual: 66 },
+  business: { name: "Business", monthly: 199, annual: 166 },
+} as const;
+
+type PlanSlug = keyof typeof plans;
+type BillingCycle = "monthly" | "annual";
+type RegistrationRole = "estate_agent_admin" | "landlord";
+
+const roleOptions: Array<{ value: RegistrationRole; label: string; description: string }> = [
+  { value: "estate_agent_admin", label: "Letting or estate agent", description: "Manage an agency, team and property portfolio." },
+  { value: "landlord", label: "Landlord", description: "Manage your own properties and tenancies." },
+];
+
+const steps = ["Account", "Business", "Plan", "Review"];
+
+function safePlan(value: string | null): PlanSlug {
+  return value && value in plans ? value as PlanSlug : "starter";
 }
 
-const roles = [
-  { value: "landlord", label: "Landlord" },
-  { value: "tenant", label: "Tenant" },
-  { value: "contractor", label: "Contractor" },
-]
-
-const businessTypes = [
-  { value: "estate_agent", label: "Estate Agent / Letting Agent" },
-  { value: "property_manager", label: "Property Manager" },
-  { value: "independent_landlord", label: "Independent Landlord" },
-  { value: "property_developer", label: "Property Developer" },
-  { value: "other", label: "Other" },
-]
-
-const portfolioSizes = [
-  { value: "1-5", label: "1–5 properties" },
-  { value: "6-20", label: "6–20 properties" },
-  { value: "21-50", label: "21–50 properties" },
-  { value: "51-200", label: "51–200 properties" },
-  { value: "201-500", label: "201–500 properties" },
-  { value: "500+", label: "500+ properties" },
-]
-
-const steps = [
-  { id: "account", label: "Account", num: 1 },
-  { id: "agency", label: "Agency", num: 2 },
-  { id: "plan", label: "Plan", num: 3 },
-  { id: "review", label: "Review", num: 4 },
-]
+function safeCycle(value: string | null): BillingCycle {
+  return value === "annual" ? "annual" : "monthly";
+}
 
 function RegisterForm() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const selectedPlan = searchParams.get("plan") || "starter"
-  const billingCycle = searchParams.get("billing") || "monthly"
-  const planName = planNames[selectedPlan] || "Starter"
+  const searchParams = useSearchParams();
+  const [step, setStep] = useState(0);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<RegistrationRole>("estate_agent_admin");
+  const [businessName, setBusinessName] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [portfolioSize, setPortfolioSize] = useState("1-5");
+  const [planSlug, setPlanSlug] = useState<PlanSlug>(() => safePlan(searchParams.get("plan")));
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(() => safeCycle(searchParams.get("billing")));
+  const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState(false);
+  const [accountReady, setAccountReady] = useState(false);
 
-  const [step, setStep] = useState(0)
+  const selectedPlan = plans[planSlug];
+  const displayedPrice = billingCycle === "annual" ? selectedPlan.annual : selectedPlan.monthly;
 
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [agreed, setAgreed] = useState(false)
-  const [role, setRole] = useState("landlord")
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
+  const canContinue = useMemo(() => {
+    if (step === 0) return fullName.trim().length > 1 && email.includes("@") && password.length >= 8 && password === confirmPassword;
+    if (step === 1) return businessName.trim().length > 1;
+    if (step === 2) return Boolean(planSlug && billingCycle);
+    return agreed;
+  }, [step, fullName, email, password, confirmPassword, businessName, planSlug, billingCycle, agreed]);
 
-  const [agencyName, setAgencyName] = useState("")
-  const [businessType, setBusinessType] = useState("estate_agent")
-  const [businessTypeOpen, setBusinessTypeOpen] = useState(false)
-  const [portfolioSize, setPortfolioSize] = useState("1-5")
-  const [portfolioSizeOpen, setPortfolioSizeOpen] = useState(false)
-  const [businessPhone, setBusinessPhone] = useState("")
+  const submit = async () => {
+    setError("");
+    if (!agreed) return setError("You must agree to the Terms of Service and Privacy Policy.");
+    if (password !== confirmPassword) return setError("Passwords do not match.");
 
-  const [error, setError] = useState("")
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [needsConfirmation, setNeedsConfirmation] = useState(false)
-
-  const planPrice = selectedPlan === "starter" ? 29 : selectedPlan === "professional" ? 79 : 199
-  const annualPrice = selectedPlan === "starter" ? 24 : selectedPlan === "professional" ? 66 : 166
-  const displayPrice = billingCycle === "annual" ? annualPrice : planPrice
-  const trialEnd = new Date()
-  trialEnd.setDate(trialEnd.getDate() + 14)
-  const trialEndStr = trialEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-  const firstChargeDate = new Date(trialEnd)
-  firstChargeDate.setDate(firstChargeDate.getDate() + 1)
-  const firstChargeStr = firstChargeDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  const canGoNext = () => {
-    if (step === 0) return form.fullName.trim() && form.email.trim() && form.password.length >= 8 && form.confirmPassword.length >= 8
-    if (step === 1) return agencyName.trim()
-    if (step === 2) return true
-    if (step === 3) return agreed
-    return false
-  }
-
-  const handleNext = () => {
-    if (step < steps.length - 1) {
-      setStep((s) => s + 1)
-    }
-  }
-
-  const handleBack = () => {
-    if (step > 0) {
-      setStep((s) => s - 1)
-    }
-  }
-
-  const handleSubmit = async () => {
-    setError("")
-    setFieldErrors({})
-
-    const errs: Record<string, string> = {}
-    if (form.password !== form.confirmPassword) {
-      errs.confirmPassword = "Passwords do not match"
-    }
-    if (!agreed) {
-      errs.agreed = "You must agree to the Terms of Service and Privacy Policy"
-    }
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs)
-      return
-    }
-
-    setLoading(true)
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          full_name: form.fullName,
-          role,
-          agency_name: agencyName,
+    setLoading(true);
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            requested_role: role,
+            role,
+            agency_name: businessName.trim(),
+            business_phone: businessPhone.trim() || null,
+            portfolio_size: portfolioSize,
+            desired_plan: planSlug,
+            desired_billing_cycle: billingCycle,
+          },
         },
-      },
-    })
+      });
 
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
+      if (signUpError) throw signUpError;
+      if (!data.user) throw new Error("The account could not be created.");
 
-    const userId = authData.user?.id
-    if (!userId) {
-      setError("Account created but unable to set up subscription. Please contact support.")
-      setLoading(false)
-      return
-    }
+      if (!data.session) {
+        setConfirmationEmail(true);
+        return;
+      }
 
-    if (!authData.session) {
-      setNeedsConfirmation(true)
-      setLoading(false)
-      return
-    }
+      const { error: profileError } = await supabase.functions.invoke("complete-registration", {
+        body: { role, full_name: fullName.trim() },
+      });
+      if (profileError) throw new Error(`Account created, but profile setup failed: ${profileError.message}`);
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
-        id: userId,
-        full_name: form.fullName,
-        role,
-        email: form.email,
-        account_type: role === "landlord" ? "owner" : "agency",
-      })
-
-    if (profileError) {
-      setError("Account created but profile setup failed: " + profileError.message)
-      setLoading(false)
-      return
-    }
-
-    const trialEndDate = new Date()
-    trialEndDate.setDate(trialEndDate.getDate() + 14)
-
-    const { data: existingSub } = await supabase
-      .from("account_subscriptions")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle()
-
-    let subError = null
-    if (existingSub) {
-      const { error } = await supabase
-        .from("account_subscriptions")
-        .update({
-          plan_slug: selectedPlan,
-          status: "trialing",
-          trial_started_at: new Date().toISOString(),
-          trial_ends_at: trialEndDate.toISOString(),
+      const { data: checkout, error: checkoutError } = await supabase.functions.invoke("create-subscription-checkout", {
+        body: {
+          plan_slug: planSlug,
           billing_cycle: billingCycle,
-        })
-        .eq("id", existingSub.id)
-      subError = error
-    } else {
-      const { error } = await supabase
-        .from("account_subscriptions")
-        .insert({
-          user_id: userId,
-          plan_slug: selectedPlan,
-          status: "trialing",
-          trial_started_at: new Date().toISOString(),
-          trial_ends_at: trialEndDate.toISOString(),
-          billing_cycle: billingCycle,
-        })
-      subError = error
-    }
+          request_id: crypto.randomUUID(),
+        },
+      });
 
-    if (subError) {
-      setError("Account created but subscription setup failed: " + subError.message)
-      setLoading(false)
-      return
-    }
+      if (checkoutError || !checkout?.url) {
+        setAccountReady(true);
+        setError(checkout?.error || checkoutError?.message || "Your account is ready, but Stripe Checkout could not be opened.");
+        return;
+      }
 
-    setSuccess(true)
-    setTimeout(() => {
-      router.push("/dashboard/setup")
-    }, 2000)
+      window.location.assign(checkout.url);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to create your account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (confirmationEmail) {
+    return (
+      <StatusCard icon="ri-mail-check-line" title="Confirm your email">
+        <p>We created your LetHub account. Confirm the link sent to <strong>{email}</strong>, then sign in.</p>
+        <p className="mt-2">Your subscription and free trial will not begin until you complete Stripe Checkout.</p>
+        <Link href="/login" className="mt-6 inline-block w-full rounded-lg bg-[#C28A78] py-3 font-medium text-white">Go to sign in</Link>
+      </StatusCard>
+    );
   }
 
-  if (needsConfirmation) {
+  if (accountReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FBF9F4] py-8">
-        <div className="w-full max-w-md p-8 text-center">
-          <div className="w-16 h-16 bg-[#C28A78]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ri-mail-check-line text-[#C28A78] text-3xl"></i>
-          </div>
-          <h1 className="text-2xl font-bold text-[#3A3F3A] mb-2">Almost there!</h1>
-          <p className="text-sm text-[#687068] mb-1">
-            Your account was created. Please check <span className="font-medium text-[#3A3F3A]">{form.email}</span> and confirm your email to activate your account.
-          </p>
-          <p className="text-sm text-[#687068] mb-6">
-            Once confirmed, sign in to access your dashboard.
-          </p>
-          <div className="bg-[#FEF9F0] border border-[#F5E6C8] rounded-xl px-4 py-3 mb-6 text-left">
-            <p className="text-xs text-[#8A6D3B]">
-              <i className="ri-information-line mr-1"></i>
-              Didn&apos;t get the email or the link isn&apos;t working? Contact your platform administrator to have your account confirmed manually.
-            </p>
-          </div>
-          <Link href="/login" className="inline-block w-full bg-[#C28A78] hover:bg-[#B07A69] text-white font-medium py-3 rounded-lg transition-colors whitespace-nowrap">
-            Go to Sign In
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FBF9F4] py-8">
-        <div className="w-full max-w-md p-8 text-center">
-          <div className="w-16 h-16 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ri-check-line text-[#7A9A7E] text-3xl"></i>
-          </div>
-          <h1 className="text-2xl font-bold text-[#3A3F3A] mb-2">Account created!</h1>
-          <p className="text-sm text-[#687068] mb-1">Your 14-day {planName} trial is now active.</p>
-          <p className="text-sm text-[#687068]">Redirecting to setup...</p>
-        </div>
-      </div>
-    )
+      <StatusCard icon="ri-user-check-line" title="Your account is ready">
+        <p>Your profile was created securely, but checkout was not completed.</p>
+        {error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <Link href={`/dashboard/billing?plan=${planSlug}&billing=${billingCycle}`} className="mt-6 inline-block w-full rounded-lg bg-[#C28A78] py-3 font-medium text-white">Continue to billing</Link>
+      </StatusCard>
+    );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FBF9F4] py-8">
-      <div className="w-full max-w-lg p-8">
-        <div className="text-center mb-8">
-          <Link href="/" className="font-['Pacifico'] text-3xl text-[#C28A78] inline-block">
-            LetHub
-          </Link>
-          <h1 className="text-2xl font-bold text-[#3A3F3A] mt-4">Create your account</h1>
-          <p className="text-sm text-[#687068] mt-1">Start managing properties with LetHub</p>
+    <div className="min-h-screen bg-[#FBF9F4] px-4 py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="text-center">
+          <Link href="/" className="font-['Pacifico'] text-3xl text-[#C28A78]">LetHub</Link>
+          <h1 className="mt-4 text-2xl font-bold text-[#3A3F3A]">Create your account</h1>
+          <p className="mt-1 text-sm text-[#687068]">Your plan becomes active only after secure Stripe Checkout.</p>
         </div>
 
-        <div className="flex items-center gap-2 mb-8">
-          {steps.map((s, idx) => (
-            <div key={s.id} className="flex items-center gap-2 flex-1">
-              <button
-                onClick={() => { if (idx < step) setStep(idx) }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  idx === step ? "bg-[#C28A78] text-white" : idx < step ? "bg-[#10B981]/10 text-[#10B981]" : "bg-[#F1F5F9] text-[#94A3B8]"
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  idx === step ? "bg-white/20 text-white" : idx < step ? "bg-[#10B981] text-white" : "bg-[#E2E8F0] text-[#94A3B8]"
-                }`}>
-                  {idx < step ? <i className="ri-check-line text-[10px]"></i> : s.num}
-                </span>
-                <span className="hidden sm:inline">{s.label}</span>
-              </button>
-              {idx < steps.length - 1 && <div className={`w-6 h-px flex-shrink-0 ${idx < step ? "bg-[#10B981]" : "bg-[#E2E8F0]"}`}></div>}
-            </div>
+        <div className="mt-8 grid grid-cols-4 gap-2">
+          {steps.map((label, index) => (
+            <button key={label} type="button" onClick={() => index < step && setStep(index)} className={`rounded-full px-2 py-2 text-xs font-medium ${index === step ? "bg-[#C28A78] text-white" : index < step ? "bg-emerald-50 text-emerald-700" : "bg-white text-[#94A3B8]"}`}>
+              {index + 1}. {label}
+            </button>
           ))}
         </div>
 
-        {error && (
-          <div className="p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#DC2626] mb-4">
-            {error}
-          </div>
-        )}
+        <div className="mt-6 rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          {error && !accountReady && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-        {step === 0 && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Full name</label>
-              <div className="flex items-center gap-2 px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white focus-within:border-[#C28A78] focus-within:ring-1 focus-within:ring-[#C28A78]">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className="ri-user-line text-[#94A3B8] text-sm"></i>
+          {step === 0 && (
+            <div className="space-y-4">
+              <Field label="Full name"><input value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" className="input" /></Field>
+              <Field label="Work email"><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" className="input" /></Field>
+              <Field label="Password">
+                <div className="flex rounded-lg border border-[#D5D9D5]">
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" className="min-w-0 flex-1 rounded-lg px-3 py-2.5 text-sm outline-none" />
+                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="px-3 text-[#687068]" aria-label="Toggle password visibility"><i className={showPassword ? "ri-eye-off-line" : "ri-eye-line"}></i></button>
                 </div>
-                <input
-                  name="fullName"
-                  type="text"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  placeholder="John Smith"
-                  className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
-                  required
-                />
-              </div>
+              </Field>
+              <Field label="Confirm password"><input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" className="input" /></Field>
+              {confirmPassword && password !== confirmPassword && <p className="text-xs text-red-600">Passwords do not match.</p>}
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Work email</label>
-              <div className="flex items-center gap-2 px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white focus-within:border-[#C28A78] focus-within:ring-1 focus-within:ring-[#C28A78]">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className="ri-mail-line text-[#94A3B8] text-sm"></i>
-                </div>
-                <input
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="you@company.com"
-                  className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Password</label>
-              <div className="flex items-center gap-2 px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white focus-within:border-[#C28A78] focus-within:ring-1 focus-within:ring-[#C28A78]">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className="ri-lock-line text-[#94A3B8] text-sm"></i>
-                </div>
-                <input
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={handleChange}
-                  placeholder="Min 8 characters"
-                  className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
-                  required
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="w-5 h-5 flex items-center justify-center"
-                >
-                  <i className={showPassword ? "ri-eye-off-line text-[#94A3B8] text-sm" : "ri-eye-line text-[#94A3B8] text-sm"}></i>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Confirm password</label>
-              <div className="flex items-center gap-2 px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white focus-within:border-[#C28A78] focus-within:ring-1 focus-within:ring-[#C28A78]">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className="ri-lock-line text-[#94A3B8] text-sm"></i>
-                </div>
-                <input
-                  name="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm your password"
-                  className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
-                  required
-                />
-              </div>
-              {fieldErrors.confirmPassword && (
-                <p className="text-xs text-[#DC2626] mt-1">{fieldErrors.confirmPassword}</p>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleNext}
-                disabled={!canGoNext()}
-                className="flex items-center gap-2 bg-[#C28A78] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#B07A69] transition-colors whitespace-nowrap disabled:opacity-50"
-              >
-                Continue
-                <i className="ri-arrow-right-line text-sm"></i>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <div className="bg-[#C28A78]/5 border border-[#C28A78]/20 rounded-xl px-4 py-3">
-              <p className="text-xs text-[#687068]">
-                <i className="ri-information-line mr-1 text-[#C28A78]"></i>
-                This information helps us tailor your LetHub experience. You can change these details later in settings.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Agency name *</label>
-              <input
-                type="text"
-                value={agencyName}
-                onChange={(e) => setAgencyName(e.target.value)}
-                placeholder="e.g. Oakwood Lettings"
-                className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Business type</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setBusinessTypeOpen(!businessTypeOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A]"
-                >
-                  <span>{businessTypes.find((b) => b.value === businessType)?.label}</span>
-                  <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
-                </button>
-                {businessTypeOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-lg shadow-lg z-20">
-                    {businessTypes.map((b) => (
-                      <button
-                        key={b.value}
-                        type="button"
-                        onClick={() => { setBusinessType(b.value); setBusinessTypeOpen(false) }}
-                        className="block w-full text-left px-4 py-2.5 text-sm text-[#3A3F3A] hover:bg-[#F1F5F9] first:rounded-t-lg last:rounded-b-lg"
-                      >
-                        {b.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Approximate portfolio size</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setPortfolioSizeOpen(!portfolioSizeOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A]"
-                >
-                  <span>{portfolioSizes.find((p) => p.value === portfolioSize)?.label}</span>
-                  <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
-                </button>
-                {portfolioSizeOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-lg shadow-lg z-20">
-                    {portfolioSizes.map((p) => (
-                      <button
-                        key={p.value}
-                        type="button"
-                        onClick={() => { setPortfolioSize(p.value); setPortfolioSizeOpen(false) }}
-                        className="block w-full text-left px-4 py-2.5 text-sm text-[#3A3F3A] hover:bg-[#F1F5F9] first:rounded-t-lg last:rounded-b-lg"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Business phone (optional)</label>
-              <input
-                type="text"
-                value={businessPhone}
-                onChange={(e) => setBusinessPhone(e.target.value)}
-                placeholder="e.g. 020 7946 0000"
-                className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Select your role</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A]"
-                >
-                  <span className="flex items-center gap-2">
-                    <div className="w-5 h-5 flex items-center justify-center">
-                      <i className="ri-user-settings-line text-[#94A3B8] text-sm"></i>
-                    </div>
-                    {roles.find((r) => r.value === role)?.label}
-                  </span>
-                  <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
-                </button>
-                {roleDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-lg shadow-lg z-20">
-                    {roles.map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        onClick={() => { setRole(r.value); setRoleDropdownOpen(false) }}
-                        className="block w-full text-left px-4 py-2.5 text-sm text-[#3A3F3A] hover:bg-[#F1F5F9] first:rounded-t-lg last:rounded-b-lg"
-                      >
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <button onClick={handleBack} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#687068] hover:bg-[#F1F5F9] transition-colors">
-                <i className="ri-arrow-left-line text-sm"></i>
-                Back
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={!canGoNext()}
-                className="flex items-center gap-2 bg-[#C28A78] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#B07A69] transition-colors whitespace-nowrap disabled:opacity-50"
-              >
-                Continue
-                <i className="ri-arrow-right-line text-sm"></i>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-4">
-            <div className="bg-[#C28A78]/5 border border-[#C28A78]/20 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-2 mb-1">
-                <i className="ri-sparkling-line text-[#C28A78] text-sm"></i>
-                <p className="text-sm font-semibold text-[#C28A78]">
-                  You are starting a 14-day free trial of {planName}
-                </p>
-              </div>
-              <p className="text-xs text-[#687068] ml-6">
-                No credit card required. Cancel anytime.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-              <h3 className="font-semibold text-[#3A3F3A] mb-3">{planName} Plan</h3>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-bold text-[#3A3F3A]">£{displayPrice}</span>
-                <span className="text-sm text-[#687068]">/ month</span>
-              </div>
-              <p className="text-xs text-[#687068] mb-4">
-                {billingCycle === "annual" ? "Billed annually (£" + (displayPrice * 12) + "/yr)" : "Billed monthly"}
-              </p>
-              <div className="space-y-2">
-                {[
-                  "Unlimited properties" + (selectedPlan === "starter" ? " (up to 5)" : selectedPlan === "professional" ? " (up to 25)" : ""),
-                  "Team members" + (selectedPlan === "starter" ? " (up to 2)" : selectedPlan === "professional" ? " (up to 5)" : " (up to 15)"),
-                  "Compliance tracking",
-                  "Tenant & owner portals",
-                  selectedPlan === "starter" ? "Basic reporting" : selectedPlan === "professional" ? "Full reporting & quotes" : "Advanced analytics & API access",
-                ].map((feat) => (
-                  <div key={feat} className="flex items-center gap-2">
-                    <i className="ri-check-line text-[#10B981] text-xs"></i>
-                    <span className="text-xs text-[#475569]">{feat}</span>
-                  </div>
+          {step === 1 && (
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {roleOptions.map((option) => (
+                  <button key={option.value} type="button" onClick={() => setRole(option.value)} className={`rounded-xl border p-4 text-left ${role === option.value ? "border-[#C28A78] bg-[#C28A78]/5" : "border-[#E2E8F0]"}`}>
+                    <p className="font-semibold text-[#3A3F3A]">{option.label}</p>
+                    <p className="mt-1 text-xs text-[#687068]">{option.description}</p>
+                  </button>
                 ))}
               </div>
-              <Link href="/pricing" className="inline-block mt-4 text-xs text-[#C28A78] font-medium hover:underline">
-                Compare all features
-              </Link>
+              <Field label={role === "estate_agent_admin" ? "Agency name" : "Portfolio or business name"}><input value={businessName} onChange={(event) => setBusinessName(event.target.value)} className="input" /></Field>
+              <Field label="Business phone (optional)"><input value={businessPhone} onChange={(event) => setBusinessPhone(event.target.value)} className="input" /></Field>
+              <Field label="Approximate portfolio size">
+                <select value={portfolioSize} onChange={(event) => setPortfolioSize(event.target.value)} className="input">
+                  {['1-5', '6-20', '21-50', '51-200', '201-500', '500+'].map((size) => <option key={size} value={size}>{size} properties</option>)}
+                </select>
+              </Field>
+              <p className="rounded-lg bg-[#F8FAFC] p-3 text-xs text-[#687068]">Tenant and contractor accounts are created through secure invitations from an agent or landlord.</p>
             </div>
+          )}
 
-            <div className="bg-[#F8FAFC] rounded-xl border border-[#D5D9D5] p-4 space-y-2">
-              <h4 className="text-sm font-medium text-[#3A3F3A]">Billing summary</h4>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[#687068]">Trial period</span>
-                <span className="text-[#3A3F3A] font-medium">14 days</span>
+          {step === 2 && (
+            <div className="space-y-5">
+              <div className="flex rounded-lg bg-[#F1F5F9] p-1">
+                {(["monthly", "annual"] as BillingCycle[]).map((cycle) => (
+                  <button key={cycle} type="button" onClick={() => setBillingCycle(cycle)} className={`flex-1 rounded-md py-2 text-sm font-medium capitalize ${billingCycle === cycle ? "bg-white text-[#3A3F3A] shadow-sm" : "text-[#687068]"}`}>{cycle}</button>
+                ))}
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[#687068]">Trial ends</span>
-                <span className="text-[#3A3F3A] font-medium">{trialEndStr}</span>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(Object.keys(plans) as PlanSlug[]).map((slug) => {
+                  const item = plans[slug];
+                  const price = billingCycle === "annual" ? item.annual : item.monthly;
+                  return (
+                    <button key={slug} type="button" onClick={() => setPlanSlug(slug)} className={`rounded-xl border p-4 text-left ${planSlug === slug ? "border-[#C28A78] bg-[#C28A78]/5" : "border-[#E2E8F0]"}`}>
+                      <p className="font-semibold text-[#3A3F3A]">{item.name}</p>
+                      <p className="mt-2 text-2xl font-bold text-[#3A3F3A]">£{price}</p>
+                      <p className="text-xs text-[#687068]">per month{billingCycle === "annual" ? ", billed annually" : ""}</p>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[#687068]">First charge</span>
-                <span className="text-[#3A3F3A] font-medium">{firstChargeStr}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm font-medium pt-1 border-t border-[#D5D9D5]">
-                <span className="text-[#3A3F3A]">Monthly after trial</span>
-                <span className="text-[#3A3F3A]">£{displayPrice}</span>
-              </div>
+              <p className="text-xs text-[#687068]">The final amount and trial terms are loaded from the approved Stripe Price during Checkout.</p>
             </div>
+          )}
 
-            <div className="flex items-center justify-between pt-2">
-              <button onClick={handleBack} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#687068] hover:bg-[#F1F5F9] transition-colors">
-                <i className="ri-arrow-left-line text-sm"></i>
-                Back
-              </button>
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-2 bg-[#C28A78] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#B07A69] transition-colors whitespace-nowrap"
-              >
-                Review & create
-                <i className="ri-arrow-right-line text-sm"></i>
-              </button>
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="rounded-xl bg-[#F8FAFC] p-5">
+                <div className="flex justify-between"><span className="text-sm text-[#687068]">Account</span><strong className="text-sm text-[#3A3F3A]">{fullName}</strong></div>
+                <div className="mt-3 flex justify-between"><span className="text-sm text-[#687068]">Business</span><strong className="text-sm text-[#3A3F3A]">{businessName}</strong></div>
+                <div className="mt-3 flex justify-between"><span className="text-sm text-[#687068]">Plan requested</span><strong className="text-sm text-[#3A3F3A]">{selectedPlan.name} · £{displayedPrice}/month</strong></div>
+              </div>
+              <label className="flex items-start gap-3 text-sm text-[#687068]"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} className="mt-1" /><span>I agree to the Terms of Service and Privacy Policy. I understand that subscription access begins only when Stripe confirms Checkout.</span></label>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 3 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-[#3A3F3A]">Review your account</h3>
-
-            <div className="bg-white rounded-xl border border-[#D5D9D5] divide-y divide-[#D5D9D5]">
-              <div className="p-4">
-                <h4 className="text-xs font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Account</h4>
-                <div className="space-y-1">
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Name:</span> {form.fullName}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Email:</span> {form.email}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Role:</span> {roles.find((r) => r.value === role)?.label}</p>
-                </div>
-              </div>
-              <div className="p-4">
-                <h4 className="text-xs font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Agency</h4>
-                <div className="space-y-1">
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Agency:</span> {agencyName}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Type:</span> {businessTypes.find((b) => b.value === businessType)?.label}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Portfolio:</span> {portfolioSizes.find((p) => p.value === portfolioSize)?.label}</p>
-                  {businessPhone && <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Phone:</span> {businessPhone}</p>}
-                </div>
-              </div>
-              <div className="p-4">
-                <h4 className="text-xs font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Plan</h4>
-                <div className="space-y-1">
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Plan:</span> {planName}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Billing:</span> {billingCycle === "annual" ? "Annual" : "Monthly"} · £{displayPrice}/mo</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">Trial:</span> 14 days · Ends {trialEndStr}</p>
-                  <p className="text-sm text-[#3A3F3A]"><span className="text-[#687068]">First charge:</span> £{displayPrice} on {firstChargeStr}</p>
-                </div>
-              </div>
-            </div>
-
-            <label className="flex items-start gap-2 text-sm text-[#687068] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={() => setAgreed(!agreed)}
-                className="w-4 h-4 mt-0.5 rounded border-[#D5D9D5] text-[#C28A78] focus:ring-[#C28A78]"
-              />
-              <span>
-                I agree to the{" "}
-                <Link href="/" className="text-[#C28A78] font-medium hover:underline">Terms of Service</Link>
-                {" "}and{" "}
-                <Link href="/" className="text-[#C28A78] font-medium hover:underline">Privacy Policy</Link>
-              </span>
-            </label>
-            {fieldErrors.agreed && (
-              <p className="text-xs text-[#DC2626]">{fieldErrors.agreed}</p>
+          <div className="mt-7 flex items-center justify-between">
+            <button type="button" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || loading} className="rounded-lg border border-[#D5D9D5] px-5 py-2.5 text-sm font-medium text-[#687068] disabled:opacity-40">Back</button>
+            {step < 3 ? (
+              <button type="button" onClick={() => setStep((value) => value + 1)} disabled={!canContinue} className="rounded-lg bg-[#C28A78] px-6 py-2.5 text-sm font-medium text-white disabled:opacity-40">Continue</button>
+            ) : (
+              <button type="button" onClick={submit} disabled={!canContinue || loading} className="rounded-lg bg-[#C28A78] px-6 py-2.5 text-sm font-medium text-white disabled:opacity-40">{loading ? "Creating account..." : "Create account & checkout"}</button>
             )}
-
-            <div className="flex items-center justify-between pt-2">
-              <button onClick={handleBack} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#687068] hover:bg-[#F1F5F9] transition-colors">
-                <i className="ri-arrow-left-line text-sm"></i>
-                Back
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex items-center gap-2 bg-[#C28A78] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#B07A69] transition-colors whitespace-nowrap disabled:opacity-50"
-              >
-                {loading ? "Creating account..." : "Create Account"}
-                <i className="ri-check-line text-sm"></i>
-              </button>
-            </div>
           </div>
-        )}
+        </div>
 
-        <p className="text-center text-sm text-[#687068] mt-6">
-          Already have an account?{" "}
-          <Link href="/login" className="text-[#C28A78] font-medium hover:underline">
-            Sign in
-          </Link>
-        </p>
+        <p className="mt-6 text-center text-sm text-[#687068]">Already registered? <Link href="/login" className="font-medium text-[#C28A78]">Sign in</Link></p>
+      </div>
+      <style jsx>{`.input{width:100%;border:1px solid #D5D9D5;border-radius:.5rem;padding:.625rem .75rem;font-size:.875rem;outline:none;background:#fff}.input:focus{border-color:#C28A78}`}</style>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="mb-1.5 block text-sm font-medium text-[#3A3F3A]">{label}</span>{children}</label>;
+}
+
+function StatusCard({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-[#FBF9F4] px-4 py-16">
+      <div className="mx-auto max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#C28A78]/10"><i className={`${icon} text-3xl text-[#C28A78]`}></i></div>
+        <h1 className="mt-5 text-2xl font-bold text-[#3A3F3A]">{title}</h1>
+        <div className="mt-3 text-sm leading-6 text-[#687068]">{children}</div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function RegisterPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#FBF9F4]">
-        <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    }>
-      <RegisterForm />
-    </Suspense>
-  )
+  return <Suspense fallback={<div className="min-h-screen bg-[#FBF9F4]" />}><RegisterForm /></Suspense>;
 }
