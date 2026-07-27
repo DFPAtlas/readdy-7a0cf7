@@ -3,289 +3,185 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@13";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const billableRoles = new Set(["platform_admin", "estate_agent_admin", "landlord"]);
+const validCycles = new Set(["monthly", "annual"]);
 
-const PLAN_DEFAULTS: Record<string, { name: string; description: string; monthlyAmount: number; annualAmount: number }> = {
-  starter: { name: "Starter", description: "Up to 5 properties, 2 team members, basic compliance, 5GB storage", monthlyAmount: 2900, annualAmount: 2400 },
-  professional: { name: "Professional", description: "Up to 25 properties, 5 team members, full compliance, AI assistant, contractor panel, 50GB storage", monthlyAmount: 7900, annualAmount: 6600 },
-  business: { name: "Business", description: "Up to 100 properties, 15 team members, white-label portal, API access, advanced analytics, 200GB storage", monthlyAmount: 19900, annualAmount: 16600 },
-  enterprise: { name: "Enterprise", description: "Unlimited properties, unlimited team, custom integrations, SSO, 24/7 support", monthlyAmount: 49900, annualAmount: 49900 },
-};
-
-const PRICE_ENV_MAP: Record<string, Record<string, string>> = {
-  starter: { monthly: "STRIPE_PRICE_STARTER_MONTHLY", annual: "STRIPE_PRICE_STARTER_ANNUAL" },
-  professional: { monthly: "STRIPE_PRICE_PROFESSIONAL_MONTHLY", annual: "STRIPE_PRICE_PROFESSIONAL_ANNUAL" },
-  business: { monthly: "STRIPE_PRICE_BUSINESS_MONTHLY", annual: "STRIPE_PRICE_BUSINESS_ANNUAL" },
-};
-
-function getEnvPriceId(planSlug: string, billingCycle: string): string | null {
-  const envMap = PRICE_ENV_MAP[planSlug];
-  if (!envMap) return null;
-  const envVar = envMap[billingCycle];
-  if (!envVar) return null;
-  const val = Deno.env.get(envVar);
-  return val && val.trim() !== "" ? val.trim() : null;
+function allowedOrigins(): string[] {
+  const configured = (Deno.env.get("APP_ORIGINS") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return configured.length > 0
+    ? configured
+    : ["https://lethub.uk", "https://www.lethub.uk"];
 }
 
-function getAllMissingPrices(): string[] {
-  const missing: string[] = [];
-  for (const [plan, cycles] of Object.entries(PRICE_ENV_MAP)) {
-    for (const [cycle, envVar] of Object.entries(cycles)) {
-      const val = Deno.env.get(envVar);
-      if (!val || val.trim() === "") {
-        missing.push(envVar);
-      }
-    }
-  }
-  return missing;
+function requestOrigin(req: Request): string {
+  const origin = req.headers.get("origin");
+  const origins = allowedOrigins();
+  if (origin && !origins.includes(origin)) throw new Error("Origin is not allowed");
+  return origin || origins[0];
 }
 
-async function ensureStripePrice(
-  stripe: Stripe,
-  supabaseAdmin: ReturnType<typeof createClient>,
-  planSlug: string,
-  billingCycle: string
-): Promise<string> {
-  const priceColumn = billingCycle === "annual" ? "stripe_annual_price_id" : "stripe_monthly_price_id";
-  const productColumn = "stripe_product_id";
-
-  const { data: plan } = await supabaseAdmin
-    .from("subscription_plans")
-    .select(`id, ${productColumn}, ${priceColumn}`)
-    .eq("slug", planSlug)
-    .maybeSingle();
-
-  if (!plan) throw new Error(`Plan ${planSlug} not found`);
-
-  const existingPriceId = (plan as any)[priceColumn];
-  if (existingPriceId) return existingPriceId;
-
-  const defaults = PLAN_DEFAULTS[planSlug];
-  if (!defaults) throw new Error(`No defaults configured for plan ${planSlug}`);
-
-  let productId = (plan as any)[productColumn];
-
-  if (!productId) {
-    const product = await stripe.products.create({
-      name: defaults.name,
-      description: defaults.description,
-      metadata: { plan_slug: planSlug },
-    });
-    productId = product.id;
-
-    await supabaseAdmin
-      .from("subscription_plans")
-      .update({ stripe_product_id: productId })
-      .eq("id", plan.id);
+function headers(req: Request): Record<string, string> {
+  let origin = allowedOrigins()[0];
+  try {
+    origin = requestOrigin(req);
+  } catch {
+    // The request will be rejected by the handler; return a non-reflective origin.
   }
-
-  const amount = billingCycle === "annual" ? defaults.annualAmount : defaults.monthlyAmount;
-  const interval = billingCycle === "annual" ? "year" : "month";
-
-  const price = await stripe.prices.create({
-    product: productId,
-    unit_amount: amount,
-    currency: "gbp",
-    recurring: { interval },
-    metadata: { plan_slug: planSlug, billing_cycle: billingCycle },
-  });
-
-  await supabaseAdmin
-    .from("subscription_plans")
-    .update({ [priceColumn]: price.id })
-    .eq("id", plan.id);
-
-  return price.id;
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+    "Vary": "Origin",
+  };
 }
 
-function resolveStripePrice(
-  planSlug: string,
-  billingCycle: string,
-  stripe: Stripe,
-  supabaseAdmin: ReturnType<typeof createClient>
-): Promise<string> {
-  const envPriceId = getEnvPriceId(planSlug, billingCycle);
-  if (envPriceId) {
-    console.log(`Using env price for ${planSlug}/${billingCycle}: ${envPriceId}`);
-    return Promise.resolve(envPriceId);
-  }
-  console.log(`No env price for ${planSlug}/${billingCycle}, falling back to dynamic creation`);
-  return ensureStripePrice(stripe, supabaseAdmin, planSlug, billingCycle);
+function reply(req: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: headers(req) });
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: headers(req) });
+  if (req.method !== "POST") return reply(req, { error: "Method not allowed" }, 405);
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const origin = requestOrigin(req);
+    const authorization = req.headers.get("authorization");
+    if (!authorization) return reply(req, { error: "Authentication required" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY")!;
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SB_SERVICE_ROLE_KEY");
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!serviceKey) throw new Error("Service role key is not configured");
+    if (!stripeKey) throw new Error("Stripe is not configured");
 
-    if (!stripeKey) {
-      return new Response(
-        JSON.stringify({ error: "Stripe is not configured. Please connect Stripe first." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false },
     });
+    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) return reply(req, { error: "Invalid session" }, 401);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const { data: profile, error: profileError } = await admin
+      .from("profiles")
+      .select("full_name, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile || !billableRoles.has(profile.role)) {
+      return reply(req, { error: "This account cannot manage billing" }, 403);
     }
 
-    const body = await req.json();
-    const { plan_slug, billing_cycle } = body;
+    const body = await req.json().catch(() => ({}));
+    const planSlug = String(body.plan_slug || "").trim().toLowerCase();
+    const billingCycle = String(body.billing_cycle || "").trim().toLowerCase();
+    const requestId = String(body.request_id || "").trim();
 
-    if (!plan_slug) {
-      return new Response(
-        JSON.stringify({ error: "plan_slug is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!planSlug) return reply(req, { error: "plan_slug is required" }, 400);
+    if (!validCycles.has(billingCycle)) {
+      return reply(req, { error: "billing_cycle must be monthly or annual" }, 400);
+    }
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) {
+      return reply(req, { error: "A valid request_id is required" }, 400);
     }
 
-    if (!billing_cycle || !["monthly", "annual"].includes(billing_cycle)) {
-      return new Response(
-        JSON.stringify({ error: "billing_cycle must be monthly or annual" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const priceColumn = billingCycle === "annual"
+      ? "stripe_annual_price_id"
+      : "stripe_monthly_price_id";
+
+    const { data: plan, error: planError } = await admin
+      .from("subscription_plans")
+      .select(`slug, name, trial_days, is_active, is_enterprise, ${priceColumn}`)
+      .eq("slug", planSlug)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (planError) throw planError;
+    if (!plan) return reply(req, { error: "The selected plan is not available" }, 400);
+    if (plan.is_enterprise || planSlug === "enterprise") {
+      return reply(req, { error: "Enterprise subscriptions are arranged through LetHub sales" }, 400);
     }
 
-    const missingPrices = getAllMissingPrices();
-    if (missingPrices.length > 0 && missingPrices.length < 6) {
-      console.warn("Some Stripe price env vars are missing:", missingPrices.join(", "));
-    }
-
-    if (planSlug === "enterprise") {
-      return new Response(
-        JSON.stringify({ error: "Enterprise plan requires contacting sales. Please use /book-demo." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const stripePriceId = String(plan[priceColumn] || "");
+    if (!stripePriceId.startsWith("price_")) {
+      return reply(req, { error: `Stripe pricing is not configured for ${plan.name} ${billingCycle}` }, 503);
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-16.basil" });
 
-    const stripePriceId = await resolveStripePrice(stripe, supabaseAdmin, planSlug, billingCycle);
-
-    const { data: plan } = await supabaseAdmin
-      .from("subscription_plans")
-      .select("*")
-      .eq("slug", plan_slug)
-      .maybeSingle();
-
-    if (!plan) {
-      return new Response(
-        JSON.stringify({ error: "Invalid plan slug" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { data: existingSub } = await supabaseAdmin
+    const { data: existingSubscription, error: existingError } = await admin
       .from("account_subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id")
+      .select("stripe_customer_id, stripe_subscription_id, trial_started_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (existingError) throw existingError;
 
-    let stripeCustomerId = existingSub?.stripe_customer_id;
-
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.user_metadata?.full_name || undefined,
-        metadata: { user_id: user.id },
-      });
-      stripeCustomerId = customer.id;
-    }
-
-    if (existingSub?.stripe_subscription_id) {
+    let customerId = existingSubscription?.stripe_customer_id || null;
+    if (existingSubscription?.stripe_subscription_id) {
       try {
-        const currentSub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id);
-        if (["active", "trialing", "past_due"].includes(currentSub.status)) {
-          return new Response(
-            JSON.stringify({ error: "You already have an active subscription. Use the billing portal to change plans." }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        const current = await stripe.subscriptions.retrieve(existingSubscription.stripe_subscription_id);
+        if (["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(current.status)) {
+          return reply(req, { error: "An existing subscription must be managed through the billing portal" }, 409);
         }
-      } catch {
-        // subscription not found, safe to create new
+      } catch (error) {
+        console.warn("Stored Stripe subscription could not be retrieved", error);
       }
     }
 
-    const origin = req.headers.get("origin") || "https://lethub.uk";
-    const successUrl = `${origin}/dashboard/billing?checkout=success`;
-    const cancelUrl = `${origin}/pricing?checkout=cancelled`;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email || undefined,
+        name: profile.full_name || undefined,
+        metadata: { user_id: user.id },
+      });
+      customerId = customer.id;
+    }
+
+    let trialPreviouslyUsed = Boolean(existingSubscription?.trial_started_at);
+    if (!trialPreviouslyUsed) {
+      const history = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 });
+      trialPreviouslyUsed = history.data.some((subscription) => Boolean(subscription.trial_start));
+    }
+
+    const metadata = {
+      user_id: user.id,
+      plan_slug: planSlug,
+      billing_cycle: billingCycle,
+    };
+
+    const subscriptionData: Record<string, unknown> = { metadata };
+    const trialDays = Number(plan.trial_days || 0);
+    if (!trialPreviouslyUsed && trialDays > 0) {
+      subscriptionData.trial_period_days = Math.min(trialDays, 30);
+    }
 
     const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
+      customer: customerId,
+      client_reference_id: user.id,
       mode: "subscription",
       line_items: [{ price: stripePriceId, quantity: 1 }],
-      subscription_data: {
-        trial_period_days: plan.trial_days || 14,
-        metadata: {
-          user_id: user.id,
-          plan_slug,
-          billing_cycle,
-        },
-      },
+      subscription_data: subscriptionData,
       allow_promotion_codes: true,
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: {
-        user_id: user.id,
-        plan_slug,
-        billing_cycle,
-      },
+      success_url: `${origin}/dashboard/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/dashboard/billing?checkout=cancelled`,
+      metadata,
+    }, {
+      idempotencyKey: `lethub-checkout-${user.id}-${requestId}`,
     });
 
-    await supabaseAdmin
-      .from("account_subscriptions")
-      .upsert({
-        user_id: user.id,
-        plan_slug,
-        status: "pending",
-        stripe_customer_id: stripeCustomerId,
-        billing_cycle,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-
-    return new Response(
-      JSON.stringify({ url: session.url }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (err) {
-    console.error("Checkout error:", err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    if (!session.url) throw new Error("Stripe did not return a checkout URL");
+    return reply(req, { url: session.url, checkout_session_id: session.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create checkout";
+    const status = message === "Origin is not allowed" ? 403 : 400;
+    console.error("Checkout error", error);
+    return reply(req, { error: message }, status);
   }
 });

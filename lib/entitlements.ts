@@ -38,6 +38,8 @@ export interface AccountSubscription {
   current_period_start: string | null;
   current_period_end: string | null;
   billing_cycle: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
 }
 
 export interface PlanEntitlements {
@@ -73,12 +75,13 @@ const DENY_PLAN: SubscriptionPlan = {
 };
 
 const DEMO_PLAN: SubscriptionPlan = {
+  ...DENY_PLAN,
   id: "demo",
   slug: "business",
   name: "Business (Demo)",
   monthly_price: 199,
   annual_price: 166,
-  trial_days: 999,
+  trial_days: 0,
   max_properties: null,
   max_team_members: null,
   storage_gb: null,
@@ -93,7 +96,6 @@ const DEMO_PLAN: SubscriptionPlan = {
   has_financial_tracking: true,
   has_advanced_analytics: true,
   has_priority_support: true,
-  is_enterprise: true,
 };
 
 const FEATURE_PLAN_MAP: Record<string, string[]> = {
@@ -117,17 +119,17 @@ const FEATURE_PLAN_MAP: Record<string, string[]> = {
   unlimited_team: ["enterprise"],
 };
 
-function mapPlan(data: Record<string, any>): SubscriptionPlan {
+function mapPlan(data: Record<string, unknown>): SubscriptionPlan {
   return {
-    id: data.id,
-    slug: data.slug,
-    name: data.name,
-    monthly_price: data.monthly_price,
-    annual_price: data.annual_price,
-    trial_days: data.trial_days || 0,
-    max_properties: data.max_properties,
-    max_team_members: data.max_team_members,
-    storage_gb: data.storage_gb,
+    id: String(data.id),
+    slug: String(data.slug),
+    name: String(data.name),
+    monthly_price: data.monthly_price == null ? null : Number(data.monthly_price),
+    annual_price: data.annual_price == null ? null : Number(data.annual_price),
+    trial_days: Number(data.trial_days || 0),
+    max_properties: data.max_properties == null ? null : Number(data.max_properties),
+    max_team_members: data.max_team_members == null ? null : Number(data.max_team_members),
+    storage_gb: data.storage_gb == null ? null : Number(data.storage_gb),
     has_basic_compliance: Boolean(data.has_basic_compliance),
     has_full_compliance: Boolean(data.has_full_compliance),
     has_ai_assistant: Boolean(data.has_ai_assistant),
@@ -151,8 +153,7 @@ export async function getPlanBySlug(slug: string): Promise<SubscriptionPlan | nu
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
-  if (error || !data) return null;
-  return mapPlan(data);
+  return error || !data ? null : mapPlan(data);
 }
 
 export async function getCurrentSubscription(userId: string): Promise<AccountSubscription | null> {
@@ -168,18 +169,20 @@ export async function getCurrentSubscription(userId: string): Promise<AccountSub
       current_period_start: null,
       current_period_end: null,
       billing_cycle: "monthly",
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
     };
   }
 
   const { data, error } = await supabase
     .from("account_subscriptions")
-    .select("*")
+    .select("id, account_id, user_id, plan_slug, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, billing_cycle, stripe_customer_id, stripe_subscription_id")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error || !data) return null;
 
+  if (error || !data) return null;
   return {
     id: data.id,
     account_id: data.account_id,
@@ -191,96 +194,57 @@ export async function getCurrentSubscription(userId: string): Promise<AccountSub
     current_period_start: data.current_period_start,
     current_period_end: data.current_period_end,
     billing_cycle: data.billing_cycle || "monthly",
+    stripe_customer_id: data.stripe_customer_id,
+    stripe_subscription_id: data.stripe_subscription_id,
   };
+}
+
+export function isTrialActive(subscription: AccountSubscription | null): boolean {
+  return Boolean(
+    subscription?.stripe_subscription_id &&
+    subscription.status === "trialing" &&
+    subscription.trial_ends_at &&
+    new Date(subscription.trial_ends_at).getTime() > Date.now(),
+  );
 }
 
 export async function getPlanEntitlements(userId: string): Promise<PlanEntitlements> {
   if (isDemoAccount()) {
-    return {
-      plan: DEMO_PLAN,
-      subscription: await getCurrentSubscription(userId),
-      isTrial: false,
-      isReadOnly: false,
-      isDemo: true,
-    };
+    return { plan: DEMO_PLAN, subscription: await getCurrentSubscription(userId), isTrial: false, isReadOnly: false, isDemo: true };
   }
 
   const subscription = await getCurrentSubscription(userId);
-  if (!subscription) {
-    return { plan: DENY_PLAN, subscription: null, isTrial: false, isReadOnly: true, isDemo: false };
-  }
-
-  const plan = await getPlanBySlug(subscription.plan_slug);
-  if (!plan) {
+  if (!subscription?.stripe_subscription_id) {
     return { plan: DENY_PLAN, subscription, isTrial: false, isReadOnly: true, isDemo: false };
   }
 
+  const plan = await getPlanBySlug(subscription.plan_slug);
+  if (!plan) return { plan: DENY_PLAN, subscription, isTrial: false, isReadOnly: true, isDemo: false };
+
   const isTrial = isTrialActive(subscription);
-  const activeStatus = subscription.status === "active" || isTrial;
-  return {
-    plan,
-    subscription,
-    isTrial,
-    isReadOnly: !activeStatus,
-    isDemo: false,
-  };
+  const isActive = subscription.status === "active" || isTrial;
+  return { plan, subscription, isTrial, isReadOnly: !isActive, isDemo: false };
 }
 
 export function canUseFeature(entitlements: PlanEntitlements, featureKey: string): boolean {
   if (entitlements.isDemo) return true;
-  if (entitlements.isReadOnly && featureKey !== "basic_compliance") return false;
+  if (entitlements.isReadOnly) return false;
   const allowedPlans = FEATURE_PLAN_MAP[featureKey];
-  if (!allowedPlans) return false;
-  return allowedPlans.includes(entitlements.plan.slug);
+  return Boolean(allowedPlans?.includes(entitlements.plan.slug));
 }
 
 export function getPropertyLimit(entitlements: PlanEntitlements): number {
-  if (entitlements.isDemo || entitlements.plan.is_enterprise) return 9999;
-  return entitlements.plan.max_properties ?? 0;
+  return entitlements.isDemo || entitlements.plan.is_enterprise ? 9999 : entitlements.plan.max_properties ?? 0;
 }
 
 export function getTeamLimit(entitlements: PlanEntitlements): number {
-  if (entitlements.isDemo || entitlements.plan.is_enterprise) return 9999;
-  return entitlements.plan.max_team_members ?? 0;
+  return entitlements.isDemo || entitlements.plan.is_enterprise ? 9999 : entitlements.plan.max_team_members ?? 0;
 }
 
 export function getStorageLimit(entitlements: PlanEntitlements): number {
-  if (entitlements.isDemo || entitlements.plan.is_enterprise) return 9999;
-  return entitlements.plan.storage_gb ?? 0;
-}
-
-export function isTrialActive(subscription: AccountSubscription | null): boolean {
-  if (!subscription || subscription.status !== "trialing") return false;
-  if (!subscription.trial_ends_at) return false;
-  return new Date(subscription.trial_ends_at).getTime() > Date.now();
+  return entitlements.isDemo || entitlements.plan.is_enterprise ? 9999 : entitlements.plan.storage_gb ?? 0;
 }
 
 export function isReadOnlySubscription(entitlements: PlanEntitlements): boolean {
   return entitlements.isReadOnly;
-}
-
-export function getUpgradeReason(featureKey: string): string {
-  const reasons: Record<string, string> = {
-    ai_assistant: "AI Property Assistant is available on Professional, Business and Enterprise plans.",
-    quote_workflow: "Quote workflow is available on Professional, Business and Enterprise plans.",
-    contractor_panel: "Contractor panel is available on Professional, Business and Enterprise plans.",
-    full_compliance: "Full compliance tracking is available on Professional, Business and Enterprise plans.",
-    white_label_portal: "White-label tenant portals are available on Business and Enterprise plans.",
-    api_access: "API access is available on Business and Enterprise plans.",
-    bulk_operations: "Bulk operations are available on Business and Enterprise plans.",
-    financial_tracking: "Financial tracking is available on Professional, Business and Enterprise plans.",
-    advanced_analytics: "Advanced analytics is available on Business and Enterprise plans.",
-    priority_support: "Priority support is available on Professional, Business and Enterprise plans.",
-    portfolio_health: "Advanced Property Health reporting is available on Business and Enterprise plans.",
-    owner_reports: "Owner monthly reports are available on Professional, Business and Enterprise plans.",
-    enterprise_ops: "Enterprise Operations Centre is exclusive to the Enterprise plan.",
-    add_property: "Your plan does not currently allow another property.",
-    import_portfolio: "Your plan does not currently allow this portfolio import.",
-    upload_document: "Your plan does not currently allow another document upload.",
-    invite_portal: "An active subscription is required to invite portal users.",
-    create_maintenance: "An active subscription is required to create maintenance work.",
-    run_inspection: "An active subscription is required to run inspections.",
-    invite_team: "Your plan does not currently allow another team member.",
-  };
-  return reasons[featureKey] || "Access to this feature could not be verified.";
 }

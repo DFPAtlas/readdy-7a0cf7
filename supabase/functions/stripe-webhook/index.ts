@@ -3,302 +3,247 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@13";
 
-const ALLOWED_ORIGINS = [
-  "https://lethub.uk",
-  "https://www.lethub.uk",
-];
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+}
 
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+function toIso(timestamp: number | null | undefined): string | undefined {
+  return timestamp ? new Date(timestamp * 1000).toISOString() : undefined;
+}
+
+function normaliseStatus(status: string): string {
+  const known = new Set([
+    "trialing",
+    "active",
+    "past_due",
+    "incomplete",
+    "incomplete_expired",
+    "unpaid",
+    "paused",
+  ]);
+  if (status === "canceled") return "cancelled";
+  return known.has(status) ? status : "incomplete";
+}
+
+async function claimEvent(admin: ReturnType<typeof createClient>, event: Stripe.Event) {
+  const { data: existing } = await admin
+    .from("processed_stripe_events")
+    .select("id, status, attempt_count")
+    .eq("stripe_event_id", event.id)
+    .maybeSingle();
+
+  if (existing?.status === "processed") return { process: false, reason: "duplicate" };
+  if (existing?.status === "processing") return { process: false, reason: "in_progress" };
+
+  if (existing) {
+    const { error } = await admin
+      .from("processed_stripe_events")
+      .update({
+        status: "processing",
+        attempt_count: Number(existing.attempt_count || 0) + 1,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) throw error;
+    return { process: true, id: existing.id };
+  }
+
+  const { data, error } = await admin
+    .from("processed_stripe_events")
+    .insert({
+      stripe_event_id: event.id,
+      event_type: event.type,
+      status: "processing",
+      attempt_count: 1,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { process: false, reason: "parallel_duplicate" };
+    throw error;
+  }
+  return { process: true, id: data.id };
+}
+
+async function markEvent(
+  admin: ReturnType<typeof createClient>,
+  eventId: string,
+  status: "processed" | "failed",
+  errorMessage?: string,
+) {
+  const payload: Record<string, unknown> = {
+    status,
+    updated_at: new Date().toISOString(),
+    last_error: errorMessage || null,
+  };
+  if (status === "processed") payload.processed_at = new Date().toISOString();
+  await admin.from("processed_stripe_events").update(payload).eq("stripe_event_id", eventId);
+}
+
+async function resolvePlan(
+  admin: ReturnType<typeof createClient>,
+  subscription: Stripe.Subscription,
+) {
+  const price = subscription.items.data[0]?.price;
+  if (!price?.id) throw new Error("Subscription has no recurring Price");
+
+  const { data: plans, error } = await admin
+    .from("subscription_plans")
+    .select("slug, stripe_monthly_price_id, stripe_annual_price_id")
+    .eq("is_active", true);
+  if (error) throw error;
+
+  const plan = (plans || []).find((item) =>
+    item.stripe_monthly_price_id === price.id || item.stripe_annual_price_id === price.id
+  );
+  if (!plan) throw new Error(`Stripe Price ${price.id} is not mapped to an active LetHub plan`);
+
   return {
-    "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    planSlug: plan.slug,
+    billingCycle: price.recurring?.interval === "year" ? "annual" : "monthly",
   };
 }
 
-function toISO(ts: number): string {
-  return new Date(ts * 1000).toISOString();
-}
-
-function maskSecret(val: string): string {
-  if (val.length <= 8) return "***";
-  return val.slice(0, 4) + "..." + val.slice(-4);
-}
-
-function validateEnv(): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  const required = [
-    { name: "STRIPE_SECRET_KEY", value: Deno.env.get("STRIPE_SECRET_KEY") },
-    { name: "STRIPE_WEBHOOK_SECRET", value: Deno.env.get("STRIPE_WEBHOOK_SECRET") },
-    { name: "SUPABASE_URL", value: Deno.env.get("SUPABASE_URL") },
-    { name: "SB_SERVICE_ROLE_KEY", value: Deno.env.get("SB_SERVICE_ROLE_KEY") },
-  ];
-
-  for (const { name, value } of required) {
-    if (!value || value.trim() === "") {
-      errors.push(`Missing required environment variable: ${name}`);
-    }
-  }
-
-  if (errors.length > 0) {
-    console.error("Webhook environment validation failed:", errors);
-  } else {
-    const sk = Deno.env.get("STRIPE_SECRET_KEY")!;
-    const ws = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
-    console.log(`Webhook initialized — STRIPE_SECRET_KEY ${maskSecret(sk)}, STRIPE_WEBHOOK_SECRET ${maskSecret(ws)}`);
-  }
-
-  return { valid: errors.length === 0, errors };
-}
-
-async function upsertSubscription(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  data: {
-    stripe_customer_id: string;
-    stripe_subscription_id: string;
-    user_id?: string;
-    plan_slug?: string;
-    billing_cycle?: string;
-    status: string;
-    trial_started_at?: string | null;
-    trial_ends_at?: string | null;
-    current_period_start?: string | null;
-    current_period_end?: string | null;
-  }
+async function projectSubscription(
+  admin: ReturnType<typeof createClient>,
+  subscription: Stripe.Subscription,
+  fallbackUserId?: string,
 ) {
-  const existing = data.stripe_subscription_id
-    ? await supabaseAdmin
-        .from("account_subscriptions")
-        .select("id, user_id")
-        .eq("stripe_subscription_id", data.stripe_subscription_id)
-        .maybeSingle()
-    : null;
+  const customerId = typeof subscription.customer === "string"
+    ? subscription.customer
+    : subscription.customer.id;
+  const metadataUserId = subscription.metadata?.user_id || fallbackUserId;
+  const { planSlug, billingCycle } = await resolvePlan(admin, subscription);
 
-  const existingByCustomer = !existing?.data
-    ? await supabaseAdmin
+  const { data: bySubscription } = await admin
+    .from("account_subscriptions")
+    .select("id, user_id, trial_started_at")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle();
+
+  const { data: byCustomer } = !bySubscription
+    ? await admin
         .from("account_subscriptions")
-        .select("id, user_id")
-        .eq("stripe_customer_id", data.stripe_customer_id)
+        .select("id, user_id, trial_started_at")
+        .eq("stripe_customer_id", customerId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
-    : null;
+    : { data: null };
+
+  const existing = bySubscription || byCustomer;
+  const userId = existing?.user_id || metadataUserId;
+  if (!userId) throw new Error("Subscription cannot be linked to a LetHub user");
+  if (existing?.user_id && metadataUserId && existing.user_id !== metadataUserId) {
+    throw new Error("Stripe customer ownership does not match the LetHub user");
+  }
 
   const payload: Record<string, unknown> = {
-    stripe_customer_id: data.stripe_customer_id,
-    status: data.status,
-    current_period_start: data.current_period_start || null,
-    current_period_end: data.current_period_end || null,
-    trial_started_at: data.trial_started_at || null,
-    trial_ends_at: data.trial_ends_at || null,
-    billing_cycle: data.billing_cycle || "monthly",
+    user_id: userId,
+    plan_slug: planSlug,
+    billing_cycle: billingCycle,
+    status: normaliseStatus(subscription.status),
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id,
     updated_at: new Date().toISOString(),
   };
 
-  if (data.stripe_subscription_id) {
-    payload.stripe_subscription_id = data.stripe_subscription_id;
-  }
-  if (data.plan_slug) {
-    payload.plan_slug = data.plan_slug;
-  }
+  const trialStart = toIso(subscription.trial_start);
+  const trialEnd = toIso(subscription.trial_end);
+  const periodStart = toIso(subscription.current_period_start);
+  const periodEnd = toIso(subscription.current_period_end);
+  if (trialStart) payload.trial_started_at = trialStart;
+  else if (existing?.trial_started_at) payload.trial_started_at = existing.trial_started_at;
+  if (trialEnd) payload.trial_ends_at = trialEnd;
+  if (periodStart) payload.current_period_start = periodStart;
+  if (periodEnd) payload.current_period_end = periodEnd;
 
-  const target = existing?.data || existingByCustomer?.data;
-
-  if (target?.id) {
-    await supabaseAdmin
-      .from("account_subscriptions")
-      .update(payload)
-      .eq("id", target.id);
-  } else if (data.user_id) {
-    payload.user_id = data.user_id;
-    if (!data.plan_slug) payload.plan_slug = "starter";
-    await supabaseAdmin.from("account_subscriptions").insert(payload);
+  if (existing?.id) {
+    const { error } = await admin.from("account_subscriptions").update(payload).eq("id", existing.id);
+    if (error) throw error;
   } else {
-    console.warn("Cannot upsert subscription: no existing record and no user_id");
+    const { error } = await admin
+      .from("account_subscriptions")
+      .upsert(payload, { onConflict: "user_id" });
+    if (error) throw error;
   }
 }
 
 serve(async (req: Request) => {
-  const origin = req.headers.get("origin");
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders(origin) });
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SB_SERVICE_ROLE_KEY");
+  if (!stripeKey || !webhookSecret || !supabaseUrl || !serviceKey) {
+    return json({ error: "Webhook environment is incomplete" }, 500);
   }
 
-  const envCheck = validateEnv();
-  if (!envCheck.valid) {
-    console.error("Webhook started with missing env vars:", envCheck.errors);
+  const signature = req.headers.get("stripe-signature");
+  if (!signature) return json({ error: "Missing stripe-signature header" }, 400);
+
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-16.basil" });
+  const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  let event: Stripe.Event | null = null;
+
+  try {
+    event = await stripe.webhooks.constructEventAsync(
+      await req.text(),
+      signature,
+      webhookSecret,
+    );
+  } catch (error) {
+    console.error("Stripe signature verification failed", error);
+    return json({ error: "Invalid signature" }, 400);
   }
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY")!;
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY")!;
-
-    if (!stripeKey || !webhookSecret) {
-      return new Response(
-        JSON.stringify({ error: "Stripe or webhook secret not configured" }),
-        { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-      );
-    }
-
-    const signature = req.headers.get("stripe-signature");
-    if (!signature) {
-      return new Response(
-        JSON.stringify({ error: "Missing stripe-signature header" }),
-        { status: 400, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-      );
-    }
-
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2025-06-16.basil",
-    });
-
-    const body = await req.text();
-    let event: Stripe.Event;
-
-    try {
-      event = await stripe.webhooks.constructEventAsync(
-        body,
-        signature,
-        webhookSecret
-      );
-    } catch (err) {
-      console.error("Webhook signature verification failed:", err);
-      return new Response(
-        JSON.stringify({ error: "Invalid signature" }),
-        { status: 400, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-    const { data: existing } = await supabaseAdmin
-      .from("processed_stripe_events")
-      .select("id")
-      .eq("stripe_event_id", event.id)
-      .maybeSingle();
-
-    if (existing) {
-      console.log(`Duplicate event ${event.id} — skipping`);
-      return new Response(
-        JSON.stringify({ received: true, deduplicated: true }),
-        { status: 200, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-      );
-    }
-
-    await supabaseAdmin
-      .from("processed_stripe_events")
-      .insert({ stripe_event_id: event.id, event_type: event.type });
+    const claim = await claimEvent(admin, event);
+    if (!claim.process) return json({ received: true, deduplicated: true, reason: claim.reason });
 
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.user_id;
-        const planSlug = session.metadata?.plan_slug;
-        const billingCycle = session.metadata?.billing_cycle;
-
-        if (session.subscription && typeof session.subscription === "string") {
+        if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-
-          await upsertSubscription(supabaseAdmin, {
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription,
-            user_id: userId || undefined,
-            plan_slug: planSlug || undefined,
-            billing_cycle: billingCycle || undefined,
-            status: subscription.status === "trialing" ? "trialing" : "active",
-            trial_started_at: subscription.trial_start ? toISO(subscription.trial_start) : null,
-            trial_ends_at: subscription.trial_end ? toISO(subscription.trial_end) : null,
-            current_period_start: subscription.current_period_start ? toISO(subscription.current_period_start) : null,
-            current_period_end: subscription.current_period_end ? toISO(subscription.current_period_end) : null,
-          });
+          await projectSubscription(admin, subscription, session.client_reference_id || session.metadata?.user_id);
         }
         break;
       }
 
       case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-
-        let status = subscription.status;
-        if (status === "trialing") status = "trialing";
-        else if (status === "active") status = "active";
-        else if (status === "past_due") status = "past_due";
-        else if (status === "canceled") status = "cancelled";
-        else if (status === "unpaid") status = "past_due";
-        else status = "active";
-
-        await upsertSubscription(supabaseAdmin, {
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscription.id,
-          status,
-          trial_started_at: subscription.trial_start ? toISO(subscription.trial_start) : null,
-          trial_ends_at: subscription.trial_end ? toISO(subscription.trial_end) : null,
-          current_period_start: subscription.current_period_start ? toISO(subscription.current_period_start) : null,
-          current_period_end: subscription.current_period_end ? toISO(subscription.current_period_end) : null,
-        });
-        break;
-      }
-
+      case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-
-        await upsertSubscription(supabaseAdmin, {
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscription.id,
-          status: "cancelled",
-          current_period_start: subscription.current_period_start ? toISO(subscription.current_period_start) : null,
-          current_period_end: subscription.current_period_end ? toISO(subscription.current_period_end) : null,
-        });
+        await projectSubscription(admin, event.data.object as Stripe.Subscription);
         break;
       }
 
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.subscription && typeof invoice.subscription === "string") {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-
-          await upsertSubscription(supabaseAdmin, {
-            stripe_customer_id: invoice.customer as string,
-            stripe_subscription_id: invoice.subscription,
-            status: "active",
-            current_period_start: subscription.current_period_start ? toISO(subscription.current_period_start) : null,
-            current_period_end: subscription.current_period_end ? toISO(subscription.current_period_end) : null,
-          });
-        }
-        break;
-      }
-
+      case "invoice.payment_succeeded":
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.subscription && typeof invoice.subscription === "string") {
-          await upsertSubscription(supabaseAdmin, {
-            stripe_customer_id: invoice.customer as string,
-            stripe_subscription_id: invoice.subscription,
-            status: "past_due",
-          });
+        if (typeof invoice.subscription === "string") {
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          await projectSubscription(admin, subscription);
         }
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`Ignoring Stripe event ${event.type}`);
     }
 
-    return new Response(
-      JSON.stringify({ received: true }),
-      { status: 200, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-    );
-  } catch (err) {
-    console.error("Webhook error:", err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal server error" }),
-      { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
-    );
+    await markEvent(admin, event.id, "processed");
+    return json({ received: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Webhook processing failed";
+    console.error("Stripe webhook processing failed", error);
+    await markEvent(admin, event.id, "failed", message).catch(() => undefined);
+    return json({ error: message }, 500);
   }
 });

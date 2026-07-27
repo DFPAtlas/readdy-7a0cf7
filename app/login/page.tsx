@@ -17,6 +17,13 @@ export default function LoginPage() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  const completeRegistration = async () => {
+    const { error: registrationError } = await supabase.functions.invoke("complete-registration", { body: {} });
+    if (registrationError) {
+      console.warn("Registration completion was unavailable", registrationError.message);
+    }
+  };
+
   const resolveTrustedHome = async (userId: string): Promise<string | null> => {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -51,6 +58,7 @@ export default function LoginPage() {
       if (!active) return;
 
       if (!userError && data.user) {
+        await completeRegistration();
         const home = await resolveTrustedHome(data.user.id);
         if (home) {
           router.replace(home);
@@ -100,6 +108,7 @@ export default function LoginPage() {
       return;
     }
 
+    await completeRegistration();
     const home = await resolveTrustedHome(data.session.user.id);
     if (!home) {
       await supabase.auth.signOut();
