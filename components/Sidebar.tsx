@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import GettingStartedChecklist from "@/components/onboarding/GettingStartedChecklist";
+import {
+  AppRole,
+  canAccessDashboardPath,
+  getRoleHome,
+  isAgencyRole,
+  ROLE_LABELS,
+} from "@/lib/rbac";
 
 interface NavItem {
   icon: string;
@@ -18,7 +25,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const sidebarGroups: NavGroup[] = [
+const agencyGroups: NavGroup[] = [
   {
     id: "home",
     label: "Home",
@@ -67,7 +74,7 @@ const sidebarGroups: NavGroup[] = [
       { icon: "ri-tools-line", label: "Maintenance", href: "/dashboard/maintenance" },
       { icon: "ri-flashlight-line", label: "AI Triage", href: "/dashboard/ai-maintenance-triage" },
       { icon: "ri-file-list-3-line", label: "Quotes", href: "/dashboard/quotes" },
-      { icon: "ri-line-chart-line", label: "Contractor Perf.", href: "/dashboard/contractor-performance" },
+      { icon: "ri-line-chart-line", label: "Contractor Performance", href: "/dashboard/contractor-performance" },
     ],
   },
   {
@@ -81,24 +88,18 @@ const sidebarGroups: NavGroup[] = [
     ],
   },
   {
-    id: "inspections",
-    label: "Inspections",
+    id: "operations",
+    label: "Operations",
     items: [
       { icon: "ri-clipboard-line", label: "Inspections", href: "/dashboard/inspections" },
       { icon: "ri-store-3-line", label: "Inventory", href: "/dashboard/inventory-marketplace" },
-    ],
-  },
-  {
-    id: "documents",
-    label: "Documents",
-    items: [
       { icon: "ri-folder-line", label: "Documents", href: "/dashboard/documents" },
       { icon: "ri-pen-nib-line", label: "Signatures", href: "/dashboard/signatures" },
-      { icon: "ri-file-edit-line", label: "Doc Builder", href: "/dashboard/document-builder" },
+      { icon: "ri-file-edit-line", label: "Document Builder", href: "/dashboard/document-builder" },
     ],
   },
   {
-    id: "comms",
+    id: "communications",
     label: "Communications",
     items: [
       { icon: "ri-message-3-line", label: "Messages", href: "/dashboard/messages", badge: 3 },
@@ -118,7 +119,7 @@ const sidebarGroups: NavGroup[] = [
     ],
   },
   {
-    id: "more",
+    id: "tools",
     label: "More Tools",
     items: [
       { icon: "ri-robot-2-line", label: "AI Assistant", href: "/dashboard/ai-assistant", badge: 1 },
@@ -141,35 +142,120 @@ const sidebarGroups: NavGroup[] = [
   },
 ];
 
-const adminGroups: NavGroup[] = [
+const platformGroups: NavGroup[] = [
   {
-    id: "admin",
-    label: "Administration",
+    id: "platform",
+    label: "Platform Administration",
     items: [
-      { icon: "ri-dashboard-line", label: "Dashboard", href: "/dashboard" },
       { icon: "ri-shield-flash-line", label: "Supa Admin", href: "/dashboard/supa-admin" },
       { icon: "ri-pie-chart-line", label: "Admin Dashboard", href: "/dashboard/admin" },
     ],
   },
 ];
 
-const roleLabels: Record<string, string> = {
-  platform_admin: "Platform Admin",
-  estate_agent_admin: "Estate Agent Admin",
-  estate_agent_staff: "Estate Agent Staff",
-  landlord: "Landlord",
-  tenant: "Tenant",
-  contractor: "Contractor",
-};
+const landlordGroups: NavGroup[] = [
+  { id: "home", label: "Home", items: [{ icon: "ri-dashboard-line", label: "Overview", href: "/dashboard/landlord" }] },
+  {
+    id: "portfolio",
+    label: "My Portfolio",
+    items: [
+      { icon: "ri-home-4-line", label: "Properties", href: "/dashboard/landlord/properties" },
+      { icon: "ri-user-3-line", label: "Tenants", href: "/dashboard/landlord/tenants" },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    items: [
+      { icon: "ri-coins-line", label: "Rent", href: "/dashboard/landlord/rent" },
+      { icon: "ri-alarm-warning-line", label: "Arrears", href: "/dashboard/landlord/arrears" },
+      { icon: "ri-file-list-3-line", label: "Quotes", href: "/dashboard/landlord/quotes" },
+    ],
+  },
+  {
+    id: "property-care",
+    label: "Property Care",
+    items: [
+      { icon: "ri-tools-line", label: "Maintenance", href: "/dashboard/landlord/maintenance" },
+      { icon: "ri-clipboard-line", label: "Inspections", href: "/dashboard/landlord/inspections" },
+      { icon: "ri-shield-check-line", label: "Compliance", href: "/dashboard/landlord/compliance" },
+    ],
+  },
+  {
+    id: "records",
+    label: "Records",
+    items: [
+      { icon: "ri-folder-line", label: "Documents", href: "/dashboard/landlord/documents" },
+      { icon: "ri-pen-nib-line", label: "Signatures", href: "/dashboard/landlord/signatures" },
+    ],
+  },
+];
 
-const roleColors: Record<string, string> = {
+const tenantGroups: NavGroup[] = [
+  { id: "home", label: "Home", items: [{ icon: "ri-dashboard-line", label: "Overview", href: "/dashboard/tenant" }] },
+  {
+    id: "tenancy",
+    label: "My Tenancy",
+    items: [
+      { icon: "ri-coins-line", label: "Rent", href: "/dashboard/tenant/rent" },
+      { icon: "ri-alarm-warning-line", label: "Arrears", href: "/dashboard/tenant/arrears" },
+      { icon: "ri-tools-line", label: "Maintenance", href: "/dashboard/tenant/maintenance" },
+      { icon: "ri-clipboard-line", label: "Inspections", href: "/dashboard/tenant/inspections" },
+    ],
+  },
+  {
+    id: "records",
+    label: "Records & Support",
+    items: [
+      { icon: "ri-folder-line", label: "Documents", href: "/dashboard/tenant/documents" },
+      { icon: "ri-pen-nib-line", label: "Signatures", href: "/dashboard/tenant/signatures" },
+      { icon: "ri-customer-service-2-line", label: "Contact", href: "/dashboard/tenant/contact" },
+    ],
+  },
+];
+
+const contractorGroups: NavGroup[] = [
+  { id: "home", label: "Home", items: [{ icon: "ri-dashboard-line", label: "Overview", href: "/dashboard/contractor" }] },
+  {
+    id: "work",
+    label: "Work",
+    items: [{ icon: "ri-tools-line", label: "Jobs", href: "/dashboard/contractor/jobs" }],
+  },
+  {
+    id: "records",
+    label: "Business Records",
+    items: [
+      { icon: "ri-folder-line", label: "Documents", href: "/dashboard/contractor/documents" },
+      { icon: "ri-pen-nib-line", label: "Signatures", href: "/dashboard/contractor/signatures" },
+      { icon: "ri-user-settings-line", label: "Profile", href: "/dashboard/contractor/profile" },
+    ],
+  },
+];
+
+const roleColours: Record<AppRole, string> = {
   platform_admin: "bg-purple-500",
   estate_agent_admin: "bg-amber-500",
   estate_agent_staff: "bg-blue-500",
   landlord: "bg-emerald-500",
   tenant: "bg-sky-500",
   contractor: "bg-orange-500",
+  suspended: "bg-red-500",
 };
+
+function groupsForRole(role: AppRole): NavGroup[] {
+  if (role === "landlord") return landlordGroups;
+  if (role === "tenant") return tenantGroups;
+  if (role === "contractor") return contractorGroups;
+
+  const filteredAgencyGroups = agencyGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessDashboardPath(role, item.href)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return role === "platform_admin" ? [...platformGroups, ...filteredAgencyGroups] : filteredAgencyGroups;
+}
 
 export default function Sidebar({
   mobileOpen,
@@ -182,109 +268,73 @@ export default function Sidebar({
   setCollapsed,
 }: {
   mobileOpen: boolean;
-  setMobileOpen: (v: boolean) => void;
-  role: string;
+  setMobileOpen: (value: boolean) => void;
+  role: AppRole;
   userName: string;
   accountType: string | null;
   completedSteps: string[];
   collapsed: boolean;
-  setCollapsed: (v: boolean) => void;
+  setCollapsed: (value: boolean) => void;
 }) {
   const pathname = usePathname();
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["home", "portfolio"]));
+  const groups = useMemo(() => groupsForRole(role), [role]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["home", "portfolio", "platform"]));
+  const home = getRoleHome(role);
 
-  const isPlatformAdmin = role === "platform_admin";
-  const groups = sidebarGroups;
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const toggleGroup = (id: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
+    setExpandedGroups((current) => {
+      const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   };
 
-  const isActive = (href: string) => {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname === href || pathname.startsWith(href + "/") || pathname.startsWith(href + "?");
-  };
-
-  const isGroupActive = (group: NavGroup) => {
-    return group.items.some((item) => isActive(item.href));
-  };
-
   const handleLogout = async () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lethub_authenticated");
-      localStorage.removeItem("lethub_role");
-      localStorage.removeItem("lethub_user");
-      localStorage.removeItem("lethub_name");
-      localStorage.removeItem("lethub_demo_mode");
-      localStorage.removeItem("lethub_account_type");
-      const { supabase } = await import("@/lib/supabaseClient");
-      await supabase.auth.signOut();
-      window.location.href = "/login";
-    }
+    localStorage.removeItem("lethub_authenticated");
+    localStorage.removeItem("lethub_role");
+    localStorage.removeItem("lethub_user");
+    localStorage.removeItem("lethub_name");
+    localStorage.removeItem("lethub_demo_mode");
+    localStorage.removeItem("lethub_account_type");
+    const { supabase } = await import("@/lib/supabaseClient");
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   };
 
   return (
     <>
-      {mobileOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
-      )}
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />}
 
-      <aside
-        className={`fixed left-0 top-0 bottom-0 z-50 bg-[#FBF9F4] text-[#3A3F3A] flex flex-col transition-all duration-300 ${
-          collapsed ? "w-[72px]" : "w-[260px]"
-        } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-[#EBE5DA]">
-          <Link href="/dashboard" className={`${collapsed ? "hidden" : "block"}`}>
-            <img
-              src="https://public.readdy.ai/ai/img_res/7ce16202-554e-416f-9b5b-269607f415ce.png"
-              alt="LetHub"
-              className="h-8 w-auto object-contain"
-            />
+      <aside className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-[#FBF9F4] text-[#3A3F3A] transition-all duration-300 ${collapsed ? "w-[72px]" : "w-[260px]"} ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        <div className="flex h-16 items-center justify-between border-b border-[#EBE5DA] px-4">
+          <Link href={home} className={collapsed ? "hidden" : "block"}>
+            <img src="https://public.readdy.ai/ai/img_res/7ce16202-554e-416f-9b5b-269607f415ce.png" alt="LetHub" className="h-8 w-auto object-contain" />
           </Link>
-          <Link href="/dashboard" className={`font-['Pacifico'] text-xl text-[#3A3F3A] ${collapsed ? "block" : "hidden"}`}>
-            L
-          </Link>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#EBE5DA] transition-colors ${collapsed ? "mx-auto" : ""}`}
-          >
-            <i className={collapsed ? "ri-arrow-right-s-line text-sm" : "ri-arrow-left-s-line text-sm"}></i>
+          <Link href={home} className={`font-['Pacifico'] text-xl text-[#3A3F3A] ${collapsed ? "block" : "hidden"}`}>L</Link>
+          <button onClick={() => setCollapsed(!collapsed)} className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#EBE5DA] ${collapsed ? "mx-auto" : ""}`} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>
+            <i className={collapsed ? "ri-arrow-right-s-line" : "ri-arrow-left-s-line"}></i>
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {groups.map((group) => {
-            const groupActive = isGroupActive(group);
+            const groupActive = group.items.some((item) => isActive(item.href));
             const expanded = expandedGroups.has(group.id) || groupActive;
-
             return (
               <div key={group.id}>
                 {!collapsed && (
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
-                      groupActive ? "text-[#C28A78]" : "text-[#94A3B8]"
-                    }`}
-                  >
+                  <button onClick={() => toggleGroup(group.id)} className={`flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider ${groupActive ? "text-[#C28A78]" : "text-[#94A3B8]"}`}>
                     <span>{group.label}</span>
-                    {expanded ? (
-                      <i className="ri-arrow-up-s-line text-xs"></i>
-                    ) : (
-                      <i className="ri-arrow-down-s-line text-xs"></i>
-                    )}
+                    <i className={expanded ? "ri-arrow-up-s-line" : "ri-arrow-down-s-line"}></i>
                   </button>
                 )}
-                {collapsed && (
-                  <div className="px-0 py-1">
-                    <div className="border-b border-[#EBE5DA] mx-3"></div>
-                  </div>
-                )}
+                {collapsed && <div className="mx-3 my-1 border-b border-[#EBE5DA]"></div>}
                 <div className={!collapsed && !expanded ? "hidden" : "space-y-0.5"}>
                   {group.items.map((item) => {
                     const active = isActive(item.href);
@@ -293,22 +343,12 @@ export default function Sidebar({
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                          active
-                            ? "bg-[#C28A78] text-white"
-                            : "text-[#687068] hover:text-[#3A3F3A] hover:bg-[#EBE5DA]"
-                        } ${collapsed ? "justify-center" : ""}`}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-[#C28A78] text-white" : "text-[#687068] hover:bg-[#EBE5DA] hover:text-[#3A3F3A]"} ${collapsed ? "justify-center" : ""}`}
                         title={collapsed ? item.label : undefined}
                       >
-                        <div className={`w-5 h-5 flex items-center justify-center flex-shrink-0 ${collapsed ? "mx-auto" : ""}`}>
-                          <i className={`${item.icon} text-base`}></i>
-                        </div>
+                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center"><i className={`${item.icon} text-base`}></i></span>
                         <span className={collapsed ? "hidden" : "block"}>{item.label}</span>
-                        {item.badge && !collapsed && (
-                          <span className="ml-auto bg-[#C46868] text-white text-xs font-bold min-w-[20px] h-5 flex items-center justify-center rounded-full px-1">
-                            {item.badge}
-                          </span>
-                        )}
+                        {item.badge && !collapsed && <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#C46868] px-1 text-xs font-bold text-white">{item.badge}</span>}
                       </Link>
                     );
                   })}
@@ -318,63 +358,26 @@ export default function Sidebar({
           })}
         </nav>
 
-        {accountType && completedSteps.length > 0 && (
+        {isAgencyRole(role) && accountType && completedSteps.length > 0 && (
           <div className="border-t border-[#EBE5DA]">
-            <GettingStartedChecklist
-              accountType={accountType}
-              completedIds={completedSteps}
-              collapsed={collapsed}
-            />
+            <GettingStartedChecklist accountType={accountType} completedIds={completedSteps} collapsed={collapsed} />
           </div>
         )}
 
-        {isPlatformAdmin && (
-          <div className="border-t border-[#EBE5DA] py-2 px-3">
-            {!collapsed && (
-              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-purple-500">
-                Platform Admin
-              </p>
-            )}
-            {adminGroups[0].items.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                    active
-                      ? "bg-purple-500 text-white"
-                      : "text-[#687068] hover:text-[#3A3F3A] hover:bg-[#EBE5DA]"
-                  } ${collapsed ? "justify-center" : ""}`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <div className={`w-5 h-5 flex items-center justify-center flex-shrink-0 ${collapsed ? "mx-auto" : ""}`}>
-                    <i className={`${item.icon} text-base`}></i>
-                  </div>
-                  <span className={collapsed ? "hidden" : "block"}>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="p-3 border-t border-[#EBE5DA]">
-          <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#EBE5DA] transition-colors ${collapsed ? "justify-center" : ""}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${roleColors[role] || "bg-emerald-500"}`}>
+        <div className="border-t border-[#EBE5DA] p-3">
+          <div className={`flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#EBE5DA] ${collapsed ? "justify-center" : ""}`}>
+            <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${roleColours[role]}`}>
               {userName.charAt(0).toUpperCase()}
             </div>
-            <div className={collapsed ? "hidden" : "block min-w-0 flex-1"}>
-              <p className="text-sm font-medium text-[#3A3F3A] truncate">{userName}</p>
-              <p className="text-xs text-[#687068] truncate">{roleLabels[role] || "User"}</p>
+            <div className={collapsed ? "hidden" : "min-w-0 flex-1"}>
+              <p className="truncate text-sm font-medium text-[#3A3F3A]">{userName}</p>
+              <p className="truncate text-xs text-[#687068]">{ROLE_LABELS[role]}</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#EBE5DA] transition-colors ${collapsed ? "hidden" : "block"}`}
-              title="Log out"
-            >
-              <i className="ri-logout-box-r-line text-[#687068] text-sm"></i>
-            </button>
+            {!collapsed && (
+              <button onClick={handleLogout} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#EBE5DA]" title="Log out">
+                <i className="ri-logout-box-r-line text-sm text-[#687068]"></i>
+              </button>
+            )}
           </div>
         </div>
       </aside>
