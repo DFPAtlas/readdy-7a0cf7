@@ -22,6 +22,7 @@ import ConversationView from "@/components/dashboard/ConversationView";
 import ConversationDetailsDrawer from "@/components/dashboard/ConversationDetailsDrawer";
 import NewMessageWizard from "@/components/dashboard/NewMessageWizard";
 import CommunicationActionCentre from "@/components/dashboard/CommunicationActionCentre";
+import ReplyModal from "@/components/dashboard/ReplyModal";
 
 const seedConversations: Conversation[] = [
   {
@@ -205,6 +206,7 @@ export default function CommunicationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "conversation">("list");
+  const [replyConversation, setReplyConversation] = useState<Conversation | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -307,8 +309,32 @@ export default function CommunicationsPage() {
 
   const handleSelectConversation = (conv: Conversation) => {
     setConversations((prev) => prev.map((c) => c.id === conv.id ? { ...c, unreadCount: 0 } : c));
-    setSelectedConversation(conv);
+    setSelectedConversation({ ...conv, messages: [...conv.messages] });
     setMobileView("conversation");
+  };
+
+  const handleReplyAction = (convId: string) => {
+    const conv = conversations.find((c) => c.id === convId) || conversations[0];
+    if (!conv) return;
+    setConversations((prev) => prev.map((c) => c.id === conv.id ? { ...c, unreadCount: 0 } : c));
+    setReplyConversation({ ...conv, messages: [...conv.messages] });
+  };
+
+  const handleReplyModalSend = (bodyText: string) => {
+    if (!replyConversation) return;
+    const newMsg: MessageItem = {
+      id: `msg-${Date.now()}`,
+      senderName: "You",
+      senderType: "agency",
+      body: bodyText,
+      deliveryState: "sent",
+      createdAt: new Date().toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      isInternalNote: false,
+    };
+    setConversations((prev) => prev.map((c) => c.id === replyConversation.id ? { ...c, messages: [...c.messages, newMsg], lastMessagePreview: bodyText.slice(0, 80), requiresReply: false } : c));
+    setReplyConversation((prev) => prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev);
+    setActionItems((prev) => prev.filter((a) => a.conversationId !== replyConversation.id));
+    showToast("Reply sent");
   };
 
   const handleSendMessage = (body: string) => {
@@ -438,7 +464,7 @@ export default function CommunicationsPage() {
           </div>
         </div>
 
-        {actionItems.length > 0 && <div className="flex-shrink-0"><CommunicationActionCentre actions={actionItems} /></div>}
+        {actionItems.length > 0 && <div className="flex-shrink-0"><CommunicationActionCentre actions={actionItems} onReply={handleReplyAction} /></div>}
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <div className="relative flex-1 max-w-[320px]">
@@ -585,6 +611,14 @@ export default function CommunicationsPage() {
         <NewMessageWizard
           onClose={() => setShowNewMessage(false)}
           onSend={handleNewMessageSend}
+        />
+      )}
+
+      {replyConversation && (
+        <ReplyModal
+          conversation={replyConversation}
+          onClose={() => setReplyConversation(null)}
+          onSend={handleReplyModalSend}
         />
       )}
 

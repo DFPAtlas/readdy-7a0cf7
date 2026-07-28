@@ -35,7 +35,7 @@ const ownerItems: ChecklistItem[] = [
 ];
 
 export default function GettingStartedChecklist({ accountType, completedIds, collapsed }: GettingStartedChecklistProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const items = accountType === "owner" ? ownerItems : agencyItems;
   const doneCount = items.filter((i) => completedIds.includes(i.id)).length;
   const totalCount = items.length;

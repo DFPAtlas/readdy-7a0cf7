@@ -4,9 +4,10 @@ import { MessageActionItem, participantTypes, messageContexts, actionPriorityCon
 
 interface Props {
   actions: MessageActionItem[];
+  onReply?: (conversationId: string) => void;
 }
 
-export default function CommunicationActionCentre({ actions }: Props) {
+export default function CommunicationActionCentre({ actions, onReply }: Props) {
   if (actions.length === 0) {
     return (
       <div className="bg-[#7A9A7E]/5 rounded-xl border border-[#7A9A7E]/20 p-5">
@@ -52,7 +53,10 @@ export default function CommunicationActionCentre({ actions }: Props) {
                 <p className="text-sm text-[#3A3F3A]">{action.participantName} · {action.propertyName}</p>
                 <p className="text-xs text-[#687068] mt-0.5">{action.issue}</p>
               </div>
-              <button className="text-xs font-medium text-[#C28A78] px-3 py-1.5 rounded-lg hover:bg-[#C28A78]/5 transition-colors whitespace-nowrap flex-shrink-0">
+              <button
+                onClick={() => onReply?.(action.conversationId)}
+                className="text-xs font-medium text-[#C28A78] px-3 py-1.5 rounded-lg hover:bg-[#C28A78]/5 transition-colors whitespace-nowrap flex-shrink-0 cursor-pointer"
+              >
                 Reply
               </button>
             </div>
