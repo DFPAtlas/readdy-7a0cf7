@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import DashboardShell from "@/components/DashboardShell";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -79,6 +80,7 @@ export default function N8NIntegrationPage() {
   const getAgentGroupMeta = (group: string) => groupMeta[group] || { label: group, icon: "ri-cpu-line", color: "#687068", bg: "bg-[#687068]/5" };
 
   return (
+    <DashboardShell>
     <div className="space-y-6">
       {/* Action Feedback Toast */}
       {actionFeedback && (
@@ -568,5 +570,6 @@ export default function N8NIntegrationPage() {
         </div>
       )}
     </div>
+    </DashboardShell>
   );
 }

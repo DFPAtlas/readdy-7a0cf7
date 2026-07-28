@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import DashboardShell from '@/components/DashboardShell';
 import {
   fetchCRMLeads,
   fetchCRMDashboardStats,
@@ -74,16 +75,19 @@ export default function CRMPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FBF9F4] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-slate-500">Loading CRM...</p>
+      <DashboardShell>
+        <div className="min-h-screen bg-[#FBF9F4] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm text-slate-500">Loading CRM...</p>
+          </div>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
   return (
+    <DashboardShell>
     <div className="min-h-screen bg-[#FBF9F4]">
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         {/* Header */}
@@ -522,6 +526,7 @@ export default function CRMPage() {
       {/* Add Lead Modal */}
       {showAddModal && <AddLeadModal onClose={() => setShowAddModal(false)} onAdded={loadData} />}
     </div>
+    </DashboardShell>
   );
 }
 

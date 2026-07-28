@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import {
   MarketplaceTransaction,
@@ -115,6 +116,7 @@ export default function MarketplaceRevenuePage() {
   }, [transactions]);
 
   return (
+    <DashboardShell>
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -551,5 +553,6 @@ export default function MarketplaceRevenuePage() {
         </div>
       )}
     </div>
+    </DashboardShell>
   );
 }

@@ -19,6 +19,7 @@ const eslintConfig = [
       "node_modules/**",
       "supabase/functions/**",
       ".ci-diagnostics/**",
+      "next-env.d.ts",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
