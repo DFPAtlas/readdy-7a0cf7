@@ -39,6 +39,34 @@ jobs:
       - name: Validate migration sequence
         run: npm run check:migrations
 
+  security-audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Fail on critical vulnerabilities
+        run: npm audit --audit-level=critical
+
+      - name: Warn on high-severity vulnerabilities (non-blocking)
+        # Next.js currently bundles its own internal postcss/sharp versions that
+        # trip `high` on npm audit even though this app never invokes them
+        # (images.unoptimized = true means sharp is not used at runtime).
+        # Track upstream and tighten this to --audit-level=high once Next.js
+        # ships updated bundled dependencies.
+        run: npm audit --audit-level=high || true
+
   quality:
     name: TypeScript and ESLint
     runs-on: ubuntu-latest

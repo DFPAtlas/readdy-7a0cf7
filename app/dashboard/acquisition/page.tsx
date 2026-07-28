@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import DashboardShell from '@/components/DashboardShell';
 import {
   fetchAcquisitionDeals,
   fetchAcquisitionStats,
@@ -63,16 +64,19 @@ export default function AcquisitionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-slate-500">Loading acquisition pipeline...</p>
+      <DashboardShell>
+        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm text-slate-500">Loading acquisition pipeline...</p>
+          </div>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
   return (
+    <DashboardShell>
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-6">
@@ -427,6 +431,7 @@ export default function AcquisitionPage() {
       {/* Add Deal Modal */}
       {showAddModal && <AddDealModal onClose={() => setShowAddModal(false)} onAdded={loadData} />}
     </div>
+    </DashboardShell>
   );
 }
 

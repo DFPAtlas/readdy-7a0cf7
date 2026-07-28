@@ -1,4 +1,5 @@
 import PropertyDetail from "./PropertyDetail";
+import DashboardShell from "@/components/DashboardShell";
 
 export const dynamic = "force-dynamic";
 
@@ -8,5 +9,9 @@ export default async function PropertyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <PropertyDetail propertyId={id} />;
+  return (
+    <DashboardShell>
+      <PropertyDetail propertyId={id} />
+    </DashboardShell>
+  );
 }

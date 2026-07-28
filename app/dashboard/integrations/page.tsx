@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import DashboardShell from "@/components/DashboardShell";
 import {
   integrations,
   integrationCategories,
@@ -51,6 +52,7 @@ export default function IntegrationsPage() {
   const getModalIntegration = () => integrations.find((i) => i.id === configuringId);
 
   return (
+    <DashboardShell>
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -315,5 +317,6 @@ export default function IntegrationsPage() {
         </div>
       </div>
     </div>
+    </DashboardShell>
   );
 }

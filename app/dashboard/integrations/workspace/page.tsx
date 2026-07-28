@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import DashboardShell from "@/components/DashboardShell";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -155,6 +156,7 @@ export default function WorkspaceConnectorPage() {
   };
 
   return (
+    <DashboardShell>
     <div className="space-y-6">
       {/* Breadcrumb + Header */}
       <div>
@@ -568,6 +570,7 @@ export default function WorkspaceConnectorPage() {
         </>
       )}
     </div>
+    </DashboardShell>
   );
 }
 

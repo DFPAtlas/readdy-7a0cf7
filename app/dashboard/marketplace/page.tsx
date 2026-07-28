@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import DashboardShell from "@/components/DashboardShell";
 import { marketplaceContractors, serviceCategories, assignedContractors, pendingQuotes, tradeIconMap, tradeColorMap } from "./MarketplaceData";
 import { CONTRACTOR_STATUS, QUOTE_STATUS, getStatusConfig } from "@/lib/contractorSystem";
 
@@ -84,6 +85,7 @@ export default function MarketplacePage() {
   const totalJobsCompleted = marketplaceContractors.reduce((s, c) => s + c.completedJobs, 0);
 
   return (
+    <DashboardShell>
     <div className="space-y-6">
       {/* Toast */}
       {toast && (
@@ -718,5 +720,6 @@ export default function MarketplacePage() {
         </div>
       )}
     </div>
+    </DashboardShell>
   );
 }
