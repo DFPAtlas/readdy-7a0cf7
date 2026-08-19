@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
+import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, TenancyRecord } from "./TenanciesData";
 
 export default function TenanciesPage() {
@@ -28,10 +29,191 @@ export default function TenanciesPage() {
     periodic: false,
   });
 
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const demoMode = typeof window !== "undefined" && isDemoAccount();
 
   useEffect(() => {
-    loadTenancies();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let mounted = false;
+
+    const timer = setTimeout(() => {
+      mounted = true;
+      if (active) {
+        setLoading(true);
+        setError(null);
+        const run = async () => {
+          await loadTenanciesInternal(active);
+        };
+        run();
+      }
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+
+    async function loadTenanciesInternal(active: boolean) {
+      try {
+        if (demoMode) {
+          if (!active) return;
+          setTenancyList(tenancies);
+          setLoading(false);
+          return;
+        }
+
+        const { data: tnc, error: tncErr } = await supabase
+          .from("tenancies")
+          .select("id, property_id, status, start_date, end_date, rent_amount, deposit_amount, deposit_scheme, is_periodic, created_at");
+
+        if (tncErr) throw tncErr;
+        if (!active) return;
+        if (!tnc || tnc.length === 0) {
+          setTenancyList([]);
+          setLoading(false);
+          return;
+        }
+
+        const tenancyIds = tnc.map((t) => t.id);
+        const propertyIds = [...new Set(tnc.map((t) => t.property_id))];
+
+        const { data: properties, error: propErr } = await supabase
+          .from("properties")
+          .select("id, line1, city, postcode, landlord_id")
+          .in("id", propertyIds);
+
+        if (propErr) throw propErr;
+        if (!active) return;
+
+        const { data: parties, error: partErr } = await supabase
+          .from("tenancy_parties")
+          .select("tenancy_id, tenant_id, is_lead")
+          .in("tenancy_id", tenancyIds);
+
+        if (partErr) throw partErr;
+        if (!active) return;
+
+        const tenantIds = [...new Set((parties || []).map((p) => p.tenant_id))];
+
+        const { data: tenantsData, error: tenErr } = await supabase
+          .from("tenants")
+          .select("id, full_name, email, phone")
+          .in("id", tenantIds);
+
+        if (tenErr) throw tenErr;
+        if (!active) return;
+
+        const landlordIds = [...new Set((properties || []).map((p) => p.landlord_id))];
+
+        const { data: landlordsData, error: landErr } = await supabase
+          .from("landlords")
+          .select("id, display_name, email")
+          .in("id", landlordIds);
+
+        if (landErr) throw landErr;
+        if (!active) return;
+
+        const { data: payments, error: payErr } = await supabase
+          .from("rent_payments")
+          .select("tenancy_id, amount, status")
+          .in("tenancy_id", tenancyIds);
+
+        if (payErr) throw payErr;
+        if (!active) return;
+
+        const { data: arrears, error: arrErr } = await supabase
+          .from("arrears_cases")
+          .select("tenancy_id, total_owed, status")
+          .in("tenancy_id", tenancyIds);
+
+        if (arrErr) throw arrErr;
+        if (!active) return;
+
+        const propMap: Record<string, any> = {};
+        (properties || []).forEach((p) => { propMap[p.id] = p; });
+        const tenMap: Record<string, any> = {};
+        (tenantsData || []).forEach((t) => { tenMap[t.id] = t; });
+        const landMap: Record<string, any> = {};
+        (landlordsData || []).forEach((l) => { landMap[l.id] = l; });
+
+        const partyByTenancy: Record<string, string[]> = {};
+        (parties || []).forEach((p) => {
+          if (!partyByTenancy[p.tenancy_id]) partyByTenancy[p.tenancy_id] = [];
+          partyByTenancy[p.tenancy_id].push(p.tenant_id);
+        });
+
+        const payByTenancy: Record<string, { paid: number; total: number; hasArrears: boolean }> = {};
+        (payments || []).forEach((p) => {
+          if (!payByTenancy[p.tenancy_id]) payByTenancy[p.tenancy_id] = { paid: 0, total: 0, hasArrears: false };
+          if (p.status === "paid") payByTenancy[p.tenancy_id].paid++;
+          payByTenancy[p.tenancy_id].total++;
+        });
+        (arrears || []).forEach((a) => {
+          if (!payByTenancy[a.tenancy_id]) payByTenancy[a.tenancy_id] = { paid: 0, total: 0, hasArrears: true };
+          if (a.status === "active") payByTenancy[a.tenancy_id].hasArrears = true;
+        });
+
+        const mapped: TenancyRecord[] = tnc.map((t, idx) => {
+          const prop = propMap[t.property_id];
+          const tenantIdsForTnc = partyByTenancy[t.id] || [];
+          const mainTenantId = tenantIdsForTnc[0];
+          const tenant = mainTenantId ? tenMap[mainTenantId] : null;
+          const landlord = prop ? landMap[prop.landlord_id] : null;
+          const paySummary = payByTenancy[t.id];
+          const status = t.status as TenancyRecord["status"];
+          return {
+            id: t.id,
+            ref: `TNCY-${t.start_date ? new Date(t.start_date).getFullYear() : new Date().getFullYear()}-${String(idx + 1).padStart(3, "0")}`,
+            propertyId: t.property_id,
+            propertyName: prop ? `${prop.line1}` : "Unknown Property",
+            propertyAddress: prop ? [prop.city, prop.postcode].filter(Boolean).join(", ") : "",
+            tenantId: tenant?.id || "",
+            tenantName: tenant?.full_name || "Unassigned",
+            tenantEmail: tenant?.email || "",
+            tenantPhone: tenant?.phone || "",
+            ownerId: landlord?.id || "",
+            ownerName: landlord?.display_name || "Unknown",
+            ownerEmail: landlord?.email || "",
+            startDate: t.start_date ? new Date(t.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-",
+            endDate: t.end_date ? new Date(t.end_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "TBC",
+            periodic: t.is_periodic || false,
+            rent: Number(t.rent_amount) || 0,
+            deposit: Number(t.deposit_amount) || 0,
+            depositScheme: t.deposit_scheme || "TBC",
+            status,
+            ownerPortalStatus: "not_invited",
+            tenantPortalStatus: "not_invited",
+            rentDueDay: 1,
+            noticeRequired: "1 month",
+            propertyType: "—",
+            bedrooms: 0,
+            lastInspection: "—",
+            nextInspection: "TBC",
+          };
+        });
+
+        if (!active) return;
+        setTenancyList(mapped);
+      } catch (err: any) {
+        if (!active) return;
+        console.error("Failed to load tenancies:", err);
+        setError(err.message || "Failed to load tenancies");
+      } finally {
+        if (!active) return;
+        setLoading(false);
+      }
+    }
   }, []);
 
   const loadTenancies = async () => {
@@ -39,6 +221,7 @@ export default function TenanciesPage() {
     setError(null);
     try {
       if (demoMode) {
+        if (!mountedRef.current) return;
         setTenancyList(tenancies);
         setLoading(false);
         return;
@@ -49,6 +232,7 @@ export default function TenanciesPage() {
         .select("id, property_id, status, start_date, end_date, rent_amount, deposit_amount, deposit_scheme, is_periodic, created_at");
 
       if (tncErr) throw tncErr;
+      if (!mountedRef.current) return;
       if (!tnc || tnc.length === 0) {
         setTenancyList([]);
         setLoading(false);
@@ -64,6 +248,7 @@ export default function TenanciesPage() {
         .in("id", propertyIds);
 
       if (propErr) throw propErr;
+      if (!mountedRef.current) return;
 
       const { data: parties, error: partErr } = await supabase
         .from("tenancy_parties")
@@ -71,6 +256,7 @@ export default function TenanciesPage() {
         .in("tenancy_id", tenancyIds);
 
       if (partErr) throw partErr;
+      if (!mountedRef.current) return;
 
       const tenantIds = [...new Set((parties || []).map((p) => p.tenant_id))];
 
@@ -80,6 +266,7 @@ export default function TenanciesPage() {
         .in("id", tenantIds);
 
       if (tenErr) throw tenErr;
+      if (!mountedRef.current) return;
 
       const landlordIds = [...new Set((properties || []).map((p) => p.landlord_id))];
 
@@ -89,6 +276,7 @@ export default function TenanciesPage() {
         .in("id", landlordIds);
 
       if (landErr) throw landErr;
+      if (!mountedRef.current) return;
 
       const { data: payments, error: payErr } = await supabase
         .from("rent_payments")
@@ -96,6 +284,7 @@ export default function TenanciesPage() {
         .in("tenancy_id", tenancyIds);
 
       if (payErr) throw payErr;
+      if (!mountedRef.current) return;
 
       const { data: arrears, error: arrErr } = await supabase
         .from("arrears_cases")
@@ -103,6 +292,7 @@ export default function TenanciesPage() {
         .in("tenancy_id", tenancyIds);
 
       if (arrErr) throw arrErr;
+      if (!mountedRef.current) return;
 
       const propMap: Record<string, any> = {};
       (properties || []).forEach((p) => { propMap[p.id] = p; });
@@ -173,18 +363,25 @@ export default function TenanciesPage() {
         };
       });
 
+      if (!mountedRef.current) return;
       setTenancyList(mapped);
     } catch (err: any) {
+      if (!mountedRef.current) return;
       console.error("Failed to load tenancies:", err);
       setError(err.message || "Failed to load tenancies");
     } finally {
+      if (!mountedRef.current) return;
       setLoading(false);
     }
   };
 
   const showToast = (msg: string) => {
+    if (!mountedRef.current) return;
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setToast(null);
+    }, 3000);
   };
 
   const handleAddTenancy = async () => {
@@ -279,6 +476,7 @@ export default function TenanciesPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Tenancies</h1>
             <p className="text-sm text-[#687068] mt-1">{stats.total} tenancies · {stats.active} active</p>
           </div>
+          <DemoHelperTip id="tenancies-overview" title="Tenancy Management">Create and manage tenancy records linked to properties, tenants and landlords. Track start/end dates, rent, deposits and tenancy status.</DemoHelperTip>
           <button
             onClick={() => {
               setFormData({ propertyName: "", tenantName: "", ownerName: "", startDate: "", endDate: "", rent: "", deposit: "", periodic: false });

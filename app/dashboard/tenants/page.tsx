@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
+import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import TenantCard from "@/components/dashboard/TenantCard";
 import TenantQuickView from "@/components/dashboard/TenantQuickView";
 import { tenants as mockTenants, portalStatusBadge, portalStatusLabel, TenantRecord } from "./TenantsData";
@@ -39,13 +40,114 @@ export default function TenantsPage() {
     notes: "",
   });
 
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (isDemoAccount()) {
-      setTenantList(mockTenants);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const timer = setTimeout(() => {
+      if (!active) return;
+
+      if (isDemoAccount()) {
+        setTenantList(mockTenants);
+        setLoading(false);
+        return;
+      }
+      fetchTenantsInternal(active);
+    }, 0);
+
+    async function fetchTenantsInternal(active: boolean) {
+      setLoading(true);
+      const { data: supabaseTenants, error: tenantsError } = await supabase
+        .from("tenants")
+        .select("id, full_name, email, phone, created_at");
+
+      if (tenantsError || !supabaseTenants || supabaseTenants.length === 0) {
+        if (!active) return;
+        setTenantList(mockTenants);
+        setLoading(false);
+        return;
+      }
+      if (!active) return;
+
+      const tenantIds = supabaseTenants.map((t) => t.id);
+
+      const { data: parties } = await supabase
+        .from("tenancy_parties")
+        .select("tenant_id, tenancy_id")
+        .in("tenant_id", tenantIds);
+
+      if (!active) return;
+
+      const tenancyIds = parties ? [...new Set(parties.map((p) => p.tenancy_id))] : [];
+
+      const { data: tenancies } = tenancyIds.length > 0
+        ? await supabase.from("tenancies").select("id, property_id, status").in("id", tenancyIds)
+        : { data: [] };
+
+      if (!active) return;
+
+      const propertyIds = tenancies ? [...new Set(tenancies.map((t) => t.property_id))] : [];
+
+      const { data: properties } = propertyIds.length > 0
+        ? await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds)
+        : { data: [] };
+
+      if (!active) return;
+
+      const { data: portalAccess } = await supabase
+        .from("tenant_portal_access")
+        .select("tenant_id, is_active")
+        .in("tenant_id", tenantIds);
+
+      if (!active) return;
+
+      const mapped: TenantRecord[] = supabaseTenants.map((t) => {
+        const party = parties?.find((p) => p.tenant_id === t.id);
+        const tenancy = party ? tenancies?.find((tn) => tn.id === party.tenancy_id) : null;
+        const property = tenancy ? properties?.find((pr) => pr.id === tenancy.property_id) : null;
+        const portal = portalAccess?.find((pa) => pa.tenant_id === t.id);
+
+        let portalStatus: TenantRecord["portalStatus"] = "not_invited";
+        if (portal) {
+          portalStatus = portal.is_active ? "active" : "disabled";
+        }
+
+        return {
+          id: t.id,
+          fullName: t.full_name || "Unknown",
+          email: t.email || "",
+          phone: t.phone || "",
+          currentPropertyId: property?.id,
+          currentPropertyName: property ? [property.line1, property.city, property.postcode].filter(Boolean).join(", ") : undefined,
+          currentPropertyAddress: property ? [property.line1, property.city, property.postcode].filter(Boolean).join(", ") : undefined,
+          tenancyId: tenancy?.id,
+          tenancyRef: tenancy?.id ? `TNCY-${tenancy.id.slice(0, 8)}` : undefined,
+          tenancyStatus: tenancy?.status || undefined,
+          portalStatus,
+          dateAdded: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+        };
+      });
+
+      if (!active) return;
+      setTenantList(mapped);
       setLoading(false);
-      return;
     }
-    fetchTenants();
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const fetchTenants = async () => {
@@ -55,10 +157,12 @@ export default function TenantsPage() {
       .select("id, full_name, email, phone, created_at");
 
     if (tenantsError || !supabaseTenants || supabaseTenants.length === 0) {
+      if (!mountedRef.current) return;
       setTenantList(mockTenants);
       setLoading(false);
       return;
     }
+    if (!mountedRef.current) return;
 
     const tenantIds = supabaseTenants.map((t) => t.id);
 
@@ -67,11 +171,15 @@ export default function TenantsPage() {
       .select("tenant_id, tenancy_id")
       .in("tenant_id", tenantIds);
 
+    if (!mountedRef.current) return;
+
     const tenancyIds = parties ? [...new Set(parties.map((p) => p.tenancy_id))] : [];
 
     const { data: tenancies } = tenancyIds.length > 0
       ? await supabase.from("tenancies").select("id, property_id, status").in("id", tenancyIds)
       : { data: [] };
+
+    if (!mountedRef.current) return;
 
     const propertyIds = tenancies ? [...new Set(tenancies.map((t) => t.property_id))] : [];
 
@@ -79,10 +187,14 @@ export default function TenantsPage() {
       ? await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds)
       : { data: [] };
 
+    if (!mountedRef.current) return;
+
     const { data: portalAccess } = await supabase
       .from("tenant_portal_access")
       .select("tenant_id, is_active")
       .in("tenant_id", tenantIds);
+
+    if (!mountedRef.current) return;
 
     const mapped: TenantRecord[] = supabaseTenants.map((t) => {
       const party = parties?.find((p) => p.tenant_id === t.id);
@@ -111,13 +223,18 @@ export default function TenantsPage() {
       };
     });
 
+    if (!mountedRef.current) return;
     setTenantList(mapped);
     setLoading(false);
   };
 
   const showToast = (msg: string) => {
+    if (!mountedRef.current) return;
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setToast(null);
+    }, 3000);
   };
 
   const activeTenants = tenantList.filter((t) => t.tenancyStatus === "active").length;
@@ -294,6 +411,7 @@ export default function TenantsPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Tenants</h1>
             <p className="text-sm text-[#687068] mt-1">{activeTenants} active tenants · {tenantList.length} total</p>
           </div>
+          <DemoHelperTip id="tenants-overview" title="Tenant Directory">View and manage your tenant database. Invite tenants to the self-service portal, link them to tenancies and track portal access status.</DemoHelperTip>
           <button
             onClick={() => {
               setFormData({ fullName: "", email: "", phone: "", currentPropertyName: "", emergencyContactName: "", emergencyContactPhone: "", notes: "" });

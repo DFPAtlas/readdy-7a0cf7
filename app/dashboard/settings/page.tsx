@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import DashboardShell from "@/components/DashboardShell"
 import BrandingTab from "./BrandingTab"
 import { SETTINGS_CATEGORIES } from "@/lib/settingsSystem"
@@ -14,10 +14,18 @@ export default function SettingsPage() {
   const [personalOpen, setPersonalOpen] = useState(true)
   const [agencyOpen, setAgencyOpen] = useState(true)
   const [saveToast, setSaveToast] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = (msg: string) => {
-    setSaveToast(msg)
-    setTimeout(() => setSaveToast(null), 3000)
+    setSaveToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setSaveToast(null), 3000);
   }
 
   const personalCategories = SETTINGS_CATEGORIES.filter((c) => c.level === "personal")

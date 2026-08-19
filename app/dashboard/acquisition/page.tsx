@@ -217,10 +217,10 @@ export default function AcquisitionPage() {
                   </div>
                   <div className="p-2 space-y-2 max-h-[520px] overflow-y-auto">
                     {stageDeals.map(deal => (
-                      <button
+                      <div
                         key={deal.id}
                         onClick={() => setSelectedDeal(deal)}
-                        className="w-full text-left p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100"
+                        className="w-full text-left p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100 cursor-pointer"
                       >
                         <p className="text-sm font-medium text-slate-900 truncate">{deal.name}</p>
                         <p className="text-xs text-slate-500 mt-0.5 truncate">{deal.property_address}</p>
@@ -247,7 +247,7 @@ export default function AcquisitionPage() {
                             Converted
                           </div>
                         )}
-                      </button>
+                      </div>
                     ))}
                     {stageDeals.length === 0 && (
                       <p className="text-xs text-slate-400 text-center py-6">No deals</p>

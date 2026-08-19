@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import DashboardShell from '@/components/DashboardShell';
 import { supabase } from '@/lib/supabaseClient';
 import { isDemoAccount } from '@/lib/demoMode';
+import DemoHelperTip from '@/components/dashboard/DemoHelperTip';
 import { getDocumentStatusConfig } from '@/lib/documentSystem';
 import DocumentSummary from '@/components/dashboard/DocumentSummary';
 import DocumentActionCentre from '@/components/dashboard/DocumentActionCentre';
@@ -48,6 +49,8 @@ export default function SignaturesPage() {
   const [signSuccess, setSignSuccess] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [createSuccess, setCreateSuccess] = useState(false);
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidSuccess, setVoidSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
@@ -109,6 +112,7 @@ export default function SignaturesPage() {
   const handleSign = () => { setSignSuccess(true); setTimeout(() => { setSignSuccess(false); setShowSignModal(false); setSelectedDoc(null); }, 1500); };
   const handleSend = () => { setSendSuccess(true); setTimeout(() => { setSendSuccess(false); setShowSendModal(false); }, 1500); };
   const handleCreate = () => { setCreateSuccess(true); setTimeout(() => { setCreateSuccess(false); setShowCreateModal(false); }, 1500); };
+  const handleVoid = () => { setVoidSuccess(true); setTimeout(() => { setVoidSuccess(false); setShowVoidModal(false); setShowAuditView(false); setSelectedDoc(null); }, 1500); };
 
   if (loading) return <DashboardShell><div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div><span className="ml-3 text-sm text-[#687068]">Loading signatures...</span></div></DashboardShell>;
   if (error) return <DashboardShell><div className="text-center py-20"><div className="w-14 h-14 mx-auto mb-4 bg-[#FEF2F2] rounded-full flex items-center justify-center"><i className="ri-error-warning-line text-[#C46868] text-2xl"></i></div><p className="text-sm font-medium text-[#C46868]">Failed to load signatures</p><p className="text-xs text-[#687068] mt-1">{error}</p><button onClick={() => window.location.reload()} className="mt-4 text-sm text-[#C28A78] font-medium hover:underline cursor-pointer">Try again</button></div></DashboardShell>;
@@ -118,6 +122,7 @@ export default function SignaturesPage() {
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div><h1 className="text-2xl font-bold text-[#3A3F3A]">Digital Signatures</h1><p className="text-sm text-[#687068] mt-1">Manage electronic signatures and document workflows</p></div>
+          <DemoHelperTip id="signatures-overview" title="Digital Signatures">Send documents for electronic signature, track signing status, view audit trails and manage document workflows across tenancies and contractors.</DemoHelperTip>
           <button onClick={() => setShowCreateModal(true)} className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 cursor-pointer">
             <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-line text-sm"></i></div>
             New Document
@@ -249,9 +254,12 @@ export default function SignaturesPage() {
                 <button onClick={() => setShowAuditView(true)} className="flex items-center gap-2 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-shield-check-line text-sm"></i></div>Audit Trail</button>
                 {selectedDoc.status !== 'Completed' && selectedDoc.status !== 'Draft' && (
                   <>
-                    <button onClick={() => setShowSendModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#3B82F6] text-white rounded-lg text-sm font-medium whitespace-nowrap cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-send-plane-line text-sm"></i></div>Send Reminder</button>
-                    <button onClick={() => setShowSignModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium whitespace-nowrap cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-pen-nib-line text-sm"></i></div>Sign Document</button>
+                    <button onClick={() => setShowSendModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#3B82F6] text-white rounded-xl text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-[#2563EB] transition-colors"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-send-plane-line text-sm"></i></div>Send Reminder</button>
+                    <button onClick={() => setShowSignModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-[#143828] transition-colors"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-pen-nib-line text-sm"></i></div>Sign Document</button>
                   </>
+                )}
+                {selectedDoc.status !== 'Completed' && (
+                  <button onClick={() => { setShowVoidModal(true); }} className="flex items-center gap-2 px-4 py-2.5 border-2 border-[#FECACA] text-[#C46868] rounded-xl text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-[#FEF2F2] transition-colors"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-circle-line text-sm"></i></div>Void</button>
                 )}
               </div>
             </div>
@@ -300,26 +308,40 @@ export default function SignaturesPage() {
 
       {/* Send Modal */}
       {showSendModal && selectedDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#D5D9D5]"><h2 className="font-semibold text-[#3A3F3A]">Send Reminder</h2><button onClick={() => setShowSendModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#687068]"></i></div></button></div>
-            <div className="p-5 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#3B82F6] to-[#2563EB] px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-send-plane-line text-white text-lg"></i></div></div>
+                  <div><h2 className="text-lg font-bold text-white">Send Reminder</h2><p className="text-xs text-white/70">Nudge pending signers</p></div>
+                </div>
+                <button onClick={() => setShowSendModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white"></i></div></button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
               {sendSuccess ? (
-                <div className="text-center py-4"><div className="w-12 h-12 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-xl"></i></div></div><p className="text-sm font-medium text-[#7A9A7E]">Reminder sent successfully!</p></div>
+                <div className="text-center py-6"><div className="w-14 h-14 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-7 h-7 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-2xl"></i></div></div><p className="text-sm font-semibold text-[#7A9A7E]">Reminder sent successfully!</p><p className="text-xs text-[#94A3B8] mt-1">An email has been sent to all pending parties</p></div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 p-3 bg-[#FBF9F4] rounded-lg"><div className="w-8 h-8 bg-[#C28A78]/10 rounded-lg flex items-center justify-center flex-shrink-0"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-file-text-line text-[#C28A78] text-xs"></i></div></div><div className="min-w-0"><p className="text-sm font-medium text-[#3A3F3A] truncate">{selectedDoc.title}</p><span className="text-[10px] text-[#94A3B8]">{selectedDoc.type}</span></div></div>
+                  <div className="flex items-center gap-3 p-3 bg-[#FAFAF8] rounded-xl border border-[#D5D9D5]">
+                    <div className="w-10 h-10 bg-[#3B82F6]/10 rounded-xl flex items-center justify-center flex-shrink-0"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-text-line text-[#3B82F6]"></i></div></div>
+                    <div className="min-w-0"><p className="text-sm font-semibold text-[#3A3F3A] truncate">{selectedDoc.title}</p><span className="text-[11px] text-[#94A3B8]">{selectedDoc.type}</span></div>
+                  </div>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Pending Parties</label>
+                    <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Pending Parties</p>
                     <div className="space-y-2">
                       {selectedDoc.parties.filter(p => !p.signed).length === 0 ? <p className="text-xs text-[#94A3B8]">All parties have signed</p> : selectedDoc.parties.filter(p => !p.signed).map(p => (
-                        <label key={p.id} className="flex items-center gap-3 p-2 bg-[#FBF9F4] rounded-lg cursor-pointer"><div className="w-5 h-5 rounded border border-[#D5D9D5] bg-[#C28A78] flex items-center justify-center"><i className="ri-check-line text-white text-xs"></i></div><div><p className="text-sm text-[#3A3F3A] font-medium">{p.name}</p><p className="text-xs text-[#94A3B8]">{p.role}</p></div></label>
+                        <label key={p.id} className="flex items-center gap-3 p-3 bg-[#FAFAF8] rounded-xl border border-[#D5D9D5] cursor-pointer hover:border-[#3B82F6]/30 transition-colors">
+                          <div className="w-5 h-5 rounded border-2 border-[#3B82F6] bg-[#3B82F6] flex items-center justify-center flex-shrink-0"><i className="ri-check-line text-white text-xs"></i></div>
+                          <div><p className="text-sm text-[#3A3F3A] font-medium">{p.name}</p><p className="text-[11px] text-[#94A3B8]">{p.role} · {p.email || 'No email'}</p></div>
+                        </label>
                       ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 pt-2">
-                    <button onClick={() => setShowSendModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                    <button onClick={handleSend} className="flex-1 px-4 py-2.5 bg-[#3B82F6] text-white rounded-lg text-sm font-medium hover:bg-[#2563EB] transition-colors cursor-pointer">Send Reminder</button>
+                    <button onClick={() => setShowSendModal(false)} className="flex-1 px-4 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FAFAF8] hover:border-[#94A3B8] transition-colors cursor-pointer whitespace-nowrap">Cancel</button>
+                    <button onClick={handleSend} className="flex-1 px-4 py-2.5 bg-[#3B82F6] text-white rounded-xl text-sm font-semibold hover:bg-[#2563EB] transition-colors cursor-pointer whitespace-nowrap">Send Reminder</button>
                   </div>
                 </>
               )}
@@ -330,30 +352,80 @@ export default function SignaturesPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#D5D9D5]"><h2 className="font-semibold text-[#3A3F3A]">New Signature Document</h2><button onClick={() => setShowCreateModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#687068]"></i></div></button></div>
-            <div className="p-5 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#C28A78] to-[#A07164] px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-add-line text-white text-lg"></i></div></div>
+                  <div><h2 className="text-lg font-bold text-white">New Signature Document</h2><p className="text-xs text-white/70">Create and send for e-signing</p></div>
+                </div>
+                <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white"></i></div></button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
               {createSuccess ? (
-                <div className="text-center py-4"><div className="w-12 h-12 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-xl"></i></div></div><p className="text-sm font-medium text-[#7A9A7E]">Document created successfully!</p></div>
+                <div className="text-center py-6"><div className="w-14 h-14 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-7 h-7 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-2xl"></i></div></div><p className="text-sm font-semibold text-[#7A9A7E]">Document created successfully!</p><p className="text-xs text-[#94A3B8] mt-1">Ready to send for signatures</p></div>
               ) : (
                 <>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Document Type</label>
+                    <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Document Type</p>
                     <div className="grid grid-cols-2 gap-2">{documentTypes.filter((t: string) => t !== 'All').slice(0, 8).map((type: string) => (
-                      <button key={type} className="text-xs font-medium px-3 py-2 rounded-lg border border-[#D5D9D5] text-center text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">{type}</button>
+                      <button key={type} className="text-xs font-medium px-3 py-2.5 rounded-xl border-2 border-[#D5D9D5] text-center text-[#687068] hover:bg-[#FAFAF8] hover:border-[#C28A78]/40 transition-colors cursor-pointer">{type}</button>
                     ))}</div>
                   </div>
-                  <div><label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Document Title</label><input type="text" placeholder="e.g., Tenancy Agreement - 12 Rose Avenue" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C28A78]" /></div>
-                  <div><label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Upload Document</label>
-                    <div className="border-2 border-dashed border-[#D5D9D5] rounded-lg p-6 text-center hover:border-[#C28A78]/40 transition-colors cursor-pointer">
-                      <div className="w-10 h-10 bg-[#F1F5F9] rounded-full flex items-center justify-center mx-auto mb-2"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-upload-line text-[#94A3B8] text-lg"></i></div></div>
-                      <p className="text-sm text-[#687068]">Click to upload or drag and drop</p><p className="text-xs text-[#94A3B8] mt-1">PDF up to 50MB</p>
+                  <div>
+                    <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Document Title</p>
+                    <input type="text" placeholder="e.g., Tenancy Agreement - 12 Rose Avenue" className="w-full px-3 py-2.5 bg-[#FAFAF8] border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C28A78]" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Upload Document</p>
+                    <div className="border-2 border-dashed border-[#D5D9D5] rounded-xl p-8 text-center hover:border-[#C28A78]/40 hover:bg-[#FAFAF8] transition-colors cursor-pointer">
+                      <div className="w-12 h-12 bg-[#F1F5F9] rounded-full flex items-center justify-center mx-auto mb-2"><div className="w-6 h-6 flex items-center justify-center"><i className="ri-file-upload-line text-[#94A3B8] text-xl"></i></div></div>
+                      <p className="text-sm font-medium text-[#687068]">Click to upload or drag and drop</p><p className="text-xs text-[#94A3B8] mt-1">PDF up to 50MB</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 pt-2">
-                    <button onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                    <button onClick={handleCreate} className="flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors cursor-pointer">Create & Send</button>
+                    <button onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FAFAF8] hover:border-[#94A3B8] transition-colors cursor-pointer whitespace-nowrap">Cancel</button>
+                    <button onClick={handleCreate} className="flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-semibold hover:bg-[#143828] transition-colors cursor-pointer whitespace-nowrap">Create &amp; Send</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Void Modal */}
+      {showVoidModal && selectedDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#C46868] to-[#A05252] px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-close-circle-line text-white text-lg"></i></div></div>
+                  <div><h2 className="text-lg font-bold text-white">Void Document</h2><p className="text-xs text-white/70">Cancel this signature workflow</p></div>
+                </div>
+                <button onClick={() => setShowVoidModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white"></i></div></button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              {voidSuccess ? (
+                <div className="text-center py-6"><div className="w-14 h-14 bg-[#FEF2F2] rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-7 h-7 flex items-center justify-center"><i className="ri-check-line text-[#C46868] text-2xl"></i></div></div><p className="text-sm font-semibold text-[#C46868]">Document voided</p><p className="text-xs text-[#94A3B8] mt-1">The signature workflow has been cancelled</p></div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-[#FEF2F2] rounded-xl border border-[#FECACA]">
+                    <div className="w-10 h-10 bg-[#C46868]/10 rounded-xl flex items-center justify-center flex-shrink-0"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-error-warning-line text-[#C46868]"></i></div></div>
+                    <div className="min-w-0"><p className="text-sm font-semibold text-[#3A3F3A] truncate">{selectedDoc.title}</p><p className="text-[11px] text-[#C46868]">This action cannot be undone</p></div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Reason for Voiding</p>
+                    <textarea rows={3} placeholder="e.g., document contains errors, deal fell through..." className="w-full px-3 py-2.5 bg-[#FAFAF8] border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C46868] resize-none" />
+                  </div>
+                  <p className="text-xs text-[#687068] bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3">All pending signatures will be cancelled and parties will be notified. Signed copies remain valid as auditable records.</p>
+                  <div className="flex items-center gap-3 pt-2">
+                    <button onClick={() => setShowVoidModal(false)} className="flex-1 px-4 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FAFAF8] hover:border-[#94A3B8] transition-colors cursor-pointer whitespace-nowrap">Cancel</button>
+                    <button onClick={handleVoid} className="flex-1 px-4 py-2.5 bg-[#C46868] text-white rounded-xl text-sm font-semibold hover:bg-[#A05252] transition-colors cursor-pointer whitespace-nowrap">Void Document</button>
                   </div>
                 </>
               )}
@@ -392,34 +464,45 @@ function SignatureModal({ doc, onClose, onSuccess, success }: { doc: SignatureDo
   const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); if (!ctx) return; ctx.clearRect(0, 0, canvas.width, canvas.height); setHasDrawn(false); };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#D5D9D5]"><h2 className="font-semibold text-[#3A3F3A]">Sign Document</h2><button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#687068]"></i></div></button></div>
-        <div className="p-5 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-[#C28A78] to-[#A07164] px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-pen-nib-line text-white text-lg"></i></div></div>
+              <div><h2 className="text-lg font-bold text-white">Sign Document</h2><p className="text-xs text-white/70">Apply your electronic signature</p></div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white"></i></div></button>
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
           {success ? (
-            <div className="text-center py-4"><div className="w-12 h-12 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-xl"></i></div></div><p className="text-sm font-medium text-[#7A9A7E]">Document signed successfully!</p></div>
+            <div className="text-center py-6"><div className="w-14 h-14 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-7 h-7 flex items-center justify-center"><i className="ri-check-line text-[#7A9A7E] text-2xl"></i></div></div><p className="text-sm font-semibold text-[#7A9A7E]">Document signed successfully!</p><p className="text-xs text-[#94A3B8] mt-1">Signature has been recorded</p></div>
           ) : (
             <>
-              <div className="flex items-center gap-3 p-3 bg-[#FBF9F4] rounded-lg"><div className="w-8 h-8 bg-[#C28A78]/10 rounded-lg flex items-center justify-center flex-shrink-0"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-file-text-line text-[#C28A78] text-xs"></i></div></div><div className="min-w-0"><p className="text-sm font-medium text-[#3A3F3A] truncate">{doc.title}</p><p className="text-xs text-[#94A3B8]">Sign as: LetHub Agency (Agent)</p></div></div>
+              <div className="flex items-center gap-3 p-3 bg-[#FAFAF8] rounded-xl border border-[#D5D9D5]">
+                <div className="w-10 h-10 bg-[#C28A78]/10 rounded-xl flex items-center justify-center flex-shrink-0"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-text-line text-[#C28A78]"></i></div></div>
+                <div className="min-w-0"><p className="text-sm font-semibold text-[#3A3F3A] truncate">{doc.title}</p><p className="text-[11px] text-[#94A3B8]">Sign as: LetHub Agency (Agent)</p></div>
+              </div>
               <div>
-                <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Your Signature</label>
-                <div className="border border-[#D5D9D5] rounded-lg bg-white">
-                  <canvas ref={canvasRef} width={480} height={160} className="w-full rounded-lg cursor-crosshair touch-none"
+                <p className="text-xs font-semibold text-[#3A3F3A] uppercase tracking-wide mb-2">Your Signature</p>
+                <div className="border-2 border-[#D5D9D5] rounded-xl bg-white overflow-hidden focus-within:border-[#C28A78] transition-colors">
+                  <canvas ref={canvasRef} width={480} height={160} className="w-full rounded-xl cursor-crosshair touch-none"
                     onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
                     onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <button onClick={clearCanvas} className="text-xs text-[#687068] hover:text-[#3A3F3A] transition-colors flex items-center gap-1 cursor-pointer"><div className="w-3 h-3 flex items-center justify-center"><i className="ri-delete-bin-line text-xs"></i></div>Clear</button>
+                  <button onClick={clearCanvas} className="text-xs text-[#687068] hover:text-[#C46868] transition-colors flex items-center gap-1 cursor-pointer"><div className="w-3 h-3 flex items-center justify-center"><i className="ri-delete-bin-line text-xs"></i></div>Clear</button>
                   <p className="text-xs text-[#94A3B8]">Draw your signature above</p>
                 </div>
               </div>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${agreed ? 'bg-[#C28A78] border-[#C28A78]' : 'border-[#D5D9D5]'}`}>{agreed && <i className="ri-check-line text-white text-xs"></i>}</div>
+              <label onClick={() => setAgreed(!agreed)} className="flex items-start gap-3 cursor-pointer p-3 bg-[#FAFAF8] rounded-xl border border-[#D5D9D5]">
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${agreed ? 'bg-[#C28A78] border-[#C28A78]' : 'border-[#D5D9D5]'}`}>{agreed && <i className="ri-check-line text-white text-xs"></i>}</div>
                 <span className="text-sm text-[#687068]">I confirm that I have reviewed this document and agree to sign it electronically.</span>
               </label>
               <div className="flex items-center gap-3 pt-2">
-                <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                <button onClick={onSuccess} disabled={!hasDrawn || !agreed} className="flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Sign Document</button>
+                <button onClick={onClose} className="flex-1 px-4 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FAFAF8] hover:border-[#94A3B8] transition-colors cursor-pointer whitespace-nowrap">Cancel</button>
+                <button onClick={onSuccess} disabled={!hasDrawn || !agreed} className="flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-semibold hover:bg-[#143828] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap">Sign Document</button>
               </div>
             </>
           )}

@@ -11,7 +11,7 @@ export default function AdminAccessDenied({ role }: { role?: string }) {
         </div>
         <h1 className="text-xl font-bold text-[#3A3F3A] mb-2">Access Denied</h1>
         <p className="text-sm text-[#687068] mb-6">
-          You do not have permission to access the Supa Admin Control Centre.
+          You do not have permission to access the Platform Administration panel.
           {role && <span className="block mt-1">Your current role: <strong>{role}</strong></span>}
         </p>
         <Link

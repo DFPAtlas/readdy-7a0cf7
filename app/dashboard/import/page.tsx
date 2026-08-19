@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
@@ -36,7 +36,14 @@ export default function ImportPage() {
   const [dbAvailable, setDbAvailable] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isReadOnly } = useEntitlements();
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isDemoAccount()) setDemoMode(true);
@@ -44,7 +51,8 @@ export default function ImportPage() {
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
   };
 
   const handleSelectType = (type: ImportType) => {

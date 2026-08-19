@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import FinancialActionCentre from "@/components/dashboard/FinancialActionCentre";
@@ -8,11 +8,13 @@ import ArrearsCaseCard from "@/components/dashboard/ArrearsCaseCard";
 import { arrearsRiskConfig, ArrearsRisk, arrearsStageConfig, ArrearsStage, FinancialActionItem } from "@/lib/financialStatus";
 import { useEntitlements } from "@/lib/useEntitlements";
 import { isDemoAccount } from "@/lib/demoMode";
+import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient";
 import { arrearsData, riskConfig } from "./ArrearsData";
 
 interface ArrearsRecord {
   id: number;
+  caseId: string | null;
   property: string;
   tenant: string;
   landlord: string;
@@ -25,6 +27,7 @@ interface ArrearsRecord {
   riskRating: ArrearsRisk;
   stage: ArrearsStage;
   lastContact: string;
+  lastReminderSent: string;
   contactMethod: string;
   tenantPhone: string;
   tenantEmail: string;
@@ -64,13 +67,27 @@ export default function ArrearsPage() {
   const [selectedActionTenant, setSelectedActionTenant] = useState<ArrearsRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const [financialActions, setFinancialActions] = useState<FinancialActionItem[]>([]);
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderSent, setReminderSent] = useState(false);
+  const [reminderError, setReminderError] = useState<string | null>(null);
   const { isReadOnly } = useEntitlements();
 
   useEffect(() => {
     if (isDemoAccount()) {
       const mapped = arrearsData.map((a) => ({
         ...a,
+        caseId: null,
+        lastReminderSent: "—",
         riskRating: a.riskRating as ArrearsRisk,
         stage: computeStage(a),
         outstanding: a.totalArrears,
@@ -122,8 +139,10 @@ export default function ArrearsPage() {
         const tenant = tenantMap.get(c.tenant_id);
         const months = Math.max(1, Math.ceil(Number(c.total_owed) / 1000));
         const risk = computeRisk(months);
+        const lastReminder = c.last_reminder_sent ? new Date(c.last_reminder_sent).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
         mapped.push({
           id: idx + 1,
+          caseId: c.id,
           property: prop ? `${prop.line1}, ${prop.city}` : "Unknown",
           tenant: tenant?.full_name || "Tenant",
           landlord: "Owner",
@@ -136,6 +155,7 @@ export default function ArrearsPage() {
           riskRating: risk,
           stage: risk === "High" ? "escalated" : "contact_required",
           lastContact: c.last_contact ? new Date(c.last_contact).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+          lastReminderSent: lastReminder,
           contactMethod: "—",
           tenantPhone: tenant?.phone || "—",
           tenantEmail: tenant?.email || "—",
@@ -172,7 +192,8 @@ export default function ArrearsPage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    const timer = setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = timer;
   };
 
   if (loading) {
@@ -213,8 +234,9 @@ export default function ArrearsPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Rent Arrears</h1>
             <p className="text-sm text-[#687068] mt-1">{tenantsInArrears} cases · £{totalOutstanding.toLocaleString()} outstanding · {urgentCount} urgent</p>
           </div>
+          <DemoHelperTip id="arrears-overview" title="Rent Arrears Management">Monitor outstanding rent, assess risk levels, send automated reminders and manage escalation workflows. Track payment plans and formal warnings.</DemoHelperTip>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowReminderModal(true)} className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2">
+            <button onClick={() => { setSelectedActionTenant(null); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); }} className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2">
               <i className="ri-notification-3-line text-sm"></i>Send Reminders
             </button>
           </div>
@@ -326,7 +348,7 @@ export default function ArrearsPage() {
                     <h3 className="text-sm font-medium text-[#3A3F3A] mb-3">Quick Actions</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
-                        { label: "Send Reminders", desc: "Email & SMS", icon: "ri-notification-3-line", color: "bg-[#C28A78]", action: () => setShowReminderModal(true) },
+                        { label: "Send Reminders", desc: "Email & SMS", icon: "ri-notification-3-line", color: "bg-[#C28A78]", action: () => { setSelectedActionTenant(null); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); } },
                         { label: "Issue Warning", desc: "Formal letter", icon: "ri-error-warning-line", color: "bg-[#C46868]", action: () => setShowWarningModal(true) },
                         { label: "Create Plan", desc: "Payment plan", icon: "ri-calendar-schedule-line", color: "bg-[#3B82F6]", action: () => setShowPaymentPlanModal(true) },
                         { label: "View Collection", desc: "Rent tracking", icon: "ri-money-pound-circle-line", color: "bg-[#8B5CF6]", action: () => window.location.href = "/dashboard/rent-collection" },
@@ -370,6 +392,7 @@ export default function ArrearsPage() {
                           <th className="text-center px-4 py-3 font-medium text-[#687068]">Months</th>
                           <th className="text-center px-4 py-3 font-medium text-[#687068]">Risk</th>
                           <th className="text-left px-4 py-3 font-medium text-[#687068]">Last Contact</th>
+                          <th className="text-left px-4 py-3 font-medium text-[#687068]">Last Reminder</th>
                           <th className="text-right px-4 py-3 font-medium text-[#687068]">Actions</th>
                         </tr>
                       </thead>
@@ -391,9 +414,10 @@ export default function ArrearsPage() {
                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>{item.riskRating}</span>
                               </td>
                               <td className="px-4 py-3.5 text-[#687068]">{item.lastContact}</td>
+                              <td className="px-4 py-3.5 text-[#687068]">{item.lastReminderSent}</td>
                               <td className="px-4 py-3.5 text-right">
                                 <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => { setSelectedActionTenant(item); setShowReminderModal(true); }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] text-[#C28A78]" title="Send Reminder"><i className="ri-notification-3-line text-sm"></i></button>
+                                  <button onClick={() => { setSelectedActionTenant(item); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] text-[#C28A78]" title="Send Reminder"><i className="ri-notification-3-line text-sm"></i></button>
                                   <button onClick={() => { setSelectedActionTenant(item); setShowWarningModal(true); }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] text-[#C46868]" title="Issue Warning"><i className="ri-error-warning-line text-sm"></i></button>
                                   <button onClick={() => setSelectedTenant(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] text-[#687068]" title="View Details"><i className="ri-eye-line text-sm"></i></button>
                                 </div>
@@ -432,6 +456,7 @@ export default function ArrearsPage() {
                           arrearsMonths={item.arrearsMonths}
                           riskRating={item.riskRating}
                           lastContact={item.lastContact}
+                          lastReminderSent={item.lastReminderSent}
                           onClick={() => setSelectedTenant(item)}
                         />
                       ))
@@ -521,9 +546,13 @@ export default function ArrearsPage() {
                   <div className="flex items-center gap-2"><i className="ri-phone-line text-[#94A3B8]"></i><span className="text-sm text-[#3A3F3A]">{selectedTenant.tenantPhone}</span></div>
                   <div className="flex items-center gap-2"><i className="ri-mail-line text-[#94A3B8]"></i><span className="text-sm text-[#3A3F3A]">{selectedTenant.tenantEmail}</span></div>
                 </div>
+                <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-[#D5D9D5]">
+                  <div className="flex items-center gap-2"><i className="ri-chat-1-line text-[#94A3B8]"></i><span className="text-xs text-[#687068]">Last contact: <span className="text-[#3A3F3A] font-medium">{selectedTenant.lastContact}</span></span></div>
+                  <div className="flex items-center gap-2"><i className="ri-notification-3-line text-[#94A3B8]"></i><span className="text-xs text-[#687068]">Last reminder: <span className="text-[#3A3F3A] font-medium">{selectedTenant.lastReminderSent}</span></span></div>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => { setSelectedTenant(null); setShowReminderModal(true); }} className="py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"><i className="ri-notification-3-line mr-1"></i>Send Reminder</button>
+                <button onClick={() => { setSelectedActionTenant(selectedTenant); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); }} className="py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"><i className="ri-notification-3-line mr-1"></i>Send Reminder</button>
                 <button onClick={() => { setSelectedTenant(null); setShowWarningModal(true); }} className="py-3 text-sm font-medium text-[#C46868] border border-[#C46868] rounded-xl hover:bg-[#C46868]/5 transition-colors whitespace-nowrap"><i className="ri-error-warning-line mr-1"></i>Issue Warning</button>
                 <button onClick={() => { setSelectedTenant(null); setShowPaymentPlanModal(true); }} className="py-3 text-sm font-medium text-[#3B82F6] border border-[#3B82F6] rounded-xl hover:bg-[#3B82F6]/5 transition-colors whitespace-nowrap"><i className="ri-calendar-schedule-line mr-1"></i>Payment Plan</button>
               </div>
@@ -535,21 +564,76 @@ export default function ArrearsPage() {
       {showReminderModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl p-6">
-            <div className="flex items-center justify-between mb-6"><h3 className="font-semibold text-[#3A3F3A]">Send Reminder Email</h3><button onClick={() => setShowReminderModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]"><i className="ri-close-line text-[#687068]"></i></button></div>
-            <div className="mb-4"><label className="text-xs font-medium text-[#687068] mb-1.5 block">Recipient</label><div className="px-3 py-3 border border-[#D5D9D5] rounded-xl bg-[#FBF9F4]"><p className="text-sm text-[#3A3F3A]">{selectedActionTenant?.tenant || "All tenants in arrears"}</p><p className="text-xs text-[#94A3B8]">{selectedActionTenant?.tenantEmail || "Multiple recipients"}</p></div></div>
-            <div className="mb-4">
-              <label className="text-xs font-medium text-[#687068] mb-1.5 block">Message</label>
-              <textarea
-                rows={3}
-                maxLength={500}
-                defaultValue="This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."
-                className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78] resize-none"
-              ></textarea>
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => { setShowReminderModal(false); showToast("Reminder queued for delivery"); }} className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap">Send Reminder</button>
-              <button onClick={() => setShowReminderModal(false)} className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">Cancel</button>
-            </div>
+            <div className="flex items-center justify-between mb-6"><h3 className="font-semibold text-[#3A3F3A]">Send Reminder Email</h3><button onClick={() => { setShowReminderModal(false); setReminderSent(false); setReminderError(null); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]"><i className="ri-close-line text-[#687068]"></i></button></div>
+            {reminderSent ? (
+              <div className="text-center py-8">
+                <div className="w-14 h-14 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="ri-check-line text-[#7A9A7E] text-2xl"></i>
+                </div>
+                <p className="text-sm font-medium text-[#3A3F3A] mb-1">Reminder sent successfully</p>
+                <p className="text-xs text-[#687068]">An email has been sent to {selectedActionTenant?.tenant || "the selected tenants"}.</p>
+                <button onClick={() => { setShowReminderModal(false); setReminderSent(false); }} className="mt-5 px-6 py-2.5 text-sm font-medium text-white bg-[#C28A78] rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">Done</button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4"><label className="text-xs font-medium text-[#687068] mb-1.5 block">Recipient</label><div className="px-3 py-3 border border-[#D5D9D5] rounded-xl bg-[#FBF9F4]"><p className="text-sm text-[#3A3F3A]">{selectedActionTenant?.tenant || "All tenants in arrears"}</p><p className="text-xs text-[#94A3B8]">{selectedActionTenant?.tenantEmail || "Multiple recipients"}</p></div></div>
+                <div className="mb-2"><label className="text-xs font-medium text-[#687068] mb-1.5 block">Message</label><textarea rows={4} maxLength={500} value={reminderMessage} onChange={(e) => setReminderMessage(e.target.value)} className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78] resize-none"></textarea><p className="text-xs text-[#94A3B8] mt-1">{reminderMessage.length}/500 characters</p></div>
+                {reminderError && <div className="mb-3 bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-3"><p className="text-xs text-[#C46868]"><i className="ri-error-warning-line mr-1"></i>{reminderError}</p></div>}
+                {!selectedActionTenant && (
+                  <div className="mb-4 bg-[#FEF3C7] border border-[#FDE68A] rounded-xl p-3">
+                    <p className="text-xs text-[#92400E]"><i className="ri-information-line mr-1"></i>This will send individual reminders to all {data.length} tenants currently in arrears.</p>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      setReminderError(null);
+                      if (!reminderMessage.trim()) { setReminderError("Please enter a message."); return; }
+                      const recipients: { email: string; name: string; property: string; arrearsAmount: number; arrearsMonths: number; caseId: string | null }[] = [];
+                      if (selectedActionTenant) {
+                        recipients.push({ email: selectedActionTenant.tenantEmail, name: selectedActionTenant.tenant, property: selectedActionTenant.property, arrearsAmount: selectedActionTenant.totalArrears, arrearsMonths: selectedActionTenant.arrearsMonths, caseId: selectedActionTenant.caseId });
+                      } else {
+                        data.forEach((r) => { if (r.tenantEmail && r.tenantEmail !== "—") { recipients.push({ email: r.tenantEmail, name: r.tenant, property: r.property, arrearsAmount: r.totalArrears, arrearsMonths: r.arrearsMonths, caseId: r.caseId }); }});
+                      }
+                      if (recipients.length === 0) { setReminderError("No valid tenant emails found."); return; }
+                      setSendingReminder(true);
+                      let failedCount = 0;
+                      const now = new Date().toISOString();
+                      for (const r of recipients) {
+                        try {
+                          const res = await fetch("https://gejxrnreuafnyzwrchvy.supabase.co/functions/v1/send-rent-reminder", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tenant_email: r.email, tenant_name: r.name, property_name: r.property, arrears_amount: r.arrearsAmount, arrears_months: r.arrearsMonths, message: reminderMessage }),
+                          });
+                          const result = await res.json();
+                          if (!res.ok || !result.success) { failedCount++; continue; }
+                          if (r.caseId && !isDemoAccount()) {
+                            await supabase.from("arrears_cases").update({ last_reminder_sent: now, last_contact: now }).eq("id", r.caseId);
+                          }
+                        } catch { failedCount++; }
+                      }
+                      setSendingReminder(false);
+                      if (failedCount === 0) {
+                        setReminderSent(true);
+                        showToast(`Reminder sent to ${recipients.length} tenant${recipients.length > 1 ? "s" : ""}`);
+                      } else if (failedCount < recipients.length) {
+                        setReminderSent(true);
+                        showToast(`Reminder sent to ${recipients.length - failedCount} of ${recipients.length} tenants`);
+                      } else {
+                        setReminderError("Failed to send reminders. Please try again.");
+                      }
+                      if (!isDemoAccount()) await fetchData();
+                    }}
+                    disabled={sendingReminder}
+                    className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {sendingReminder ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>Sending...</> : "Send Reminder"}
+                  </button>
+                  <button onClick={() => { setShowReminderModal(false); setReminderSent(false); setReminderError(null); }} className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">Cancel</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

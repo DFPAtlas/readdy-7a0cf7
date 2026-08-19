@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, portalStatusBadge, portalStatusLabel, TenancyRecord } from "../TenanciesData";
@@ -43,23 +43,57 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
   const [sending, setSending] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const found = tenancies.find((t) => t.id === tenancyId) || tenancies[0];
-    setTenancy(found);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (sendingTimerRef.current) clearTimeout(sendingTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const timer = setTimeout(() => {
+      if (active) {
+        const found = tenancies.find((t) => t.id === tenancyId) || tenancies[0];
+        setTenancy(found);
+      }
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [tenancyId]);
 
   const showToast = (msg: string) => {
+    if (!mountedRef.current) return;
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setToast(null);
+    }, 3000);
   };
 
   const handleCopyLink = (tokenType: "owner" | "tenant") => {
     const token = tokenType === "owner" ? "own-detail-token" : "tnt-detail-token";
     const link = `${typeof window !== "undefined" ? window.location.origin : ""}/portal/accept-invite?token=${token}`;
     navigator.clipboard.writeText(link).then(() => {
+      if (!mountedRef.current) return;
       setCopiedToken(token);
       showToast("Invite link copied to clipboard");
-      setTimeout(() => setCopiedToken(null), 2000);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopiedToken(null);
+      }, 2000);
     });
   };
 
@@ -568,7 +602,13 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                 <button
                   onClick={() => {
                     setSending(true);
-                    setTimeout(() => { setSending(false); setInviteModal(null); showToast(`Invite sent to ${inviteEmail}`); }, 800);
+                    if (sendingTimerRef.current) clearTimeout(sendingTimerRef.current);
+                    sendingTimerRef.current = setTimeout(() => {
+                      if (!mountedRef.current) return;
+                      setSending(false);
+                      setInviteModal(null);
+                      showToast(`Invite sent to ${inviteEmail}`);
+                    }, 800);
                   }}
                   disabled={!inviteEmail || sending}
                   className="flex-1 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors disabled:opacity-50 whitespace-nowrap"

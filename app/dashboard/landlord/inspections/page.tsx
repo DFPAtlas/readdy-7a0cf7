@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { inspectionReports, properties } from "../LandlordData";
@@ -10,6 +10,13 @@ export default function LandlordInspectionsPage() {
   const [activeTab, setActiveTab] = useState("reports");
   const [showReportModal, setShowReportModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   return (
     <DashboardShell>
@@ -248,7 +255,8 @@ export default function LandlordInspectionsPage() {
                   onClick={() => {
                     setShowReportModal(false);
                     setShowSuccessToast(true);
-                    setTimeout(() => setShowSuccessToast(false), 3000);
+                    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
                   }}
                   className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"
                 >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { marketplaceContractors, serviceCategories, assignedContractors, pendingQuotes, tradeIconMap, tradeColorMap } from "./MarketplaceData";
 import { CONTRACTOR_STATUS, QUOTE_STATUS, getStatusConfig } from "@/lib/contractorSystem";
@@ -54,10 +54,18 @@ export default function MarketplacePage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteTrade, setInviteTrade] = useState("");
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = (message: string, type = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const filteredContractors = useMemo(() => {

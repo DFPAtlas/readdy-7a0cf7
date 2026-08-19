@@ -1,17 +1,15 @@
 import ContractorDetail from "./ContractorDetail";
-import DashboardShell from "@/components/DashboardShell";
 
-export const dynamic = "force-dynamic";
+export function generateStaticParams() {
+  return [
+    { id: "1" },
+    { id: "2" },
+    { id: "3" },
+    { id: "4" },
+    { id: "5" },
+  ];
+}
 
-export default async function ContractorPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  return (
-    <DashboardShell>
-      <ContractorDetail contractorId={id} />
-    </DashboardShell>
-  );
+export default function ContractorPage({ params }: { params: { id: string } }) {
+  return <ContractorDetail contractorId={params.id} />;
 }

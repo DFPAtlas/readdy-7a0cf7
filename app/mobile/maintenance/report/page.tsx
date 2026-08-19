@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MobileLayout } from "@/components/MobileBottomNav";
 
 const issueTypes = ["Plumbing", "Electrical", "Heating", "Appliance", "Structural", "Security", "Damp", "Other"];
@@ -18,6 +18,13 @@ const properties = [
 export default function MobileMaintenanceReportPage() {
   const [showCamera, setShowCamera] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
   const [selectedIssueType, setSelectedIssueType] = useState("Plumbing");
   const [selectedPriority, setSelectedPriority] = useState("Medium");
   const [selectedProperty, setSelectedProperty] = useState(properties[0]);
@@ -31,7 +38,8 @@ export default function MobileMaintenanceReportPage() {
 
   const handleSubmit = () => {
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   return (

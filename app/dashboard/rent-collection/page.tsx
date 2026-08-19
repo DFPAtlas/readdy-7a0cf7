@@ -13,6 +13,8 @@ interface RentRecord {
   id: string;
   property: string;
   tenant: string;
+  tenantId: string;
+  propertyId: string;
   rentAmount: number;
   dueDate: string;
   paidDate: string | null;
@@ -33,14 +35,14 @@ interface PaymentHistory {
 }
 
 const demoRentData: RentRecord[] = [
-  { id: "1", property: "12 Rose Avenue", tenant: "John Miller", rentAmount: 1850, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Bank Transfer", outstanding: 0 },
-  { id: "2", property: "Flat 4B Oak Street", tenant: "Sarah Jenkins", rentAmount: 950, dueDate: "1 Jul 2026", paidDate: "3 Jul 2026", status: "Paid", method: "Direct Debit", outstanding: 0 },
-  { id: "3", property: "45 Baker Street", tenant: "Emily Carter", rentAmount: 2100, dueDate: "1 Jul 2026", paidDate: null, status: "Due Soon", method: "", outstanding: 0 },
-  { id: "4", property: "8 The Crescent", tenant: "Michael Brown", rentAmount: 1650, dueDate: "1 Jul 2026", paidDate: null, status: "Overdue", method: "", outstanding: 1650 },
-  { id: "5", property: "34 Maple Gardens", tenant: "David Thompson", rentAmount: 2400, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Standing Order", outstanding: 0 },
-  { id: "6", property: "Flat 7 Park View", tenant: "Lisa Chen", rentAmount: 1200, dueDate: "1 Jul 2026", paidDate: null, status: "In Arrears", method: "", outstanding: 3600, arrearsMonths: 2 },
-  { id: "7", property: "21 High Street", tenant: "Robert Green", rentAmount: 800, dueDate: "1 Jul 2026", paidDate: null, status: "Due Soon", method: "", outstanding: 0 },
-  { id: "8", property: "Unit 3 Riverside Court", tenant: "Emma Wilson", rentAmount: 1400, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Bank Transfer", outstanding: 0 },
+  { id: "1", property: "12 Rose Avenue", tenant: "John Miller", tenantId: "t1", propertyId: "p1", rentAmount: 1850, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Bank Transfer", outstanding: 0 },
+  { id: "2", property: "Flat 4B Oak Street", tenant: "Sarah Jenkins", tenantId: "t2", propertyId: "p2", rentAmount: 950, dueDate: "1 Jul 2026", paidDate: "3 Jul 2026", status: "Paid", method: "Direct Debit", outstanding: 0 },
+  { id: "3", property: "45 Baker Street", tenant: "Emily Carter", tenantId: "t3", propertyId: "p3", rentAmount: 2100, dueDate: "1 Jul 2026", paidDate: null, status: "Due Soon", method: "", outstanding: 0 },
+  { id: "4", property: "8 The Crescent", tenant: "Michael Brown", tenantId: "t4", propertyId: "p4", rentAmount: 1650, dueDate: "1 Jul 2026", paidDate: null, status: "Overdue", method: "", outstanding: 1650 },
+  { id: "5", property: "34 Maple Gardens", tenant: "David Thompson", tenantId: "t5", propertyId: "p5", rentAmount: 2400, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Standing Order", outstanding: 0 },
+  { id: "6", property: "Flat 7 Park View", tenant: "Lisa Chen", tenantId: "t6", propertyId: "p6", rentAmount: 1200, dueDate: "1 Jul 2026", paidDate: null, status: "In Arrears", method: "", outstanding: 3600, arrearsMonths: 2 },
+  { id: "7", property: "21 High Street", tenant: "Robert Green", tenantId: "t7", propertyId: "p7", rentAmount: 800, dueDate: "1 Jul 2026", paidDate: null, status: "Due Soon", method: "", outstanding: 0 },
+  { id: "8", property: "Unit 3 Riverside Court", tenant: "Emma Wilson", tenantId: "t8", propertyId: "p8", rentAmount: 1400, dueDate: "1 Jul 2026", paidDate: "1 Jul 2026", status: "Paid", method: "Bank Transfer", outstanding: 0 },
 ];
 
 const demoHistory: PaymentHistory[] = [
@@ -78,6 +80,215 @@ export default function RentCollectionPage() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [financialActions, setFinancialActions] = useState<FinancialActionItem[]>([]);
   const [sortBy, setSortBy] = useState("dueDate");
+  const [recordFormTenant, setRecordFormTenant] = useState<any>(null);
+  const [recordFormAmount, setRecordFormAmount] = useState("");
+  const [recordFormDate, setRecordFormDate] = useState(new Date().toISOString().split("T")[0]);
+  const [recordFormMethod, setRecordFormMethod] = useState("");
+  const [recordFormSubmitting, setRecordFormSubmitting] = useState(false);
+  const [recordFormError, setRecordFormError] = useState("");
+  const [recordFormSuccess, setRecordFormSuccess] = useState("");
+  const [recordFormTenants, setRecordFormTenants] = useState<any[]>([]);
+  const [recordFormDropdownOpen, setRecordFormDropdownOpen] = useState(false);
+  const [recordFormSearch, setRecordFormSearch] = useState("");
+  const [detailTab, setDetailTab] = useState<"overview" | "history">("overview");
+  const [detailHistoryLoading, setDetailHistoryLoading] = useState(false);
+  const [detailPaymentHistory, setDetailPaymentHistory] = useState<PaymentHistory[]>([]);
+
+  function resetRecordForm() {
+    setRecordFormTenant(null);
+    setRecordFormAmount("");
+    setRecordFormDate(new Date().toISOString().split("T")[0]);
+    setRecordFormMethod("");
+    setRecordFormSubmitting(false);
+    setRecordFormError("");
+    setRecordFormSuccess("");
+    setRecordFormDropdownOpen(false);
+    setRecordFormSearch("");
+  }
+
+  async function fetchTenantPaymentHistory(tenantId: string, tenantName: string) {
+    setDetailHistoryLoading(true);
+    try {
+      if (isDemoAccount()) {
+        await new Promise((r) => setTimeout(r, 400));
+        const filtered = demoHistory.filter((p) => p.tenant === tenantName);
+        setDetailPaymentHistory(filtered);
+        return;
+      }
+
+      const { data: payments, error } = await supabase
+        .from("rent_payments")
+        .select("id, property_id, amount, due_date, paid_date, status, payment_method")
+        .eq("tenant_id", tenantId)
+        .order("paid_date", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      if (!payments || payments.length === 0) {
+        setDetailPaymentHistory([]);
+        return;
+      }
+
+      const propertyIds = [...new Set(payments.map((p: any) => p.property_id))];
+      const { data: properties } = await supabase.from("properties").select("id, line1").in("id", propertyIds);
+      const propMap = new Map<string, string>();
+      (properties || []).forEach((p: any) => propMap.set(p.id, p.line1));
+
+      const history: PaymentHistory[] = payments.map((p: any) => ({
+        id: p.id,
+        property: propMap.get(p.property_id) || "Unknown",
+        tenant: tenantName,
+        amount: p.amount || 0,
+        date: p.paid_date ? formatDateStr(p.paid_date) : "—",
+        method: p.payment_method || "—",
+        month: p.paid_date ? new Date(p.paid_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—",
+      }));
+
+      setDetailPaymentHistory(history);
+    } catch (_) {
+      setDetailPaymentHistory([]);
+    } finally {
+      setDetailHistoryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (showRecordModal) {
+      resetRecordForm();
+      fetchTenantsForDropdown();
+    }
+  }, [showRecordModal]);
+
+  useEffect(() => {
+    if (selectedTenant) {
+      setDetailTab("overview");
+    }
+  }, [selectedTenant]);
+
+  async function fetchTenantsForDropdown() {
+    try {
+      const { data: tenancies } = await supabase.from("tenancies").select("id, property_id, status").eq("status", "active");
+      if (!tenancies || tenancies.length === 0) {
+        setRecordFormTenants([]);
+        return;
+      }
+      const propertyIds = [...new Set(tenancies.map((t: any) => t.property_id))];
+      const { data: properties } = await supabase.from("properties").select("id, line1, city").in("id", propertyIds);
+      const { data: tenancyParties } = await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_primary").in("tenancy_id", tenancies.map((t: any) => t.id));
+      const tenantIds = tenancyParties ? [...new Set(tenancyParties.map((tp: any) => tp.tenant_id))] : [];
+      const { data: tenants } = tenantIds.length > 0 ? await supabase.from("tenants").select("id, full_name, email").in("id", tenantIds) : { data: [] };
+
+      const propMap = new Map<string, any>();
+      (properties || []).forEach((p: any) => propMap.set(p.id, p));
+      const tenantMap = new Map<string, any>();
+      (tenants || []).forEach((t: any) => tenantMap.set(t.id, t));
+
+      const options = tenancies.map((tncy: any) => {
+        const party = (tenancyParties || []).find((tp: any) => tp.tenancy_id === tncy.id && tp.is_primary);
+        const tenant = party ? tenantMap.get(party.tenant_id) : null;
+        const prop = propMap.get(tncy.property_id);
+        return {
+          tenancy_id: tncy.id,
+          property_id: tncy.property_id,
+          tenant_id: party?.tenant_id || null,
+          tenant_name: tenant?.full_name || "Unknown",
+          tenant_email: tenant?.email || null,
+          property_name: prop ? `${prop.line1}${prop.city ? ", " + prop.city : ""}` : "Unknown",
+        };
+      });
+      setRecordFormTenants(options);
+    } catch (err) {
+      setRecordFormTenants([]);
+    }
+  }
+
+  async function handleRecordPayment() {
+    setRecordFormError("");
+    setRecordFormSuccess("");
+
+    if (!recordFormTenant) {
+      setRecordFormError("Please select a tenant");
+      return;
+    }
+    const amount = parseFloat(recordFormAmount);
+    if (!amount || amount <= 0) {
+      setRecordFormError("Please enter a valid amount");
+      return;
+    }
+    if (!recordFormDate) {
+      setRecordFormError("Please select a payment date");
+      return;
+    }
+    if (!recordFormMethod) {
+      setRecordFormError("Please select a payment method");
+      return;
+    }
+
+    setRecordFormSubmitting(true);
+
+    try {
+      if (isDemoAccount()) {
+        await new Promise((r) => setTimeout(r, 600));
+        setRecordFormSuccess("Payment recorded successfully!");
+        setTimeout(() => {
+          setShowRecordModal(false);
+          setRecordFormSuccess("");
+        }, 1500);
+        return;
+      }
+
+      const { error } = await supabase.from("rent_payments").insert({
+        tenancy_id: recordFormTenant.tenancy_id,
+        tenant_id: recordFormTenant.tenant_id,
+        property_id: recordFormTenant.property_id,
+        amount: amount,
+        due_date: recordFormDate,
+        paid_date: recordFormDate,
+        status: "paid",
+        method: recordFormMethod,
+      });
+
+      if (error) throw error;
+
+      if (recordFormTenant?.tenant_email) {
+        try {
+          await fetch("https://gejxrnreuafnyzwrchvy.supabase.co/functions/v1/send-payment-receipt", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}`,
+            },
+            body: JSON.stringify({
+              tenant_email: recordFormTenant.tenant_email,
+              tenant_name: recordFormTenant.tenant_name,
+              amount: amount,
+              payment_date: recordFormDate,
+              payment_method: recordFormMethod,
+              property_name: recordFormTenant.property_name,
+            }),
+          });
+        } catch (_) {}
+      }
+
+      setRecordFormSuccess("Payment recorded successfully!");
+      setTimeout(() => {
+        setShowRecordModal(false);
+        setRecordFormSuccess("");
+        window.location.reload();
+      }, 1000);
+    } catch (err: any) {
+      setRecordFormError(err?.message || "Failed to record payment. Please try again.");
+    } finally {
+      setRecordFormSubmitting(false);
+    }
+  }
+
+  const filteredDropdownTenants = recordFormTenants.filter((t) =>
+    recordFormSearch
+      ? t.tenant_name.toLowerCase().includes(recordFormSearch.toLowerCase()) || t.property_name.toLowerCase().includes(recordFormSearch.toLowerCase())
+      : true
+  );
 
   useEffect(() => {
     if (isDemoAccount()) {
@@ -150,6 +361,8 @@ export default function RentCollectionPage() {
             id: p.id,
             property: propName,
             tenant: tenantName,
+            tenantId: tenantId || "",
+            propertyId: p.property_id,
             rentAmount: p.amount || 0,
             dueDate: formatDateStr(p.due_date),
             paidDate: p.paid_date ? formatDateStr(p.paid_date) : null,
@@ -495,69 +708,129 @@ export default function RentCollectionPage() {
                   <i className="ri-close-line text-[#687068]"></i>
                 </button>
               </div>
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#94A3B8]">Rent Amount</p>
-                    <p className="text-xl font-bold text-[#3A3F3A]">£{selectedTenant.rentAmount.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#94A3B8]">Outstanding</p>
-                    <p className={`text-xl font-bold ${selectedTenant.outstanding > 0 ? "text-[#C46868]" : "text-[#7A9A7E]"}`}>
-                      £{selectedTenant.outstanding.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#94A3B8]">Due Date</p>
-                    <p className="text-xl font-bold text-[#3A3F3A]">{selectedTenant.dueDate}</p>
-                  </div>
+              <div className="p-6 space-y-5">
+                <div className="flex items-center gap-1 p-1 bg-[#FBF9F4] rounded-full">
+                  <button
+                    onClick={() => { setDetailTab("overview"); }}
+                    className={`px-4 py-2 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${detailTab === "overview" ? "bg-[#C28A78] text-white" : "text-[#687068] hover:text-[#3A3F3A]"}`}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDetailTab("history");
+                      fetchTenantPaymentHistory(selectedTenant.tenantId, selectedTenant.tenant);
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${detailTab === "history" ? "bg-[#C28A78] text-white" : "text-[#687068] hover:text-[#3A3F3A]"}`}
+                  >
+                    Payment History
+                  </button>
                 </div>
-                <div className="space-y-3">
-                  {[
-                    { label: "Paid Date", value: selectedTenant.paidDate || "—" },
-                    { label: "Payment Method", value: selectedTenant.method || "—" },
-                    { label: "Status", value: selectedTenant.status },
-                  ].map((row) => (
-                    <div key={row.label} className="flex items-center justify-between p-3 bg-[#FBF9F4] rounded-xl">
-                      <span className="text-xs text-[#94A3B8]">{row.label}</span>
-                      <span className="text-sm font-medium text-[#3A3F3A]">{row.value}</span>
+
+                {detailTab === "overview" && (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
+                        <p className="text-xs text-[#94A3B8]">Rent Amount</p>
+                        <p className="text-xl font-bold text-[#3A3F3A]">£{selectedTenant.rentAmount.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
+                        <p className="text-xs text-[#94A3B8]">Outstanding</p>
+                        <p className={`text-xl font-bold ${selectedTenant.outstanding > 0 ? "text-[#C46868]" : "text-[#7A9A7E]"}`}>
+                          £{selectedTenant.outstanding.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
+                        <p className="text-xs text-[#94A3B8]">Due Date</p>
+                        <p className="text-xl font-bold text-[#3A3F3A]">{selectedTenant.dueDate}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#3A3F3A] mb-3">Recent Payments</p>
-                  <div className="space-y-2">
-                    {paymentHistory
-                      .filter((p) => p.tenant === selectedTenant.tenant)
-                      .slice(0, 5)
-                      .map((p) => (
-                        <div key={p.id} className="flex items-center justify-between p-3 bg-[#FBF9F4] rounded-xl">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-[#7A9A7E]/10 rounded-lg flex items-center justify-center">
-                              <i className="ri-check-line text-[#7A9A7E] text-sm"></i>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-[#3A3F3A]">{p.month}</p>
-                              <p className="text-xs text-[#94A3B8]">{p.method} · {p.date}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-medium text-[#7A9A7E]">£{p.amount.toLocaleString()}</span>
+                    <div className="space-y-3">
+                      {[
+                        { label: "Paid Date", value: selectedTenant.paidDate || "—" },
+                        { label: "Payment Method", value: selectedTenant.method || "—" },
+                        { label: "Status", value: selectedTenant.status },
+                      ].map((row) => (
+                        <div key={row.label} className="flex items-center justify-between p-3 bg-[#FBF9F4] rounded-xl">
+                          <span className="text-xs text-[#94A3B8]">{row.label}</span>
+                          <span className="text-sm font-medium text-[#3A3F3A]">{row.value}</span>
                         </div>
                       ))}
-                    {paymentHistory.filter((p) => p.tenant === selectedTenant.tenant).length === 0 && (
-                      <p className="text-sm text-[#94A3B8] text-center py-4">No payment history</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#3A3F3A] mb-3">Recent Payments</p>
+                      <div className="space-y-2">
+                        {paymentHistory
+                          .filter((p) => p.tenant === selectedTenant.tenant)
+                          .slice(0, 5)
+                          .map((p) => (
+                            <div key={p.id} className="flex items-center justify-between p-3 bg-[#FBF9F4] rounded-xl">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-[#7A9A7E]/10 rounded-lg flex items-center justify-center">
+                                  <i className="ri-check-line text-[#7A9A7E] text-sm"></i>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-[#3A3F3A]">{p.month}</p>
+                                  <p className="text-xs text-[#94A3B8]">{p.method} · {p.date}</p>
+                                </div>
+                              </div>
+                              <span className="text-sm font-medium text-[#7A9A7E]">£{p.amount.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        {paymentHistory.filter((p) => p.tenant === selectedTenant.tenant).length === 0 && (
+                          <p className="text-sm text-[#94A3B8] text-center py-4">No payment history</p>
+                        )}
+                      </div>
+                    </div>
+                    {selectedTenant.status !== "Paid" && (
+                      <div className="flex gap-3">
+                        <button onClick={() => setShowRecordModal(true)} className="flex-1 py-3 text-sm font-medium text-white bg-[#7A9A7E] rounded-xl hover:bg-[#059669] transition-colors whitespace-nowrap">
+                          <i className="ri-check-line mr-1"></i>Mark as Paid
+                        </button>
+                        <Link href="/dashboard/arrears" className="flex-1 py-3 text-sm font-medium text-[#C46868] border border-[#C46868] rounded-xl hover:bg-[#C46868]/5 transition-colors text-center whitespace-nowrap">
+                          <i className="ri-alarm-warning-line mr-1"></i>View Arrears
+                        </Link>
+                      </div>
                     )}
-                  </div>
-                </div>
-                {selectedTenant.status !== "Paid" && (
-                  <div className="flex gap-3">
-                    <button onClick={() => setShowRecordModal(true)} className="flex-1 py-3 text-sm font-medium text-white bg-[#7A9A7E] rounded-xl hover:bg-[#059669] transition-colors whitespace-nowrap">
-                      <i className="ri-check-line mr-1"></i>Mark as Paid
-                    </button>
-                    <Link href="/dashboard/arrears" className="flex-1 py-3 text-sm font-medium text-[#C46868] border border-[#C46868] rounded-xl hover:bg-[#C46868]/5 transition-colors text-center whitespace-nowrap">
-                      <i className="ri-alarm-warning-line mr-1"></i>View Arrears
-                    </Link>
-                  </div>
+                  </>
+                )}
+
+                {detailTab === "history" && (
+                  <>
+                    {detailHistoryLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-6 h-6 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2 text-sm text-[#687068]">Loading payment history...</span>
+                      </div>
+                    ) : detailPaymentHistory.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-12 h-12 bg-[#F1F5F9] rounded-full flex items-center justify-center mx-auto mb-3">
+                          <i className="ri-history-line text-[#94A3B8] text-xl"></i>
+                        </div>
+                        <p className="text-sm text-[#94A3B8]">No payment history for this tenant</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {detailPaymentHistory.map((p, i) => (
+                          <div key={p.id} className="flex items-center justify-between p-3 bg-[#FBF9F4] rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${p.amount > 0 ? "bg-[#7A9A7E]/10" : "bg-[#C46868]/10"}`}>
+                                <i className={`${p.amount > 0 ? "ri-arrow-down-line text-[#7A9A7E]" : "ri-arrow-up-line text-[#C46868]"} text-sm`}></i>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-[#3A3F3A]">{p.month}</p>
+                                <p className="text-xs text-[#687068]">{p.property}</p>
+                                <p className="text-xs text-[#94A3B8]">{p.method} · {p.date}</p>
+                              </div>
+                            </div>
+                            <span className={`text-sm font-semibold ${p.amount > 0 ? "text-[#7A9A7E]" : "text-[#C46868]"}`}>
+                              £{p.amount.toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -565,7 +838,7 @@ export default function RentCollectionPage() {
         )}
 
         {showRecordModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowRecordModal(false); } }}>
             <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-[#3A3F3A]">Record Payment</h3>
@@ -574,37 +847,128 @@ export default function RentCollectionPage() {
                 </button>
               </div>
               <div className="space-y-4">
-                <div>
+                <div className="relative">
                   <label className="text-xs font-medium text-[#687068] mb-1.5 block">Tenant / Property</label>
-                  <div className="flex items-center justify-between px-3 py-3 border border-[#D5D9D5] rounded-xl bg-[#FBF9F4]">
-                    <span className="text-sm text-[#3A3F3A]">Select tenant...</span>
-                    <i className="ri-arrow-down-s-line text-[#94A3B8]"></i>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRecordFormDropdownOpen(!recordFormDropdownOpen)}
+                    className="w-full flex items-center justify-between px-3 py-3 border border-[#D5D9D5] rounded-xl bg-[#FBF9F4] text-sm text-[#3A3F3A] hover:border-[#C28A78] transition-colors"
+                  >
+                    <span className={recordFormTenant ? "text-[#3A3F3A]" : "text-[#94A3B8]"}>
+                      {recordFormTenant ? `${recordFormTenant.tenant_name} — ${recordFormTenant.property_name}` : "Select tenant..."}
+                    </span>
+                    {recordFormDropdownOpen ? (
+                      <i className="ri-arrow-up-s-line text-[#94A3B8]"></i>
+                    ) : (
+                      <i className="ri-arrow-down-s-line text-[#94A3B8]"></i>
+                    )}
+                  </button>
+                  {recordFormDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#D5D9D5] rounded-xl shadow-lg z-10 max-h-52 overflow-hidden">
+                      <div className="p-2 border-b border-[#D5D9D5]">
+                        <div className="flex items-center gap-2 px-2 py-1.5 bg-[#FBF9F4] rounded-lg">
+                          <i className="ri-search-line text-[#94A3B8] text-sm"></i>
+                          <input
+                            type="text"
+                            value={recordFormSearch}
+                            onChange={(e) => setRecordFormSearch(e.target.value)}
+                            placeholder="Search..."
+                            className="text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent w-full"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="overflow-y-auto max-h-40">
+                        {filteredDropdownTenants.length === 0 ? (
+                          <p className="text-xs text-[#94A3B8] text-center py-6">No tenants found</p>
+                        ) : (
+                          filteredDropdownTenants.map((t) => (
+                            <button
+                              key={t.tenancy_id}
+                              type="button"
+                              onClick={() => {
+                                setRecordFormTenant(t);
+                                setRecordFormDropdownOpen(false);
+                                setRecordFormSearch("");
+                              }}
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#FBF9F4] transition-colors ${recordFormTenant?.tenancy_id === t.tenancy_id ? "bg-[#C28A78]/10 text-[#C28A78]" : "text-[#3A3F3A]"}`}
+                            >
+                              <span className="font-medium">{t.tenant_name}</span>
+                              <span className="text-xs text-[#94A3B8] ml-2">{t.property_name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-[#687068] mb-1.5 block">Amount</label>
                     <div className="relative">
                       <span className="absolute left-3 top-3 text-sm text-[#94A3B8]">£</span>
-                      <input type="number" className="w-full pl-7 pr-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]" />
+                      <input
+                        type="number"
+                        value={recordFormAmount}
+                        onChange={(e) => setRecordFormAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-7 pr-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]"
+                      />
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-[#687068] mb-1.5 block">Payment Date</label>
-                    <input type="date" className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]" />
+                    <input
+                      type="date"
+                      value={recordFormDate}
+                      onChange={(e) => setRecordFormDate(e.target.value)}
+                      className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]"
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-[#687068] mb-1.5 block">Payment Method</label>
                   <div className="grid grid-cols-3 gap-2">
-                    {["Bank Transfer", "Direct Debit", "Standing Order", "Cash", "Card"].map((m) => (
-                      <button key={m} className="py-2 text-xs font-medium border border-[#D5D9D5] rounded-xl text-[#687068] hover:border-[#C28A78] hover:text-[#C28A78] transition-colors">{m}</button>
+                    {["Bank Transfer", "Direct Debit", "Standing Order", "Cash", "Card", "Other"].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setRecordFormMethod(m)}
+                        className={`py-2 text-xs font-medium rounded-xl transition-colors whitespace-nowrap ${recordFormMethod === m ? "bg-[#C28A78] text-white border-[#C28A78]" : "border border-[#D5D9D5] text-[#687068] hover:border-[#C28A78] hover:text-[#C28A78]"}`}
+                      >
+                        {m}
+                      </button>
                     ))}
                   </div>
                 </div>
+                {recordFormError && (
+                  <p className="text-xs text-[#C46868] bg-[#C46868]/5 rounded-lg px-3 py-2">{recordFormError}</p>
+                )}
+                {recordFormSuccess && (
+                  <p className="text-xs text-[#7A9A7E] bg-[#7A9A7E]/5 rounded-lg px-3 py-2">{recordFormSuccess}</p>
+                )}
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setShowRecordModal(false)} className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors">Record Payment</button>
-                  <button onClick={() => setShowRecordModal(false)} className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors">Cancel</button>
+                  <button
+                    onClick={handleRecordPayment}
+                    disabled={recordFormSubmitting}
+                    className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {recordFormSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        Recording...
+                      </span>
+                    ) : (
+                      "Record Payment"
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowRecordModal(false)}
+                    disabled={recordFormSubmitting}
+                    className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </div>

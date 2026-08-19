@@ -28,8 +28,19 @@ export default function CRMPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'pipeline' | 'leads'>('dashboard');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [stageFilter, setStageFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<CRMLead | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(false);
+  const [editStage, setEditStage] = useState('');
+  const [editFollowUp, setEditFollowUp] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [showStageMenu, setShowStageMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showLostReason, setShowLostReason] = useState(false);
+  const [lostReason, setLostReason] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -51,6 +62,14 @@ export default function CRMPage() {
   const filteredLeads = leads.filter(l => {
     if (typeFilter !== 'all' && l.lead_type !== typeFilter) return false;
     if (stageFilter !== 'all' && l.pipeline_stage !== stageFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matches =
+        l.name.toLowerCase().includes(q) ||
+        (l.email && l.email.toLowerCase().includes(q)) ||
+        (l.company && l.company.toLowerCase().includes(q));
+      if (!matches) return false;
+    }
     return true;
   });
 
@@ -91,19 +110,19 @@ export default function CRMPage() {
     <div className="min-h-screen bg-[#FBF9F4]">
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 rounded-xl px-5 py-4" style={{background: 'linear-gradient(135deg, #C28A78 0%, #a06b5a 100%)'}}>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">CRM</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Track leads, pipeline, and conversions</p>
+            <h1 className="text-2xl font-bold text-white">CRM</h1>
+            <p className="text-sm text-white/80 mt-0.5">Track leads, pipeline, and conversions</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex bg-white rounded-xl border border-slate-200 p-1">
+            <div className="flex bg-white/20 rounded-xl border border-white/30 p-1">
               {(['dashboard', 'pipeline', 'leads'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                    activeTab === tab ? 'bg-[#C28A78] text-white' : 'text-slate-600 hover:text-slate-900'
+                    activeTab === tab ? 'bg-white text-[#143828]' : 'text-white/80 hover:text-white'
                   }`}
                 >
                   {tab === 'dashboard' ? 'Dashboard' : tab === 'pipeline' ? 'Pipeline' : 'All Leads'}
@@ -112,7 +131,7 @@ export default function CRMPage() {
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-medium whitespace-nowrap hover:bg-[#143A29] transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-medium whitespace-nowrap hover:bg-[#C28A78]/80 transition-colors"
             >
               <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-line"></i></div>
               Add Lead
@@ -308,10 +327,10 @@ export default function CRMPage() {
                             )}
                           </div>
                           {lead.follow_up_date && stage !== 'won' && stage !== 'lost' && (
-                            <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
-                              <div className="w-3 h-3 flex items-center justify-center"><i className="ri-calendar-line"></i></div>
+                            <span className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
+                              <span className="w-3 h-3 flex items-center justify-center"><i className="ri-calendar-line"></i></span>
                               {formatDateTime(lead.follow_up_date)}
-                            </p>
+                            </span>
                           )}
                         </button>
                       ))}
@@ -329,6 +348,25 @@ export default function CRMPage() {
         {/* All Leads Table */}
         {activeTab === 'leads' && (
           <>
+            {/* Search bar */}
+            <div className="relative mb-4">
+              <i className="ri-search-line absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] text-sm"></i>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by name, email or company..."
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[#D5D9D5] rounded-xl text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] transition-colors cursor-pointer"
+                >
+                  <i className="ri-close-line text-[#94A3B8] text-xs"></i>
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2 mb-4 flex-wrap">
               {LEAD_TYPES.map(t => (
                 <button
@@ -416,7 +454,13 @@ export default function CRMPage() {
                 </table>
               </div>
               {filteredLeads.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-12">No leads match your filters</p>
+                <div className="text-center py-12">
+                  <div className="w-10 h-10 bg-[#F1F5F9] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i className="ri-search-line text-[#94A3B8]"></i>
+                  </div>
+                  <p className="text-sm font-medium text-[#3A3F3A]">{searchQuery ? `No results for "${searchQuery}"` : 'No leads match your filters'}</p>
+                  {searchQuery && <p className="text-xs text-[#94A3B8] mt-1">Try a different name, email, or company</p>}
+                </div>
               )}
             </div>
           </>
@@ -425,98 +469,372 @@ export default function CRMPage() {
 
       {/* Lead Detail Modal */}
       {selectedLead && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setSelectedLead(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto mx-4" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-200 rounded-t-2xl">
-              <h3 className="text-lg font-bold text-slate-900">{selectedLead.name}</h3>
-              <button onClick={() => setSelectedLead(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-                <div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line"></i></div>
-              </button>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setSelectedLead(null); setEditingLead(false); setConfirmDelete(false); setShowLostReason(false); setLostReason(''); }}>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#D5D9D5] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#C28A78]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <i className="ri-user-3-line text-[#C28A78] text-lg"></i>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#3A3F3A]">{selectedLead.name}</h3>
+                  {selectedLead.company && <p className="text-xs text-[#687068]">{selectedLead.company}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (editingLead) {
+                      setEditingLead(false);
+                      setShowStageMenu(false);
+                    } else {
+                      setEditStage(selectedLead.pipeline_stage);
+                      setEditFollowUp(selectedLead.follow_up_date ? new Date(selectedLead.follow_up_date).toISOString().slice(0,16) : '');
+                      setEditNotes(selectedLead.notes || '');
+                      setEditingLead(true);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    editingLead ? 'bg-[#F1F5F9] text-[#687068] hover:bg-[#E2E8F0]' : 'bg-[#C28A78]/10 text-[#C28A78] hover:bg-[#C28A78]/20'
+                  }`}
+                >
+                  <i className={editingLead ? 'ri-close-line' : 'ri-edit-line'}></i>
+                  {editingLead ? 'Cancel' : 'Edit Lead'}
+                </button>
+                <button onClick={() => { setSelectedLead(null); setEditingLead(false); setConfirmDelete(false); setShowLostReason(false); setLostReason(''); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer">
+                  <i className="ri-close-line text-[#94A3B8]"></i>
+                </button>
+              </div>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${LEAD_TYPE_COLORS[selectedLead.lead_type] || 'bg-slate-100 text-slate-600'}`}>
-                  {getLeadTypeLabel(selectedLead.lead_type)}
-                </span>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${STAGE_BG_COLORS[selectedLead.pipeline_stage] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                  {getStageLabel(selectedLead.pipeline_stage)}
-                </span>
-                {selectedLead.source && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">{getSourceLabel(selectedLead.source)}</span>
-                )}
+
+            {/* Badges bar */}
+            <div className="flex items-center gap-2 px-6 py-3 bg-[#FBF9F4] border-b border-[#D5D9D5] flex-wrap flex-shrink-0">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${LEAD_TYPE_COLORS[selectedLead.lead_type] || 'bg-slate-100 text-slate-600'}`}>
+                {getLeadTypeLabel(selectedLead.lead_type)}
+              </span>
+              <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${STAGE_BG_COLORS[selectedLead.pipeline_stage] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                {getStageLabel(selectedLead.pipeline_stage)}
+              </span>
+              {selectedLead.source && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-[#D5D9D5] text-[#687068] font-medium">{getSourceLabel(selectedLead.source)}</span>
+              )}
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Contact */}
+              <div className="bg-[#FBF9F4] rounded-xl border border-[#D5D9D5] p-4 space-y-3">
+                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Contact Details</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  {selectedLead.email && (
+                    <div>
+                      <p className="text-xs text-[#94A3B8] mb-0.5">Email</p>
+                      <p className="text-sm text-[#3A3F3A] font-medium">{selectedLead.email}</p>
+                    </div>
+                  )}
+                  {selectedLead.phone && (
+                    <div>
+                      <p className="text-xs text-[#94A3B8] mb-0.5">Phone</p>
+                      <p className="text-sm text-[#3A3F3A] font-medium">{selectedLead.phone}</p>
+                    </div>
+                  )}
+                  {selectedLead.company && (
+                    <div>
+                      <p className="text-xs text-[#94A3B8] mb-0.5">Company</p>
+                      <p className="text-sm text-[#3A3F3A] font-medium">{selectedLead.company}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {selectedLead.email && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Email</p>
-                    <p className="text-sm text-slate-900">{selectedLead.email}</p>
+              {/* Financials */}
+              <div className="bg-[#FBF9F4] rounded-xl border border-[#D5D9D5] p-4 space-y-3">
+                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Financials</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white rounded-lg border border-[#D5D9D5] p-3 text-center">
+                    <p className="text-xs text-[#94A3B8] mb-1">Est. Value</p>
+                    <p className="text-sm font-bold text-[#3A3F3A]">{selectedLead.estimated_value > 0 ? formatCurrency(selectedLead.estimated_value) : '—'}</p>
                   </div>
-                )}
-                {selectedLead.phone && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Phone</p>
-                    <p className="text-sm text-slate-900">{selectedLead.phone}</p>
+                  <div className="bg-white rounded-lg border border-[#D5D9D5] p-3 text-center">
+                    <p className="text-xs text-[#94A3B8] mb-1">Properties</p>
+                    <p className="text-sm font-bold text-[#3A3F3A]">{selectedLead.properties_count > 0 ? selectedLead.properties_count : '—'}</p>
                   </div>
-                )}
-                {selectedLead.company && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Company</p>
-                    <p className="text-sm text-slate-900">{selectedLead.company}</p>
+                  <div className="bg-white rounded-lg border border-[#D5D9D5] p-3 text-center">
+                    <p className="text-xs text-[#94A3B8] mb-1">Monthly Rent</p>
+                    <p className="text-sm font-bold text-[#3A3F3A]">{selectedLead.expected_monthly_rent > 0 ? formatCurrency(selectedLead.expected_monthly_rent) : '—'}</p>
                   </div>
-                )}
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Estimated Value</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedLead.estimated_value > 0 ? formatCurrency(selectedLead.estimated_value) : 'N/A'}</p>
                 </div>
-                {selectedLead.properties_count > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Properties</p>
-                    <p className="text-sm text-slate-900">{selectedLead.properties_count}</p>
-                  </div>
-                )}
-                {selectedLead.expected_monthly_rent > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Expected Monthly Rent</p>
-                    <p className="text-sm text-slate-900">{formatCurrency(selectedLead.expected_monthly_rent)}</p>
-                  </div>
-                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Created</p>
-                  <p className="text-sm text-slate-900">{formatDate(selectedLead.created_at)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Last Contacted</p>
-                  <p className="text-sm text-slate-900">{formatDate(selectedLead.last_contacted_at)}</p>
-                </div>
-                {selectedLead.follow_up_date && (
+              {/* Dates */}
+              <div className="bg-[#FBF9F4] rounded-xl border border-[#D5D9D5] p-4 space-y-3">
+                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Timeline</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                   <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Follow-up</p>
-                    <p className="text-sm text-amber-600 font-medium">{formatDateTime(selectedLead.follow_up_date)}</p>
+                    <p className="text-xs text-[#94A3B8] mb-0.5">Created</p>
+                    <p className="text-sm text-[#3A3F3A] font-medium">{formatDate(selectedLead.created_at)}</p>
                   </div>
-                )}
-                {selectedLead.won_date && (
                   <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Won Date</p>
-                    <p className="text-sm text-emerald-600">{formatDate(selectedLead.won_date)}</p>
+                    <p className="text-xs text-[#94A3B8] mb-0.5">Last Contacted</p>
+                    <p className="text-sm text-[#3A3F3A] font-medium">{formatDate(selectedLead.last_contacted_at)}</p>
                   </div>
-                )}
+                  {selectedLead.follow_up_date && (
+                    <div>
+                      <p className="text-xs text-[#94A3B8] mb-0.5">Follow-up</p>
+                      <p className="text-sm text-amber-600 font-semibold">{formatDateTime(selectedLead.follow_up_date)}</p>
+                    </div>
+                  )}
+                  {selectedLead.won_date && (
+                    <div>
+                      <p className="text-xs text-[#94A3B8] mb-0.5">Won Date</p>
+                      <p className="text-sm text-emerald-600 font-semibold">{formatDate(selectedLead.won_date)}</p>
+                    </div>
+                  )}
+                </div>
                 {selectedLead.lost_reason && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-0.5">Lost Reason</p>
-                    <p className="text-sm text-red-500">{selectedLead.lost_reason}</p>
+                  <div className="bg-red-50 border border-red-100 rounded-lg p-3 mt-1">
+                    <p className="text-xs text-red-400 mb-0.5">Lost Reason</p>
+                    <p className="text-sm text-red-600 font-medium">{selectedLead.lost_reason}</p>
                   </div>
                 )}
               </div>
 
+              {/* Notes */}
               {selectedLead.notes && (
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">Notes</p>
-                  <p className="text-sm text-slate-700 bg-slate-50 rounded-lg p-3">{selectedLead.notes}</p>
+                  <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">Notes</p>
+                  <div className="bg-[#FBF9F4] border border-[#D5D9D5] rounded-xl p-4">
+                    <p className="text-sm text-[#3A3F3A] leading-relaxed">{selectedLead.notes}</p>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* Edit panel */}
+            {editingLead && (
+              <div className="px-6 py-4 border-t border-[#D5D9D5] bg-[#FBF9F4] space-y-4 flex-shrink-0">
+                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Edit Lead</p>
+
+                {/* Quick actions */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={async () => {
+                      setEditSaving(true);
+                      const { supabase } = await import('@/lib/supabaseClient');
+                      await supabase.from('crm_leads').update({
+                        pipeline_stage: 'won',
+                        won_date: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      }).eq('id', selectedLead.id);
+                      setEditSaving(false);
+                      setEditingLead(false);
+                      setSelectedLead(prev => prev ? { ...prev, pipeline_stage: 'won', won_date: new Date().toISOString() } : null);
+                      setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, pipeline_stage: 'won', won_date: new Date().toISOString() } : l));
+                    }}
+                    disabled={editSaving || selectedLead.pipeline_stage === 'won'}
+                    className="flex items-center justify-center gap-2 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-40 whitespace-nowrap cursor-pointer"
+                  >
+                    <i className="ri-trophy-line text-sm"></i>
+                    Mark as Won
+                  </button>
+                  <button
+                    onClick={() => { setShowLostReason(true); setLostReason(''); }}
+                    disabled={editSaving || selectedLead.pipeline_stage === 'lost'}
+                    className="flex items-center justify-center gap-2 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40 whitespace-nowrap cursor-pointer"
+                  >
+                    <i className="ri-close-circle-line text-sm"></i>
+                    Mark as Lost
+                  </button>
+                </div>
+
+                {/* Lost reason inline panel */}
+                {showLostReason && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-close-circle-line text-red-500 text-sm"></i>
+                      <p className="text-sm font-medium text-red-700">Why did this deal fall through?</p>
+                    </div>
+                    <input
+                      type="text"
+                      value={lostReason}
+                      onChange={e => setLostReason(e.target.value)}
+                      placeholder="e.g. Price too high, went with competitor, unresponsive..."
+                      className="w-full px-3 py-2.5 border border-red-200 rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300 bg-white"
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setShowLostReason(false); setLostReason(''); }}
+                        className="flex-1 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setEditSaving(true);
+                          const { supabase } = await import('@/lib/supabaseClient');
+                          await supabase.from('crm_leads').update({
+                            pipeline_stage: 'lost',
+                            lost_reason: lostReason.trim() || null,
+                            updated_at: new Date().toISOString(),
+                          }).eq('id', selectedLead.id);
+                          const updatedReason = lostReason.trim() || null;
+                          setEditSaving(false);
+                          setShowLostReason(false);
+                          setEditingLead(false);
+                          setLostReason('');
+                          setSelectedLead(prev => prev ? { ...prev, pipeline_stage: 'lost', lost_reason: updatedReason } : null);
+                          setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, pipeline_stage: 'lost', lost_reason: updatedReason } : l));
+                        }}
+                        disabled={editSaving}
+                        className="flex-1 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                      >
+                        {editSaving ? 'Saving...' : 'Confirm Lost'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-[#D5D9D5] pt-4 space-y-4">
+                <p className="text-xs font-medium text-[#687068] mb-3">Update Details</p>
+
+                {/* Stage picker */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Pipeline Stage</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowStageMenu(v => !v)}
+                    className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] text-left flex items-center justify-between bg-white hover:border-[#C28A78] transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full inline-block ${
+                        editStage === 'won' ? 'bg-emerald-500' : editStage === 'lost' ? 'bg-red-400' :
+                        editStage === 'new' ? 'bg-blue-500' : editStage === 'contacted' ? 'bg-indigo-500' :
+                        editStage === 'viewing_booked' ? 'bg-amber-500' : 'bg-orange-500'
+                      }`}></span>
+                      {getStageLabel(editStage)}
+                    </span>
+                    <i className="ri-arrow-down-s-line text-[#94A3B8]"></i>
+                  </button>
+                  {showStageMenu && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-xl shadow-lg z-20 overflow-hidden">
+                      {(['new','contacted','viewing_booked','proposal_sent','won','lost'] as const).map(s => (
+                        <button key={s} type="button"
+                          onClick={() => { setEditStage(s); setShowStageMenu(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-[#FBF9F4] transition-colors cursor-pointer ${
+                            editStage === s ? 'text-[#C28A78] font-medium' : 'text-[#3A3F3A]'
+                          }`}>
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            s === 'won' ? 'bg-emerald-500' : s === 'lost' ? 'bg-red-400' :
+                            s === 'new' ? 'bg-blue-500' : s === 'contacted' ? 'bg-indigo-500' :
+                            s === 'viewing_booked' ? 'bg-amber-500' : 'bg-orange-500'
+                          }`}></span>
+                          {getStageLabel(s)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Follow-up date */}
+                <div>
+                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Follow-up Date</label>
+                  <input
+                    type="datetime-local"
+                    value={editFollowUp}
+                    onChange={e => setEditFollowUp(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Notes</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={e => setEditNotes(e.target.value)}
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Add notes about this lead..."
+                    className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white resize-none"
+                  />
+                  <p className="text-xs text-[#94A3B8] mt-1 text-right">{editNotes.length}/500</p>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    setEditSaving(true);
+                    const { supabase } = await import('@/lib/supabaseClient');
+                    const updates: Record<string, unknown> = {
+                      pipeline_stage: editStage,
+                      follow_up_date: editFollowUp ? new Date(editFollowUp).toISOString() : null,
+                      notes: editNotes.trim() || null,
+                      updated_at: new Date().toISOString(),
+                    };
+                    await supabase.from('crm_leads').update(updates).eq('id', selectedLead.id);
+                    setEditSaving(false);
+                    setEditingLead(false);
+                    setShowStageMenu(false);
+                    setSelectedLead(prev => prev ? { ...prev, pipeline_stage: editStage as CRMLead['pipeline_stage'], follow_up_date: editFollowUp ? new Date(editFollowUp).toISOString() : null, notes: editNotes.trim() || null } : null);
+                    setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, pipeline_stage: editStage as CRMLead['pipeline_stage'], follow_up_date: editFollowUp ? new Date(editFollowUp).toISOString() : null, notes: editNotes.trim() || null } : l));
+                  }}
+                  disabled={editSaving}
+                  className="w-full py-2.5 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                >
+                  {editSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#D5D9D5] bg-white rounded-b-2xl flex-shrink-0">
+              {confirmDelete ? (
+                <div className="flex items-center gap-3 w-full">
+                  <div className="flex items-center gap-2 text-sm text-red-600 flex-1">
+                    <i className="ri-error-warning-line text-red-500"></i>
+                    <span className="font-medium">Delete this lead permanently?</span>
+                  </div>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-2 border border-[#D5D9D5] text-[#687068] text-sm font-medium rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setDeleting(true);
+                      const { supabase } = await import('@/lib/supabaseClient');
+                      await supabase.from('crm_leads').delete().eq('id', selectedLead.id);
+                      setLeads(prev => prev.filter(l => l.id !== selectedLead.id));
+                      setDeleting(false);
+                      setConfirmDelete(false);
+                      setSelectedLead(null);
+                      setEditingLead(false);
+                    }}
+                    disabled={deleting}
+                    className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                  >
+                    {deleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-red-500 text-sm font-medium rounded-lg hover:bg-red-50 border border-red-100 transition-colors whitespace-nowrap cursor-pointer"
+                  >
+                    <i className="ri-delete-bin-line text-sm"></i>
+                    Delete Lead
+                  </button>
+                  <button
+                    onClick={() => { setSelectedLead(null); setEditingLead(false); setConfirmDelete(false); setShowLostReason(false); setLostReason(''); }}
+                    className="px-5 py-2.5 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -544,6 +862,24 @@ function AddLeadModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
   const [followUpDate, setFollowUpDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showLeadTypeMenu, setShowLeadTypeMenu] = useState(false);
+  const [showSourceMenu, setShowSourceMenu] = useState(false);
+
+  const LEAD_TYPE_OPTIONS = [
+    { value: 'landlord', label: 'Landlord' },
+    { value: 'tenant', label: 'Tenant' },
+    { value: 'investor', label: 'Investor' },
+    { value: 'business_opportunity', label: 'Business Opportunity' },
+  ];
+
+  const SOURCE_OPTIONS = [
+    { value: 'website', label: 'Website' },
+    { value: 'referral', label: 'Referral' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'google', label: 'Google' },
+    { value: 'walk_in', label: 'Walk-in' },
+    { value: 'existing_landlord', label: 'Existing Landlord' },
+  ];
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError('Name is required'); return; }
@@ -576,103 +912,151 @@ function AddLeadModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
     onClose();
   };
 
+  const inputCls = "w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white transition-colors";
+  const labelCls = "block text-sm font-medium text-[#3A3F3A] mb-1.5";
+
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto mx-4" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-slate-200 rounded-t-2xl">
-          <h3 className="text-lg font-bold text-slate-900">Add New Lead</h3>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-            <div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line"></i></div>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#D5D9D5] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#C28A78]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <i className="ri-user-add-line text-[#C28A78] text-lg"></i>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#3A3F3A]">Add New Lead</h3>
+              <p className="text-xs text-[#687068]">Enter the lead's details below</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer">
+            <i className="ri-close-line text-[#94A3B8]"></i>
           </button>
         </div>
-        <div className="p-6 space-y-4">
-          {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg p-3">{error}</p>}
 
-          <div>
-            <label className="text-xs font-medium text-slate-500 mb-1 block">Name *</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Lead name" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-5">
+              <i className="ri-error-warning-line text-red-500 text-sm"></i>
+              <p className="text-sm text-red-600">{error}</p>
             </div>
+          )}
+
+          <div className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Phone</label>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
+              <label className={labelCls}>Full Name <span className="text-[#C28A78]">*</span></label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. James Richardson" className={inputCls} />
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-medium text-slate-500 mb-1 block">Company</label>
-            <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Company name" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Lead Type</label>
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    const types = ['landlord', 'tenant', 'investor', 'business_opportunity'];
-                    const idx = types.indexOf(leadType);
-                    setLeadType(types[(idx + 1) % types.length]);
-                  }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 text-left flex items-center justify-between hover:border-slate-300 transition-colors"
-                >
-                  <span>{getLeadTypeLabel(leadType)}</span>
-                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-arrow-down-s-line text-slate-400"></i></div>
-                </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Phone</label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44 7xxx xxxxxx" className={inputCls} />
               </div>
             </div>
+
             <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Source</label>
+              <label className={labelCls}>Company</label>
+              <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Company name (optional)" className={inputCls} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="relative">
+                <label className={labelCls}>Lead Type</label>
                 <button
-                  onClick={() => {
-                    const sources = ['website', 'referral', 'facebook', 'google', 'walk_in', 'existing_landlord'];
-                    const idx = sources.indexOf(source);
-                    setSource(sources[(idx + 1) % sources.length]);
-                  }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 text-left flex items-center justify-between hover:border-slate-300 transition-colors"
+                  type="button"
+                  onClick={() => { setShowLeadTypeMenu(v => !v); setShowSourceMenu(false); }}
+                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] text-left flex items-center justify-between hover:border-[#C28A78] transition-colors bg-white cursor-pointer"
                 >
-                  <span>{getSourceLabel(source)}</span>
-                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-arrow-down-s-line text-slate-400"></i></div>
+                  <span>{LEAD_TYPE_OPTIONS.find(o => o.value === leadType)?.label}</span>
+                  <i className="ri-arrow-down-s-line text-[#94A3B8]"></i>
                 </button>
+                {showLeadTypeMenu && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-xl shadow-lg z-10 overflow-hidden">
+                    {LEAD_TYPE_OPTIONS.map(opt => (
+                      <button key={opt.value} type="button" onClick={() => { setLeadType(opt.value); setShowLeadTypeMenu(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#FBF9F4] transition-colors cursor-pointer ${leadType === opt.value ? 'text-[#C28A78] font-medium' : 'text-[#3A3F3A]'}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <label className={labelCls}>Source</label>
+                <button
+                  type="button"
+                  onClick={() => { setShowSourceMenu(v => !v); setShowLeadTypeMenu(false); }}
+                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] text-left flex items-center justify-between hover:border-[#C28A78] transition-colors bg-white cursor-pointer"
+                >
+                  <span>{SOURCE_OPTIONS.find(o => o.value === source)?.label}</span>
+                  <i className="ri-arrow-down-s-line text-[#94A3B8]"></i>
+                </button>
+                {showSourceMenu && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D5D9D5] rounded-xl shadow-lg z-10 overflow-hidden">
+                    {SOURCE_OPTIONS.map(opt => (
+                      <button key={opt.value} type="button" onClick={() => { setSource(opt.value); setShowSourceMenu(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#FBF9F4] transition-colors cursor-pointer ${source === opt.value ? 'text-[#C28A78] font-medium' : 'text-[#3A3F3A]'}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-1 border-t border-[#D5D9D5]">
+              <p className="text-xs font-medium text-[#687068] mb-3 mt-3">Financials</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>Est. Value (£)</label>
+                  <input type="number" value={estimatedValue} onChange={e => setEstimatedValue(e.target.value)} placeholder="0" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Properties</label>
+                  <input type="number" value={propertiesCount} onChange={e => setPropertiesCount(e.target.value)} placeholder="0" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Monthly Rent (£)</label>
+                  <input type="number" value={expectedRent} onChange={e => setExpectedRent(e.target.value)} placeholder="0" className={inputCls} />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-1 border-t border-[#D5D9D5]">
+              <p className="text-xs font-medium text-[#687068] mb-3 mt-3">Follow-up & Notes</p>
+              <div className="space-y-4">
+                <div>
+                  <label className={labelCls}>Follow-up Date</label>
+                  <input type="datetime-local" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Notes</label>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add notes about this lead..." rows={3} maxLength={500} className={`${inputCls} resize-none`} />
+                  <p className="text-xs text-[#94A3B8] mt-1 text-right">{notes.length}/500</p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Est. Value (£)</label>
-              <input type="number" value={estimatedValue} onChange={e => setEstimatedValue(e.target.value)} placeholder="0" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Properties</label>
-              <input type="number" value={propertiesCount} onChange={e => setPropertiesCount(e.target.value)} placeholder="0" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 mb-1 block">Monthly Rent (£)</label>
-              <input type="number" value={expectedRent} onChange={e => setExpectedRent(e.target.value)} placeholder="0" className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-slate-500 mb-1 block">Follow-up Date</label>
-            <input type="datetime-local" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none" />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-slate-500 mb-1 block">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add notes about this lead..." rows={3} maxLength={500} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] outline-none resize-none" />
-          </div>
-
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-[#D5D9D5] bg-[#FBF9F4] rounded-b-2xl flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 border border-[#D5D9D5] text-[#687068] text-sm font-medium rounded-lg hover:bg-white transition-colors whitespace-nowrap cursor-pointer"
+          >
+            Cancel
+          </button>
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="w-full py-2.5 bg-[#C28A78] text-white rounded-xl text-sm font-medium whitespace-nowrap hover:bg-[#143A29] transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
           >
             {saving ? 'Adding...' : 'Add Lead'}
           </button>

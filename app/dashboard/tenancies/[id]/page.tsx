@@ -3,7 +3,9 @@ import DashboardShell from "@/components/DashboardShell";
 import TenancyDetail from "./TenancyDetail";
 import { tenancies } from "../TenanciesData";
 
-export const dynamic = "force-dynamic";
+export async function generateStaticParams() {
+  return tenancies.map((t) => ({ id: t.id }));
+}
 
 export default async function TenancyPage({
   params,

@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import DashboardShell from "@/components/DashboardShell"
 import FinancialActionCentre from "@/components/dashboard/FinancialActionCentre"
 import { paymentStatusConfig, FinancialActionItem } from "@/lib/financialStatus"
 import { useEntitlements } from "@/lib/useEntitlements"
 import { isDemoAccount } from "@/lib/demoMode"
+import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient"
 import { payments, PaymentRecord } from "./PaymentsData"
 
@@ -40,13 +41,15 @@ export default function PaymentsPage() {
   const [markPaidConfirm, setMarkPaidConfirm] = useState<PaymentRecord | null>(null)
   const [markWaivedConfirm, setMarkWaivedConfirm] = useState<PaymentRecord | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [methodDropdown, setMethodDropdown] = useState(false)
   const [financialActions] = useState<FinancialActionItem[]>(demoFinancialActions)
   const { isReadOnly } = useEntitlements()
 
   const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }
 
   useEffect(() => {
@@ -56,6 +59,12 @@ export default function PaymentsPage() {
     document.addEventListener("click", handleClick)
     return () => document.removeEventListener("click", handleClick)
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isDemoAccount()) {
@@ -193,6 +202,7 @@ export default function PaymentsPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Payment Tracking</h1>
             <p className="text-sm text-[#687068] mt-1">{stats.total} rent payments · {stats.paidCount} received · {stats.overdueCount} overdue</p>
           </div>
+          <DemoHelperTip id="payments-overview" title="Payment Tracking">Record and track rent payments across your portfolio. Mark payments as received, monitor outstanding balances and review subscription billing events.</DemoHelperTip>
           <button
             onClick={() => {
               if (isReadOnly) { alert("Your 14-day trial has ended. Upgrade your plan to continue using this feature."); return; }

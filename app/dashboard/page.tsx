@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import PriorityActionCentre, { type PriorityAction } from "@/components/dashboard/PriorityActionCentre";
@@ -167,17 +167,31 @@ export default function DashboardPage() {
   const [operations, setOperations] = useState<OperationItem[]>([]);
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
 
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const fetchDashboardData = useCallback(async () => {
     try {
       setError(null);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      if (!mountedRef.current) return;
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("account_type, full_name")
         .eq("id", session.user.id)
         .maybeSingle();
+
+      if (!mountedRef.current) return;
 
       const type = (profile as any)?.account_type || null;
       setAccountType(type);
@@ -191,16 +205,23 @@ export default function DashboardPage() {
           .eq("is_active", true)
           .maybeSingle();
 
+        if (!mountedRef.current) return;
+
         if (access) {
           const landlordId = (access as any).landlord_id;
           const { data: props } = await supabase.from("properties").select("id").eq("landlord_id", landlordId);
+          if (!mountedRef.current) return;
           const propIds = (props || []).map((p: any) => p.id);
           const propCount = propIds.length;
 
           const { count: maintCount } = await supabase.from("maintenance_jobs").select("*", { count: "exact", head: true }).in("property_id", propIds).in("status", ["open", "in_progress"]);
+          if (!mountedRef.current) return;
           const { count: docCount } = await supabase.from("documents").select("*", { count: "exact", head: true }).in("property_id", propIds);
+          if (!mountedRef.current) return;
           const { count: tenantCount } = await supabase.from("tenants").select("id, tenancies!inner(property_id, status)", { count: "exact", head: true }).in("tenancies.property_id", propIds).eq("tenancies.status", "active");
+          if (!mountedRef.current) return;
           const { data: complianceItems } = await supabase.from("property_compliance_items").select("obligation_code, status").in("property_id", propIds);
+          if (!mountedRef.current) return;
           const compList = (complianceItems as any[]) || [];
           const compOK = compList.filter((c: any) => c.status === "valid" || c.status === "compliant").length;
           const compTotal = compList.length || propCount * 4;
@@ -269,6 +290,8 @@ export default function DashboardPage() {
         supabase.from("property_compliance_items").select("id, obligation_code, status, next_due"),
       ]);
 
+      if (!mountedRef.current) return;
+
       const kpiData = (kpi as any) || {};
       const propList = (properties as any[]) || [];
       const tenList = (tenancies as any[]) || [];
@@ -336,49 +359,68 @@ export default function DashboardPage() {
       setOperations(demoOperations);
       setActivityFeed(demoActivityFeed);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError("Could not load dashboard data. Please try again.");
     }
   }, []);
 
   useEffect(() => {
-    if (isDemoAccount()) {
-      setDemoMode(true);
-      setAccountType("agency");
-      setUserName("Sarah Cooper");
-      setAgencyName("London Lettings Agency");
-      setPriorityActions(demoPriorityActions);
-      setSnapshotCards(demoSnapshotCards);
-      setHealthMetrics(demoHealthMetrics);
-      setOverallHealthScore(82);
-      setOperations(demoOperations);
-      setActivityFeed(demoActivityFeed);
-      setLoading(false);
-      return;
-    }
+    let active = true;
 
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    const timer = setTimeout(() => {
+      if (!active) return;
+
+      if (isDemoAccount()) {
+        setDemoMode(true);
+        setAccountType("agency");
+        setUserName("Sarah Cooper");
+        setAgencyName("London Lettings Agency");
+        setPriorityActions(demoPriorityActions);
+        setSnapshotCards(demoSnapshotCards);
+        setHealthMetrics(demoHealthMetrics);
+        setOverallHealthScore(82);
+        setOperations(demoOperations);
+        setActivityFeed(demoActivityFeed);
         setLoading(false);
         return;
       }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("account_type, full_name")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      setAccountType((profile as any)?.account_type || null);
-      setUserName((profile as any)?.full_name || session.user.email || "User");
-      await fetchDashboardData();
-      setLoading(false);
+
+      const init = async () => {
+        if (!active) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          if (!active) return;
+          setLoading(false);
+          return;
+        }
+        if (!active) return;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("account_type, full_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (!active) return;
+        setAccountType((profile as any)?.account_type || null);
+        setUserName((profile as any)?.full_name || session.user.email || "User");
+        await fetchDashboardData();
+        if (!active) return;
+        setLoading(false);
+      };
+      init();
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
     };
-    init();
-  }, [fetchDashboardData]);
+  }, []);
 
   useRealtimeSubscription({
     table: "notifications",
     event: "*",
-    onChange: () => fetchDashboardData(),
+    onChange: () => {
+      if (mountedRef.current) fetchDashboardData();
+    },
     channelName: "rt-dash-notifications",
   });
 
@@ -453,7 +495,7 @@ export default function DashboardPage() {
               </div>
               <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-[#C28A78]/10 text-[#C28A78] whitespace-nowrap">Demo Mode</span>
             </div>
-            <DemoHelperTip id="dashboard-overview" title="LetHub Dashboard Overview">
+            <DemoHelperTip id="dashboard-overview" title="Dashboard Overview">
               This simplified dashboard shows what needs attention first — priority actions, portfolio health, upcoming operations and recent activity. Click any card or item to drill into the detail.
             </DemoHelperTip>
           </>

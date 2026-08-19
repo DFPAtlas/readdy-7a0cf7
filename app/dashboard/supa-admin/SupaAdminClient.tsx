@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { logPlatformAdminAction, fetchAuditLogs } from "@/lib/adminAudit";
@@ -77,7 +77,14 @@ export default function SupaAdminClient() {
     onConfirm: () => void;
   } | null>(null);
   const [toastMsg, setToastMsg] = useState("");
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [auditFilter, setAuditFilter] = useState({ search: "", severity: "" });
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const overview = useOverviewKpis();
   const profilesHook = useProfiles();
@@ -106,7 +113,8 @@ export default function SupaAdminClient() {
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(""), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMsg(""), 3000);
   };
 
   useEffect(() => {
@@ -265,8 +273,8 @@ export default function SupaAdminClient() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#3A3F3A]">Supa Admin Control Centre</h1>
-          <p className="text-sm text-[#687068] mt-1">Run and monitor the full LetHub platform</p>
+          <h1 className="text-2xl font-bold text-[#3A3F3A]">Platform Administration</h1>
+          <p className="text-sm text-[#687068] mt-1">Manage users, monitor system health, and configure the platform</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -282,8 +290,8 @@ export default function SupaAdminClient() {
           >
             <i className="ri-refresh-line mr-1"></i>Refresh
           </button>
-          <span className="text-xs text-white bg-purple-600 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap">
-            <i className="ri-shield-check-line mr-1"></i>Supa Admin
+          <span className="text-xs text-[#687068] bg-[#F1F5F9] border border-[#D5D9D5] px-3 py-1.5 rounded-lg font-medium whitespace-nowrap">
+            <i className="ri-admin-line mr-1"></i>Platform Admin
           </span>
         </div>
       </div>
@@ -334,12 +342,12 @@ export default function SupaAdminClient() {
               )}
             </div>
             <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-              <h3 className="font-semibold text-[#3A3F3A] mb-3">Quick Actions</h3>
+              <h3 className="font-semibold text-[#3A3F3A] mb-3">Administration Tools</h3>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Check Secrets", fn: "check-secrets", icon: "ri-key-2-line" },
-                  { label: "Stripe Products", fn: "setup-stripe-products", icon: "ri-price-tag-3-line" },
-                  { label: "View Users", tab: "users", icon: "ri-group-line" },
+                  { label: "Environment Config", fn: "check-secrets", icon: "ri-key-2-line" },
+                  { label: "Stripe Sync", fn: "setup-stripe-products", icon: "ri-price-tag-3-line" },
+                  { label: "User Directory", tab: "users", icon: "ri-group-line" },
                   { label: "Audit Trail", tab: "audit", icon: "ri-shield-keyhole-line" },
                 ].map((a) => (
                   <button
@@ -586,18 +594,18 @@ export default function SupaAdminClient() {
         <div className="space-y-6">
           <div className="flex items-center gap-3 flex-wrap">
             <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#C28A78] text-white px-4 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
-              <i className="ri-key-2-line mr-1"></i>Check Secrets
+              <i className="ri-key-2-line mr-1"></i>Verify Configuration
             </button>
             <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#C28A78] text-[#C28A78] px-4 py-2 rounded-lg hover:bg-[#C28A78]/10 transition-colors whitespace-nowrap">
-              <i className="ri-price-tag-3-line mr-1"></i>Setup Stripe Products
+              <i className="ri-price-tag-3-line mr-1"></i>Synchronise Stripe Products
             </button>
             <Link href="/dashboard/billing" className="text-sm border border-[#D5D9D5] text-[#687068] px-4 py-2 rounded-lg hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">
-              <i className="ri-external-link-line mr-1"></i>Open Billing Page
+              <i className="ri-external-link-line mr-1"></i>Billing Dashboard
             </Link>
           </div>
           {healthData["check-secrets"] && (
             <div className="bg-white rounded-xl border border-[#D5D9D5] p-4">
-              <h4 className="text-sm font-semibold text-[#3A3F3A] mb-2">Secrets Status</h4>
+              <h4 className="text-sm font-semibold text-[#3A3F3A] mb-2">Configuration Status</h4>
               <pre className="text-xs text-[#687068] max-h-40 overflow-y-auto bg-[#F1F5F9] p-3 rounded-lg">
                 {JSON.stringify(healthData["check-secrets"].data, null, 2)}
               </pre>
@@ -764,9 +772,9 @@ export default function SupaAdminClient() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Supabase Auth", icon: "ri-shield-user-line", check: "supabase_auth" },
-              { label: "Stripe Config", icon: "ri-bank-card-line", check: "check-secrets" },
-              { label: "n8n Config", icon: "ri-cpu-line", check: "n8n_check" },
+              { label: "Authentication", icon: "ri-shield-user-line", check: "supabase_auth" },
+              { label: "Payment Provider", icon: "ri-bank-card-line", check: "check-secrets" },
+              { label: "Automation Engine", icon: "ri-cpu-line", check: "n8n_check" },
               { label: "Edge Functions", icon: "ri-cloud-line", check: "edge_functions" },
             ].map((item) => (
               <div key={item.check} className="bg-white rounded-xl border border-[#D5D9D5] p-4">
@@ -809,13 +817,13 @@ export default function SupaAdminClient() {
             ))}
           </div>
           <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-            <h3 className="font-semibold text-[#3A3F3A] mb-3">Run Diagnostic</h3>
+            <h3 className="font-semibold text-[#3A3F3A] mb-3">Diagnostics</h3>
             <div className="flex items-center gap-3 flex-wrap">
               <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#C28A78] text-white px-4 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
-                <i className="ri-key-2-line mr-1"></i>Check Secrets
+                <i className="ri-key-2-line mr-1"></i>Verify Configuration
               </button>
               <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#C28A78] text-[#C28A78] px-4 py-2 rounded-lg hover:bg-[#C28A78]/10 transition-colors whitespace-nowrap">
-                <i className="ri-price-tag-3-line mr-1"></i>Setup Stripe Products
+                <i className="ri-price-tag-3-line mr-1"></i>Synchronise Stripe Products
               </button>
             </div>
             {Object.keys(healthData).filter((k) => healthData[k]?.data).length > 0 && (

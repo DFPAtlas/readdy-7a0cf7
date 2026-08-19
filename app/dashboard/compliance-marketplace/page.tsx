@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import {
   complianceServices,
@@ -54,6 +54,13 @@ export default function ComplianceMarketplacePage() {
   const [showQuoteCompare, setShowQuoteCompare] = useState<ComplianceRequest | null>(null);
   const [showCertificateUpload, setShowCertificateUpload] = useState<ComplianceRequest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const [newRequestForm, setNewRequestForm] = useState({
     propertyId: "",
@@ -64,7 +71,8 @@ export default function ComplianceMarketplacePage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const activeServiceData = complianceServices.find((s) => s.key === activeService);

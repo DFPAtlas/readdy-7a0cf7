@@ -45,6 +45,18 @@ export default function MaintenancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showNewJobModal, setShowNewJobModal] = useState(false);
+  const [newJobSuccess, setNewJobSuccess] = useState(false);
+  const [newJobForm, setNewJobForm] = useState({
+    title: "",
+    property: "12 Rose Avenue, London E1 6AN",
+    category: "Plumbing",
+    priority: "Normal",
+    description: "",
+    reportedBy: "Tenant",
+    targetDate: "",
+    accessNotes: "",
+  });
   const { isReadOnly } = useEntitlements();
 
   useEffect(() => {
@@ -130,7 +142,10 @@ export default function MaintenancePage() {
               AI Triage
             </Link>
             {!isReadOnly && (
-              <button className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2">
+              <button
+                onClick={() => setShowNewJobModal(true)}
+                className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2"
+              >
                 <div className="w-4 h-4 flex items-center justify-center">
                   <i className="ri-add-line text-sm"></i>
                 </div>
@@ -203,9 +218,9 @@ export default function MaintenancePage() {
           })}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 flex items-center gap-2 px-3 py-2 border border-[#D5D9D5] rounded-lg bg-white">
-            <div className="w-4 h-4 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 px-3 h-10 border border-[#D5D9D5] rounded-lg bg-white">
+            <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
               <i className="ri-search-line text-[#94A3B8] text-sm"></i>
             </div>
             <input
@@ -216,18 +231,21 @@ export default function MaintenancePage() {
               className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="w-4 h-4 flex items-center justify-center">
+              <button onClick={() => setSearch("")} className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                 <i className="ri-close-line text-[#94A3B8] text-xs"></i>
               </button>
             )}
           </div>
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <button
               onClick={() => setStatusDropdown(!statusDropdown)}
-              className="flex items-center gap-2 px-3 py-2 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A] whitespace-nowrap"
+              className="flex items-center gap-2 px-3 h-10 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A] whitespace-nowrap"
             >
+              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                <i className="ri-filter-3-line text-[#94A3B8] text-sm"></i>
+              </div>
               <span>Stage: {statusFilter === "all" ? "All Jobs" : getStatusConfig(statusFilter).label}</span>
-              <div className="w-4 h-4 flex items-center justify-center">
+              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                 <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
               </div>
             </button>
@@ -272,6 +290,213 @@ export default function MaintenancePage() {
           )}
         </div>
       </div>
+
+      {showNewJobModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowNewJobModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-[#C28A78] to-[#B87A68] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-tools-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Log New Repair Job</h3>
+                    <p className="text-xs text-white/70">Record an issue and assign priority</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowNewJobModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <i className="ri-close-line text-white text-base"></i>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {newJobSuccess ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-[#7A9A7E]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-8 h-8 flex items-center justify-center"><i className="ri-check-double-line text-[#7A9A7E] text-3xl"></i></div>
+                  </div>
+                  <p className="text-base font-bold text-[#3A3F3A] mb-1">Job logged successfully</p>
+                  <p className="text-sm text-[#687068]">The repair job has been created and is now in the queue</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Job Title</label>
+                    <input
+                      type="text"
+                      value={newJobForm.title}
+                      onChange={(e) => setNewJobForm({ ...newJobForm, title: e.target.value })}
+                      placeholder="e.g. Boiler not heating water"
+                      className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
+                    <div className="relative">
+                      <select
+                        value={newJobForm.property}
+                        onChange={(e) => setNewJobForm({ ...newJobForm, property: e.target.value })}
+                        className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer"
+                      >
+                        <option>12 Rose Avenue, London E1 6AN</option>
+                        <option>45 Baker Street, Manchester M1 2CD</option>
+                        <option>8 The Crescent, Leeds LS1 3AB</option>
+                        <option>Unit 3, Riverside Court, Bristol BS1 4ST</option>
+                        <option>Flat 4B, Oak Street, Birmingham B2 3CD</option>
+                        <option>Flat 2A, Park View, Cardiff CF10 3BZ</option>
+                      </select>
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Category</label>
+                      <div className="relative">
+                        <select
+                          value={newJobForm.category}
+                          onChange={(e) => setNewJobForm({ ...newJobForm, category: e.target.value })}
+                          className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer"
+                        >
+                          <option>Plumbing</option>
+                          <option>Electrical</option>
+                          <option>Heating & Boiler</option>
+                          <option>Structural</option>
+                          <option>Damp & Mould</option>
+                          <option>Pest Control</option>
+                          <option>Doors & Windows</option>
+                          <option>Garden & Exterior</option>
+                          <option>Appliances</option>
+                          <option>Other</option>
+                        </select>
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Reported By</label>
+                      <div className="relative">
+                        <select
+                          value={newJobForm.reportedBy}
+                          onChange={(e) => setNewJobForm({ ...newJobForm, reportedBy: e.target.value })}
+                          className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer"
+                        >
+                          <option>Tenant</option>
+                          <option>Landlord</option>
+                          <option>Agent</option>
+                          <option>Inspection</option>
+                          <option>Contractor</option>
+                        </select>
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[#687068] mb-2 block uppercase tracking-wide">Priority</label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[
+                        { label: "Low", color: "bg-[#94A3B8]", ring: "ring-[#94A3B8]" },
+                        { label: "Normal", color: "bg-[#7A9A7E]", ring: "ring-[#7A9A7E]" },
+                        { label: "High", color: "bg-[#D4A85C]", ring: "ring-[#D4A85C]" },
+                        { label: "Critical", color: "bg-[#C46868]", ring: "ring-[#C46868]" },
+                        { label: "Emergency", color: "bg-[#991B1B]", ring: "ring-[#991B1B]" },
+                      ].map((p) => (
+                        <button
+                          key={p.label}
+                          onClick={() => setNewJobForm({ ...newJobForm, priority: p.label })}
+                          className={`py-2.5 text-xs font-bold rounded-xl border-2 transition-all ${
+                            newJobForm.priority === p.label
+                              ? `${p.color} text-white border-transparent ring-2 ${p.ring} ring-offset-1`
+                              : "bg-[#FAFAF8] text-[#687068] border-[#D5D9D5] hover:border-[#C28A78]/50"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Issue Description</label>
+                    <textarea
+                      value={newJobForm.description}
+                      onChange={(e) => setNewJobForm({ ...newJobForm, description: e.target.value })}
+                      placeholder="Describe the issue in detail — what's broken, when it started, how serious it is..."
+                      rows={3}
+                      maxLength={500}
+                      className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FAFAF8] resize-none transition-colors"
+                    />
+                    <p className="text-xs text-[#94A3B8] mt-1 text-right">{newJobForm.description.length}/500</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Target Date</label>
+                      <input
+                        type="date"
+                        value={newJobForm.targetDate}
+                        onChange={(e) => setNewJobForm({ ...newJobForm, targetDate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Access Notes</label>
+                      <input
+                        type="text"
+                        value={newJobForm.accessNotes}
+                        onChange={(e) => setNewJobForm({ ...newJobForm, accessNotes: e.target.value })}
+                        placeholder="e.g. Key in office, call ahead"
+                        className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-[#F8F6F2] rounded-xl p-3.5 flex items-start gap-3">
+                    <div className="w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className="ri-information-line text-[#8A9FB0] text-base"></i>
+                    </div>
+                    <p className="text-xs text-[#687068] leading-relaxed">
+                      After logging, the job will enter the <span className="font-semibold text-[#3A3F3A]">Reported</span> stage. You can then triage it, request quotes, or assign a contractor from the job detail view.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      onClick={() => setShowNewJobModal(false)}
+                      className="flex-1 border-2 border-[#D5D9D5] text-sm font-semibold py-3 rounded-xl hover:bg-[#EBE5DA] hover:border-[#C28A78] transition-colors text-[#3A3F3A]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!newJobForm.title) return;
+                        setNewJobSuccess(true);
+                        setTimeout(() => {
+                          setNewJobSuccess(false);
+                          setShowNewJobModal(false);
+                          setNewJobForm({ title: "", property: "12 Rose Avenue, London E1 6AN", category: "Plumbing", priority: "Normal", description: "", reportedBy: "Tenant", targetDate: "", accessNotes: "" });
+                        }, 2000);
+                      }}
+                      disabled={!newJobForm.title}
+                      className={`flex-1 text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                        newJobForm.title
+                          ? "bg-[#C28A78] hover:bg-[#143828] text-white"
+                          : "bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed"
+                      }`}
+                    >
+                      <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-circle-line text-sm"></i></div>
+                      Log Job
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }

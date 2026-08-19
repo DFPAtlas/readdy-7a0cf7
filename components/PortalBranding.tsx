@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { AgencyBranding } from "@/lib/agencyBranding";
@@ -103,61 +103,91 @@ export function PortalBrandingHeader({
   onMenuToggle?: () => void;
 }) {
   const { branding, loading, primary } = usePortalBranding();
+  const [scrolled, setScrolled] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      setScrolled(currentY > 10);
+      if (currentY > 80 && !menuOpen) {
+        setHeaderHidden(currentY > lastScrollY.current);
+      } else {
+        setHeaderHidden(false);
+      }
+      lastScrollY.current = currentY;
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [menuOpen]);
 
   return (
-    <header className="bg-white border-b border-[#D5D9D5] sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {portalLabel.includes("Owner") ? (
-            <Link href="/owner/dashboard" className="flex items-center gap-2">
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={branding.agencyName} className="h-7 w-auto object-contain" />
-              ) : (
-                <span className="font-['Pacifico'] text-xl" style={{ color: primary }}>{branding.agencyName}</span>
-              )}
-            </Link>
-          ) : (
-            <Link href="/tenant/dashboard" className="flex items-center gap-2">
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={branding.agencyName} className="h-7 w-auto object-contain" />
-              ) : (
-                <span className="font-['Pacifico'] text-xl" style={{ color: primary }}>{branding.agencyName}</span>
-              )}
-            </Link>
+    <>
+      {headerHidden && onMenuToggle && (
+        <button
+          onClick={onMenuToggle}
+          className="fixed left-4 top-4 z-40 w-10 h-10 flex items-center justify-center rounded-xl bg-white shadow-lg border border-[#D5D9D5] hover:bg-[#F1F5F9] transition-all duration-300"
+          aria-label="Open navigation"
+        >
+          <i className="ri-menu-line text-[#3A3F3A] text-lg"></i>
+        </button>
+      )}
+      <header className={`sticky top-0 z-30 transition-all duration-300 ${headerHidden ? '-translate-y-full' : 'translate-y-0'} ${scrolled ? 'bg-white/95 shadow-[0_1px_20px_rgba(0,0,0,0.06)]' : 'bg-white'} border-b ${scrolled ? 'border-[#D5D9D5]' : 'border-transparent'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {portalLabel.includes("Owner") ? (
+              <Link href="/owner/dashboard" className="flex items-center gap-2">
+                {branding.logoUrl ? (
+                  <img src={branding.logoUrl} alt={branding.agencyName} className="h-7 w-auto object-contain" />
+                ) : (
+                  <span className="font-['Pacifico'] text-xl" style={{ color: primary }}>{branding.agencyName}</span>
+                )}
+              </Link>
+            ) : (
+              <Link href="/tenant/dashboard" className="flex items-center gap-2">
+                {branding.logoUrl ? (
+                  <img src={branding.logoUrl} alt={branding.agencyName} className="h-7 w-auto object-contain" />
+                ) : (
+                  <span className="font-['Pacifico'] text-xl" style={{ color: primary }}>{branding.agencyName}</span>
+                )}
+              </Link>
+            )}
+            <span className="hidden sm:inline text-xs font-medium text-[#687068] bg-[#F1F5F9] px-2.5 py-1 rounded-full">{portalLabel}</span>
+          </div>
+
+          {onMenuToggle && (
+            <button onClick={onMenuToggle} className="sm:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
+              <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-[#3A3F3A]`}></i>
+            </button>
           )}
-          <span className="hidden sm:inline text-xs font-medium text-[#687068] bg-[#F1F5F9] px-2.5 py-1 rounded-full">{portalLabel}</span>
-        </div>
 
-        {onMenuToggle && (
-          <button onClick={onMenuToggle} className="sm:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
-            <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-[#3A3F3A]`}></i>
-          </button>
-        )}
-
-        <div className="hidden sm:flex items-center gap-3">
-          {extra}
-          <button
-            onClick={onLogout}
-            className="text-sm text-[#687068] hover:text-[#EF4444] transition-colors flex items-center gap-1"
-          >
-            <i className="ri-logout-box-r-line text-xs"></i>
-            Sign Out
-          </button>
-        </div>
-      </div>
-
-      {menuOpen && onMenuToggle && (
-        <div className="sm:hidden px-4 pb-4 border-t border-[#D5D9D5] bg-white">
-          <div className="flex items-center justify-between py-3">
+          <div className="hidden sm:flex items-center gap-3">
             {extra}
-            <button onClick={onLogout} className="text-sm text-[#EF4444] flex items-center gap-1">
+            <button
+              onClick={onLogout}
+              className="text-sm text-[#687068] hover:text-[#EF4444] transition-colors flex items-center gap-1"
+            >
               <i className="ri-logout-box-r-line text-xs"></i>
               Sign Out
             </button>
           </div>
         </div>
-      )}
-    </header>
+
+        {menuOpen && onMenuToggle && (
+          <div className="sm:hidden px-4 pb-4 border-t border-[#D5D9D5] bg-white">
+            <div className="flex items-center justify-between py-3">
+              {extra}
+              <button onClick={onLogout} className="text-sm text-[#EF4444] flex items-center gap-1">
+                <i className="ri-logout-box-r-line text-xs"></i>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, startTransition } from "react";
 import { useRouter } from "next/navigation";
 
 export default function MobilePage() {
@@ -9,11 +9,15 @@ export default function MobilePage() {
   useEffect(() => {
     const stored = localStorage.getItem("lethub_mobile_role");
     if (stored) {
-      router.push(`/mobile/${stored}`);
+      startTransition(() => {
+        router.push(`/mobile/${stored}`);
+      });
     } else {
-      router.push("/mobile/role");
+      startTransition(() => {
+        router.push("/mobile/role");
+      });
     }
-  }, [router]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">

@@ -41,13 +41,32 @@ const navGroups = [
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     setMobileOpen(false);
     setOpenDropdown(null);
   }, [pathname]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      setScrolled(currentY > 10);
+      if (currentY > 80 && currentY > lastScrollY.current) {
+        setHidden(true);
+      } else if (currentY < 50) {
+        setHidden(false);
+      }
+      lastScrollY.current = currentY;
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -72,7 +91,7 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#FBF9F4]/90 backdrop-blur-md border-b border-stone-100">
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ${hidden ? '-translate-y-full' : 'translate-y-0'} ${scrolled ? 'bg-[#FBF9F4]/95 shadow-[0_1px_20px_rgba(0,0,0,0.06)] border-stone-200' : 'bg-[#FBF9F4]/90 border-transparent'} backdrop-blur-md border-b`}>
       <div className="w-full px-6 lg:px-12">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="block flex-shrink-0">

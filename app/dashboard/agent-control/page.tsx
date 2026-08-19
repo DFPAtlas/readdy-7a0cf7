@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
@@ -23,7 +23,14 @@ export default function AgentControlPage() {
   const [agentRuns, setAgentRuns] = useState<N8nAgentRun[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const fetchAgents = useCallback(async () => {
     const { data, error } = await supabase
@@ -116,7 +123,8 @@ export default function AgentControlPage() {
     }
 
     setActionLoading(null);
-    setTimeout(() => setToast(null), 4000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   };
 
   const handleToggleEnabled = async (agent: N8nAgent) => {
@@ -142,7 +150,8 @@ export default function AgentControlPage() {
     }
 
     setActionLoading(null);
-    setTimeout(() => setToast(null), 4000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   };
 
   const handleViewLogs = async (agent: N8nAgent) => {

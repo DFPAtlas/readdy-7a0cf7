@@ -1,15 +1,13 @@
-import { redirect } from "next/navigation";
+import LegacyPropertyRedirect from './LegacyPropertyRedirect';
 
-export const dynamic = "force-dynamic";
+export async function generateStaticParams() {
+  return [
+    { id: '1' },
+    { id: '2' },
+    { id: '3' },
+  ];
+}
 
-export default async function LegacyPropertyPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
-  // Keep old bookmarks working while consolidating all live property detail
-  // traffic on the Supabase-backed portfolio route.
-  redirect(`/dashboard/portfolio/${encodeURIComponent(id)}`);
+export default function LegacyPropertyPage({ params }: { params: { id: string } }) {
+  return <LegacyPropertyRedirect productId={params.id} />;
 }

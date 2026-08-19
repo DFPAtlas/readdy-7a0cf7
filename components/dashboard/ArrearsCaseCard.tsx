@@ -10,10 +10,11 @@ interface ArrearsCaseCardProps {
   arrearsMonths: number
   riskRating: ArrearsRisk
   lastContact: string
+  lastReminderSent: string
   onClick: () => void
 }
 
-export default function ArrearsCaseCard({ property, tenant, rentAmount, totalArrears, arrearsMonths, riskRating, lastContact, onClick }: ArrearsCaseCardProps) {
+export default function ArrearsCaseCard({ property, tenant, rentAmount, totalArrears, arrearsMonths, riskRating, lastContact, lastReminderSent, onClick }: ArrearsCaseCardProps) {
   const r = arrearsRiskConfig[riskRating]
 
   return (
@@ -46,7 +47,10 @@ export default function ArrearsCaseCard({ property, tenant, rentAmount, totalArr
           <p className="text-sm font-medium text-[#3A3F3A]">£{rentAmount.toLocaleString()}</p>
         </div>
       </div>
-      <p className="text-xs text-[#94A3B8] mt-2 text-center">Last contact: {lastContact}</p>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-xs text-[#94A3B8]">Contact: {lastContact}</p>
+        <p className="text-xs text-[#94A3B8]">Reminder: {lastReminderSent}</p>
+      </div>
     </div>
   )
 }

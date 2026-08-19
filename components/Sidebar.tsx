@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import GettingStartedChecklist from "@/components/onboarding/GettingStartedChecklist";
+import AvatarUploader from "@/components/dashboard/AvatarUploader";
 import {
   AppRole,
   canAccessDashboardPath,
@@ -147,7 +148,7 @@ const platformGroups: NavGroup[] = [
     id: "platform",
     label: "Platform Administration",
     items: [
-      { icon: "ri-shield-flash-line", label: "Supa Admin", href: "/dashboard/supa-admin" },
+      { icon: "ri-shield-flash-line", label: "Platform Admin", href: "/dashboard/supa-admin" },
       { icon: "ri-pie-chart-line", label: "Admin Dashboard", href: "/dashboard/admin" },
     ],
   },
@@ -266,6 +267,10 @@ export default function Sidebar({
   completedSteps,
   collapsed,
   setCollapsed,
+  headerHidden,
+  userId,
+  avatarUrl,
+  onAvatarUpdate,
 }: {
   mobileOpen: boolean;
   setMobileOpen: (value: boolean) => void;
@@ -275,6 +280,10 @@ export default function Sidebar({
   completedSteps: string[];
   collapsed: boolean;
   setCollapsed: (value: boolean) => void;
+  headerHidden?: boolean;
+  userId: string;
+  avatarUrl: string | null;
+  onAvatarUpdate: (url: string) => void;
 }) {
   const pathname = usePathname();
   const groups = useMemo(() => groupsForRole(role), [role]);
@@ -309,14 +318,17 @@ export default function Sidebar({
 
   return (
     <>
-      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && <div className={`fixed inset-0 z-40 bg-black/50 ${headerHidden ? "" : "lg:hidden"}`} onClick={() => setMobileOpen(false)} />}
 
-      <aside className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-[#FBF9F4] text-[#3A3F3A] transition-all duration-300 ${collapsed ? "w-[72px]" : "w-[260px]"} ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-[#FBF9F4] text-[#3A3F3A] transition-all duration-300 ${collapsed ? "w-[72px]" : "w-[260px]"} ${headerHidden ? (mobileOpen ? "translate-x-0" : "-translate-x-full") : (mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")}`}>
         <div className="flex h-16 items-center justify-between border-b border-[#EBE5DA] px-4">
-          <Link href={home} className={collapsed ? "hidden" : "block"}>
-            <img src="https://public.readdy.ai/ai/img_res/7ce16202-554e-416f-9b5b-269607f415ce.png" alt="LetHub" className="h-8 w-auto object-contain" />
+          <Link href={home} className={collapsed ? "hidden" : "flex items-center gap-2.5"}>
+            <img src="https://readdy.ai/api/search-image?query=A%20sleek%20modern%20minimalist%20logo%20icon%20for%20a%20property%20management%20SaaS%20platform%20featuring%20an%20abstract%20interlocking%20geometric%20building%20shape%20combined%20with%20a%20key%20silhouette%20in%20a%20sophisticated%20dark%20charcoal%20color%20on%20a%20clean%20warm%20off-white%20cream%20background%20professional%20corporate%20identity%20design%20flat%20vector%20style%20no%20text%20no%20letters%20just%20the%20symbol%20icon%20mark&width=96&height=36&seq=1&orientation=landscape" alt="logo" className="h-8 w-auto object-contain" />
+            <span className="font-['Pacifico'] text-xl text-[#3A3F3A]">logo</span>
           </Link>
-          <Link href={home} className={`font-['Pacifico'] text-xl text-[#3A3F3A] ${collapsed ? "block" : "hidden"}`}>L</Link>
+          <Link href={home} className={`flex h-8 w-8 items-center justify-center ${collapsed ? "block" : "hidden"}`}>
+            <span className="font-['Pacifico'] text-xl text-[#3A3F3A]">logo</span>
+          </Link>
           <button onClick={() => setCollapsed(!collapsed)} className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#EBE5DA] ${collapsed ? "mx-auto" : ""}`} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>
             <i className={collapsed ? "ri-arrow-right-s-line" : "ri-arrow-left-s-line"}></i>
           </button>
@@ -366,9 +378,14 @@ export default function Sidebar({
 
         <div className="border-t border-[#EBE5DA] p-3">
           <div className={`flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#EBE5DA] ${collapsed ? "justify-center" : ""}`}>
-            <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${roleColours[role]}`}>
-              {userName.charAt(0).toUpperCase()}
-            </div>
+            <AvatarUploader
+              userId={userId}
+              currentUrl={avatarUrl}
+              userName={userName}
+              role={role}
+              onAvatarUpdate={onAvatarUpdate}
+              collapsed={collapsed}
+            />
             <div className={collapsed ? "hidden" : "min-w-0 flex-1"}>
               <p className="truncate text-sm font-medium text-[#3A3F3A]">{userName}</p>
               <p className="truncate text-xs text-[#687068]">{ROLE_LABELS[role]}</p>

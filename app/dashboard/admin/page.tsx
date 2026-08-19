@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import QRCodeManager from "./QRCodeManager";
@@ -64,11 +64,18 @@ export default function AdminDashboard() {
     payments: true,
     messages: true,
   });
-  const [platformName, setPlatformName] = useState("LetHub");
-  const [supportEmail, setSupportEmail] = useState("support@lethub.com");
+  const [platformName, setPlatformName] = useState("PropManage");
+  const [supportEmail, setSupportEmail] = useState("support@propmanage.com");
   const [timezone, setTimezone] = useState("Europe/London");
   const [currency, setCurrency] = useState("GBP");
   const [saveToast, setSaveToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const [users, setUsers] = useState(platformUsers);
 
@@ -125,7 +132,8 @@ export default function AdminDashboard() {
 
   const handleSaveSettings = () => {
     setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setSaveToast(false), 3000);
   };
 
   const renderRevenueChart = () => {
@@ -169,17 +177,10 @@ export default function AdminDashboard() {
     <DashboardShell>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-[#FEF3C7] border border-[#FCD34D] rounded-xl px-5 py-3 flex items-start gap-3">
-          <i className="ri-information-line text-[#D97706] text-sm mt-0.5"></i>
-          <div>
-            <p className="text-xs font-semibold text-[#92400E]">Demo Data</p>
-            <p className="text-xs text-[#A16207]">This page displays sample administration data for demonstration purposes. Live platform data would reflect actual user registrations and transactions.</p>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Platform Administration</h1>
-            <p className="text-sm text-[#687068] mt-1">Full oversight and control of the LetHub platform</p>
+            <p className="text-sm text-[#687068] mt-1">Full oversight and control of the platform</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#687068] bg-[#F1F5F9] px-3 py-1.5 rounded-lg">

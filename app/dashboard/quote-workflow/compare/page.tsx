@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { workflowJobs, type QuoteWorkflowJob } from "../QuoteWorkflowData";
@@ -12,14 +12,22 @@ export default function QuoteComparisonPage() {
   const [selectedContractor, setSelectedContractor] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobList, setJobList] = useState(workflowJobs);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const job = jobList.find((j) => j.id === selectedJob);
   const quotedContractors = job?.contractors.filter((c) => c.quoteTotal) || [];
 
   const showToast = (message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleApprove = () => {

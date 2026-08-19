@@ -28,6 +28,14 @@ export default function AIMaintenanceTriagePage() {
   const [selectedSeverity, setSelectedSeverity] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, []);
   const [toastMsg, setToastMsg] = useState("");
   const [toastType, setToastType] = useState<"success" | "error">("success");
   const [typingIndex, setTypingIndex] = useState(0);
@@ -277,8 +285,8 @@ export default function AIMaintenanceTriagePage() {
     setTimeout(() => analyzeIssue(description, true), 300);
   };
 
-  const showSuccess = (msg: string) => { setToastMsg(msg); setToastType("success"); setShowToast(true); setTimeout(() => setShowToast(false), 3000); };
-  const showError = (msg: string) => { setToastMsg(msg); setToastType("error"); setShowToast(true); setTimeout(() => setShowToast(false), 3000); };
+  const showSuccess = (msg: string) => { setToastMsg(msg); setToastType("success"); setShowToast(true); if (toastTimerRef.current) clearTimeout(toastTimerRef.current); toastTimerRef.current = setTimeout(() => setShowToast(false), 3000); };
+  const showError = (msg: string) => { setToastMsg(msg); setToastType("error"); setShowToast(true); if (toastTimerRef.current) clearTimeout(toastTimerRef.current); toastTimerRef.current = setTimeout(() => setShowToast(false), 3000); };
 
   const clearSubmission = () => {
     setIssueText(""); setAnalyzed(false); setCurrentIssue(null);

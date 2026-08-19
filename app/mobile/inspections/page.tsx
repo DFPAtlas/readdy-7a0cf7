@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MobileLayout } from "@/components/MobileBottomNav";
 import {
   inspections,
@@ -23,7 +23,14 @@ export default function MobileInspectionsPage() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const filtered = inspections.filter((i) => {
     const matchesFilter = activeFilter === "All" || i.status === activeFilter;
@@ -36,14 +43,14 @@ export default function MobileInspectionsPage() {
     setShowCompleteForm(true);
     setToastMessage("Inspection started. Complete the form below.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleSchedule = () => {
     setShowScheduleModal(false);
     setToastMessage("Inspection scheduled successfully.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleSaveInspection = () => {
@@ -51,7 +58,7 @@ export default function MobileInspectionsPage() {
     setSelectedInspection(null);
     setToastMessage("Inspection saved. Report generated.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const openActions = inspections.reduce((sum, i) => sum + i.followUpActions.filter((a) => a.status !== "Completed").length, 0);

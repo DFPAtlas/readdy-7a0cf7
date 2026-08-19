@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { activateDemoSession } from "@/lib/demoMode";
@@ -18,7 +18,9 @@ export default function DemoPage() {
     setEntering(true);
     activateDemoSession();
     setTimeout(() => {
-      router.push("/dashboard");
+      startTransition(() => {
+        router.push("/dashboard");
+      });
     }, 600);
   };
 

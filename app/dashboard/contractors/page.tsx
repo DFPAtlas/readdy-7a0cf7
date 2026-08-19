@@ -5,6 +5,7 @@ import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
+import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { CONTRACTOR_STATUS, getStatusConfig, isExpiringSoon, isExpired, PRIORITY_CONFIG, type ContractorAction } from "@/lib/contractorSystem";
 import ContractorActionCentre from "@/components/dashboard/ContractorActionCentre";
 
@@ -277,6 +278,38 @@ const tradeColorMap: Record<string, string> = {
   electrical: "bg-amber-500",
 };
 
+function getStatusReason(c: ContractorRecord): string {
+  if (c.status === "Active") {
+    const reasons: string[] = [];
+    if (!isExpired(c.insuranceExpiry) && !isExpiringSoon(c.insuranceExpiry)) reasons.push("Insurance is valid and up to date.");
+    if (c.rating >= 4.5) reasons.push("Strong performance rating of " + c.rating + "/5.");
+    if (c.activeJobs > 0) reasons.push("Currently assigned to " + c.activeJobs + " active job" + (c.activeJobs > 1 ? "s" : "") + ".");
+    if (c.totalJobs >= 20) reasons.push("Completed " + c.totalJobs + " jobs with us — trusted and reliable.");
+    if (c.gasSafeNumber || c.niceicNumber) reasons.push("All required certifications are current.");
+    if (reasons.length === 0) reasons.push("All compliance checks passed and contractor is available for new work.");
+    return reasons.join(" ");
+  }
+  if (c.status === "Inactive") {
+    const reasons: string[] = [];
+    if (isExpired(c.insuranceExpiry)) reasons.push("Insurance expired on " + c.insuranceExpiry + " — renewal required before reactivation.");
+    else if (isExpiringSoon(c.insuranceExpiry)) reasons.push("Insurance expiring on " + c.insuranceExpiry + " — renewal needed soon.");
+    if (c.rating < 4.0) reasons.push("Performance rating of " + c.rating + "/5 falls below our quality threshold.");
+    if (c.activeJobs === 0) reasons.push("No active job assignments — contractor may be unavailable or not accepting work.");
+    if (c.totalJobs < 5) reasons.push("Only " + c.totalJobs + " completed jobs — limited track record.");
+    if (reasons.length === 0) reasons.push("Contractor has been manually set to inactive. Review profile for more details.");
+    return reasons.join(" ");
+  }
+  if (c.status === "Pending") {
+    const reasons: string[] = [];
+    reasons.push("Application is currently under review by the agency team.");
+    if (!c.insuranceExpiry || c.insuranceExpiry === "\u2014") reasons.push("Insurance documentation has not yet been submitted.");
+    if (!c.gasSafeNumber && !c.niceicNumber) reasons.push("Trade certifications are pending verification.");
+    if (reasons.length === 1) reasons.push("No issues flagged — awaiting final approval.");
+    return reasons.join(" ");
+  }
+  return "Status information is not available for this contractor.";
+}
+
 function mapStatus(legacyStatus: string): string {
   const s = (legacyStatus || "").toLowerCase();
   if (s === "active") return "active";
@@ -320,6 +353,16 @@ export default function ContractorsPage() {
   const [selectedContractor, setSelectedContractor] = useState<ContractorRecord | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
+
+  const handleStatusChange = (newStatus: "Active" | "Inactive" | "Pending") => {
+    if (!selectedContractor) return;
+    setContractors((prev) =>
+      prev.map((c) => (c.id === selectedContractor.id ? { ...c, status: newStatus } : c))
+    );
+    setSelectedContractor((prev) => (prev ? { ...prev, status: newStatus } : null));
+    setStatusChangeOpen(false);
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -513,6 +556,7 @@ export default function ContractorsPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Contractors</h1>
             <p className="text-sm text-[#687068] mt-1">Manage your approved contractor database, documents, and assignments</p>
           </div>
+          <DemoHelperTip id="contractors-overview" title="Contractor Management">Track contractor profiles, insurance expiry, certifications and job assignments. Monitor compliance documents and performance ratings.</DemoHelperTip>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowAddModal(true)}
@@ -673,15 +717,21 @@ export default function ContractorsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {(() => {
-                        const mapped = mapStatus(c.status);
-                        const cfg = CONTRACTOR_STATUS[mapped];
-                        return (
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg?.bg || "bg-[#94A3B8]/10"} ${cfg?.color || "text-[#94A3B8]"}`}>
-                            {cfg?.label || c.status}
-                          </span>
-                        );
-                      })()}
+                      <button
+                        onClick={() => { setSelectedContractor(c); setShowProfile(true); }}
+                        className="cursor-pointer"
+                        title="Click to see status details"
+                      >
+                        {(() => {
+                          const mapped = mapStatus(c.status);
+                          const cfg = CONTRACTOR_STATUS[mapped];
+                          return (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full hover:opacity-80 transition-opacity ${cfg?.bg || "bg-[#94A3B8]/10"} ${cfg?.color || "text-[#94A3B8]"}`}>
+                              {cfg?.label || c.status}
+                            </span>
+                          );
+                        })()}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -726,7 +776,7 @@ export default function ContractorsPage() {
                     <p className="text-xs text-[#687068]">{selectedContractor.trade} · Rating {selectedContractor.rating}</p>
                   </div>
                 </div>
-                <button onClick={() => setShowProfile(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
+                <button onClick={() => { setShowProfile(false); setStatusChangeOpen(false); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
                   <i className="ri-close-line text-[#687068]"></i>
                 </button>
               </div>
@@ -824,6 +874,74 @@ export default function ContractorsPage() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-[#3A3F3A]">
+                      Status Reason
+                      {(() => {
+                        const mapped = mapStatus(selectedContractor.status);
+                        const cfg = CONTRACTOR_STATUS[mapped];
+                        return (
+                          <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${cfg?.bg || "bg-[#94A3B8]/10"} ${cfg?.color || "text-[#94A3B8]"}`}>
+                            {cfg?.label || selectedContractor.status}
+                          </span>
+                        );
+                      })()}
+                    </h3>
+                    <div className="relative">
+                      <button
+                        onClick={() => setStatusChangeOpen(!statusChangeOpen)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D5D9D5] rounded-lg text-xs font-medium text-[#687068] hover:bg-[#FBF9F4] hover:border-[#C28A78] transition-colors whitespace-nowrap"
+                      >
+                        <div className="w-3.5 h-3.5 flex items-center justify-center">
+                          <i className="ri-arrow-left-right-line text-xs"></i>
+                        </div>
+                        Change Status
+                      </button>
+                      {statusChangeOpen && (
+                        <div className="absolute right-0 top-full mt-1 bg-white border border-[#D5D9D5] rounded-lg shadow-lg z-30 min-w-[140px]">
+                          {(["Active", "Pending", "Inactive"] as const).map((s) => {
+                            const mapped = mapStatus(s);
+                            const cfg = CONTRACTOR_STATUS[mapped];
+                            const isCurrent = selectedContractor.status === s;
+                            return (
+                              <button
+                                key={s}
+                                onClick={() => handleStatusChange(s)}
+                                disabled={isCurrent}
+                                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors ${
+                                  isCurrent
+                                    ? "bg-[#FBF9F4] text-[#94A3B8] cursor-default"
+                                    : "text-[#3A3F3A] hover:bg-[#F1F5F9]"
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg?.bg || "bg-[#94A3B8]/10"}`}></span>
+                                {cfg?.label || s}
+                                {isCurrent && (
+                                  <div className="w-3.5 h-3.5 flex items-center justify-center ml-auto">
+                                    <i className="ri-check-line text-[#10B981] text-xs"></i>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-[#FBF9F4] rounded-lg p-3 border border-[#D5D9D5]">
+                    <div className="flex items-start gap-2">
+                      <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {(() => {
+                          const mapped = mapStatus(selectedContractor.status);
+                          const cfg = CONTRACTOR_STATUS[mapped];
+                          return <i className={`${cfg?.icon || "ri-information-line"} ${cfg?.color || "text-[#94A3B8]"} text-sm`}></i>;
+                        })()}
+                      </div>
+                      <p className="text-sm text-[#3A3F3A] leading-relaxed">{getStatusReason(selectedContractor)}</p>
                     </div>
                   </div>
                 </div>

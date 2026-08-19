@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { MobileLayout } from "@/components/MobileBottomNav";
 
@@ -18,6 +18,13 @@ export default function MobileContractorPage() {
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
   const [toastMessage, setToastMessage] = useState("");
   const [showQRScanner, setShowQRScanner] = useState(false);
 
@@ -28,14 +35,16 @@ export default function MobileContractorPage() {
     setSelectedJob(null);
     setToastMessage("Quote submitted successfully.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handlePhotoUpload = () => {
     setShowPhotoUpload(false);
     setToastMessage("Photos uploaded successfully.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const statusColor = (s: string) => {

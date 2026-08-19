@@ -660,43 +660,81 @@ export default function CompliancePage() {
       </div>
 
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setSelectedItem(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 p-4 border-b border-[#D5D9D5]">
-              <div className={`w-10 h-10 ${requirementTypeColors[selectedItem.type] || selectedItem.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className={`${requirementTypeIcons[selectedItem.type] || selectedItem.icon} text-white text-lg`}></i>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedItem(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className={`relative p-5 rounded-t-2xl ${requirementTypeColors[selectedItem.type] || selectedItem.color}`}>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    <i className={`${requirementTypeIcons[selectedItem.type] || selectedItem.icon} text-white text-xl`}></i>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-white">{selectedItem.type}</h3>
+                  <p className="text-xs text-white/80 mt-0.5 flex items-center gap-1">
+                    <i className="ri-map-pin-line"></i> {selectedItem.propertyName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">
+                    {selectedItem.status}
+                  </span>
+                  <button onClick={() => setSelectedItem(null)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                    <i className="ri-close-line text-white text-base"></i>
+                  </button>
                 </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[#3A3F3A]">{selectedItem.type}</h3>
-                <p className="text-xs text-[#687068]">{selectedItem.propertyName}</p>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="flex-1 bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-xs text-white/70">Days Left</p>
+                  <p className="text-sm font-bold text-white">
+                    {selectedItem.daysLeft < 0 ? `${Math.abs(selectedItem.daysLeft)}d overdue` : selectedItem.daysLeft > 500 ? "N/A" : `${selectedItem.daysLeft}d`}
+                  </p>
+                </div>
+                <div className="flex-1 bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-xs text-white/70">Expiry</p>
+                  <p className="text-sm font-bold text-white">{selectedItem.expiryDate}</p>
+                </div>
+                <div className="flex-1 bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-xs text-white/70">Required by Law</p>
+                  <p className="text-sm font-bold text-white">{selectedItem.requiredByLaw ? "Yes" : "No"}</p>
+                </div>
               </div>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getComplianceStatus(complianceStatusMap[selectedItem.status] as ComplianceStatusKey || "valid").bg}/10 ${getComplianceStatus(complianceStatusMap[selectedItem.status] as ComplianceStatusKey || "valid").color}`}>
-                {selectedItem.status}
-              </span>
-              <button onClick={() => setSelectedItem(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#EBE5DA]">
-                <i className="ri-close-line text-[#687068]"></i>
-              </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-5">
               <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-xs text-[#94A3B8] mb-1">Reference</p><p className="text-sm font-medium text-[#3A3F3A] font-mono">{selectedItem.referenceNumber}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Category</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.category}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Issued</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.issuedDate}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Expiry</p><p className={`text-sm font-medium ${selectedItem.daysLeft < 0 ? "text-[#C46868]" : selectedItem.daysLeft <= 30 ? "text-[#D4A85C]" : "text-[#3A3F3A]"}`}>{selectedItem.expiryDate}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Issuer</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.issuer}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Required</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.requiredByLaw ? "Yes" : "No"}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Renewal</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.renewalPeriod}</p></div>
-                <div><p className="text-xs text-[#94A3B8] mb-1">Last Action</p><p className="text-sm font-medium text-[#3A3F3A]">{selectedItem.lastAction}</p></div>
+                {[
+                  { label: "Reference Number", value: selectedItem.referenceNumber, mono: true },
+                  { label: "Category", value: selectedItem.category, mono: false },
+                  { label: "Issued Date", value: selectedItem.issuedDate, mono: false },
+                  { label: "Issuer / Provider", value: selectedItem.issuer, mono: false },
+                  { label: "Renewal Period", value: selectedItem.renewalPeriod || "—", mono: false },
+                  { label: "Last Action", value: selectedItem.lastAction, mono: false },
+                ].map((field) => (
+                  <div key={field.label} className="bg-[#F8F6F2] rounded-xl p-3">
+                    <p className="text-xs text-[#94A3B8] mb-1 font-medium uppercase tracking-wide">{field.label}</p>
+                    <p className={`text-sm font-semibold text-[#3A3F3A] ${field.mono ? "font-mono" : ""}`}>{field.value}</p>
+                  </div>
+                ))}
               </div>
-              <div><p className="text-xs text-[#94A3B8] mb-1">Notes</p><p className="text-sm text-[#3A3F3A]">{selectedItem.notes || "No notes"}</p></div>
-              <div className="flex items-center gap-3 pt-2">
-                <button className="flex-1 bg-[#C28A78] hover:bg-[#143828] text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Download</button>
+              {selectedItem.notes && (
+                <div className="bg-[#F8F6F2] rounded-xl p-3">
+                  <p className="text-xs text-[#94A3B8] mb-1 font-medium uppercase tracking-wide">Notes</p>
+                  <p className="text-sm text-[#3A3F3A] leading-relaxed">{selectedItem.notes}</p>
+                </div>
+              )}
+              <div className="flex items-center gap-3 pt-1">
+                <button className="flex-1 bg-[#C28A78] hover:bg-[#143828] text-white text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-download-line text-sm"></i></div>
+                  Download Certificate
+                </button>
                 <button
                   onClick={() => { setSelectedItem(null); setRenewItem(selectedItem); setShowRenewModal(true); }}
-                  className="flex-1 border border-[#D5D9D5] text-sm font-medium py-2.5 rounded-lg hover:bg-[#EBE5DA] transition-colors text-[#3A3F3A]"
-                >Renew</button>
+                  className="flex-1 border-2 border-[#D5D9D5] text-sm font-semibold py-3 rounded-xl hover:bg-[#EBE5DA] hover:border-[#C28A78] transition-colors text-[#3A3F3A] flex items-center justify-center gap-2"
+                >
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-refresh-line text-sm"></i></div>
+                  Renew
+                </button>
               </div>
             </div>
           </div>
@@ -704,24 +742,54 @@ export default function CompliancePage() {
       )}
 
       {showRenewModal && renewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowRenewModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-[#D5D9D5]">
-              <h3 className="text-sm font-semibold text-[#3A3F3A]">Renew Certificate</h3>
-              <button onClick={() => setShowRenewModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#EBE5DA]"><i className="ri-close-line text-[#687068]"></i></button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="bg-[#FBF9F4] rounded-lg p-3">
-                <p className="text-xs text-[#94A3B8] mb-1">Certificate</p>
-                <p className="text-sm font-medium text-[#3A3F3A]">{renewItem.type}</p>
-                <p className="text-xs text-[#687068]">{renewItem.propertyName}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowRenewModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-[#8A9FB0] to-[#7A8FA0] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-refresh-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Renew Certificate</h3>
+                    <p className="text-xs text-white/70">Update expiry and reference details</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowRenewModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <i className="ri-close-line text-white text-base"></i>
+                </button>
               </div>
-              <div><label className="text-xs text-[#687068] mb-1 block">New Expiry Date</label><input type="date" className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78]" /></div>
-              <div><label className="text-xs text-[#687068] mb-1 block">New Reference Number</label><input type="text" placeholder="Enter new reference number" className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78]" /></div>
-              <div><label className="text-xs text-[#687068] mb-1 block">Notes</label><textarea placeholder="Add renewal notes..." maxLength={500} rows={3} className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] resize-none"></textarea></div>
-              <div className="flex items-center gap-3 pt-2">
-                <button onClick={() => setShowRenewModal(false)} className="flex-1 border border-[#D5D9D5] text-sm font-medium py-2.5 rounded-lg hover:bg-[#EBE5DA] transition-colors text-[#3A3F3A]">Cancel</button>
-                <button onClick={handleRenew} className="flex-1 bg-[#C28A78] hover:bg-[#143828] text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Confirm Renewal</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-[#F8F6F2] rounded-xl p-4 flex items-center gap-3">
+                <div className={`w-9 h-9 ${requirementTypeColors[renewItem.type] || renewItem.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className={`${requirementTypeIcons[renewItem.type] || renewItem.icon} text-white text-sm`}></i>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#3A3F3A]">{renewItem.type}</p>
+                  <p className="text-xs text-[#687068]">{renewItem.propertyName}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">New Expiry Date</label>
+                <input type="date" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] transition-colors bg-[#FAFAF8]" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">New Reference Number</label>
+                <input type="text" placeholder="e.g. GSC-2027-00001" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] transition-colors bg-[#FAFAF8] font-mono" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Notes</label>
+                <textarea placeholder="Add renewal notes..." maxLength={500} rows={3} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] resize-none transition-colors bg-[#FAFAF8]"></textarea>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={() => setShowRenewModal(false)} className="flex-1 border-2 border-[#D5D9D5] text-sm font-semibold py-3 rounded-xl hover:bg-[#EBE5DA] hover:border-[#C28A78] transition-colors text-[#3A3F3A]">Cancel</button>
+                <button onClick={handleRenew} className="flex-1 bg-[#8A9FB0] hover:bg-[#143828] text-white text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-check-line text-sm"></i></div>
+                  Confirm Renewal
+                </button>
               </div>
             </div>
           </div>
@@ -729,38 +797,74 @@ export default function CompliancePage() {
       )}
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowAddModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-[#D5D9D5]">
-              <h3 className="text-sm font-semibold text-[#3A3F3A]">Add Compliance Record</h3>
-              <button onClick={() => setShowAddModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#EBE5DA]"><i className="ri-close-line text-[#687068]"></i></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-[#C28A78] to-[#B87A68] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-add-circle-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Add Compliance Record</h3>
+                    <p className="text-xs text-white/70">Upload a new certificate or requirement</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <i className="ri-close-line text-white text-base"></i>
+                </button>
+              </div>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs text-[#687068] mb-1 block">Requirement Type</label>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Requirement Type</label>
                 <div className="relative">
-                  <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-8 appearance-none bg-white">
-                    <option>Gas Safety Certificate</option><option>EICR Report</option><option>EPC Certificate</option><option>Legionella Assessment</option><option>Smoke Alarm Check</option><option>Carbon Monoxide Check</option><option>HMO Compliance</option><option>Building Insurance</option><option>Fire Risk Assessment</option>
+                  <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer">
+                    <option>Gas Safety Certificate</option>
+                    <option>EICR Report</option>
+                    <option>EPC Certificate</option>
+                    <option>Legionella Assessment</option>
+                    <option>Smoke Alarm Check</option>
+                    <option>Carbon Monoxide Check</option>
+                    <option>HMO Compliance</option>
+                    <option>Building Insurance</option>
+                    <option>Fire Risk Assessment</option>
                   </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
                 </div>
               </div>
               <div>
-                <label className="text-xs text-[#687068] mb-1 block">Property</label>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
                 <div className="relative">
-                  <select value={addForm.property} onChange={(e) => setAddForm({ ...addForm, property: e.target.value })} className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-8 appearance-none bg-white">
-                    {propertyCompliance.map((p) => (<option key={p.propertyId} value={p.propertyId}>{p.propertyName} - {p.address}</option>))}
+                  <select value={addForm.property} onChange={(e) => setAddForm({ ...addForm, property: e.target.value })} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer">
+                    {propertyCompliance.map((p) => (<option key={p.propertyId} value={p.propertyId}>{p.propertyName} — {p.address}</option>))}
                   </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
                 </div>
               </div>
-              <div><label className="text-xs text-[#687068] mb-1 block">Issuer / Provider</label><input type="text" value={addForm.issuer} onChange={(e) => setAddForm({ ...addForm, issuer: e.target.value })} placeholder="e.g. SafeGas Engineers Ltd" className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78]" /></div>
-              <div><label className="text-xs text-[#687068] mb-1 block">Reference Number</label><input type="text" value={addForm.referenceNumber} onChange={(e) => setAddForm({ ...addForm, referenceNumber: e.target.value })} placeholder="e.g. GSC-2026-04589" className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78]" /></div>
-              <div><label className="text-xs text-[#687068] mb-1 block">Expiry Date</label><input type="date" value={addForm.expiryDate} onChange={(e) => setAddForm({ ...addForm, expiryDate: e.target.value })} className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78]" /></div>
-              <div><label className="text-xs text-[#687068] mb-1 block">Notes</label><textarea value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} placeholder="Add any notes..." maxLength={500} rows={3} className="w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] resize-none"></textarea></div>
-              <div className="flex items-center gap-3 pt-2">
-                <button onClick={() => setShowAddModal(false)} className="flex-1 border border-[#D5D9D5] text-sm font-medium py-2.5 rounded-lg hover:bg-[#EBE5DA] transition-colors text-[#3A3F3A]">Cancel</button>
-                <button onClick={handleAdd} className="flex-1 bg-[#C28A78] hover:bg-[#143828] text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Add Record</button>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Issuer / Provider</label>
+                <input type="text" value={addForm.issuer} onChange={(e) => setAddForm({ ...addForm, issuer: e.target.value })} placeholder="e.g. SafeGas Engineers Ltd" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Reference Number</label>
+                <input type="text" value={addForm.referenceNumber} onChange={(e) => setAddForm({ ...addForm, referenceNumber: e.target.value })} placeholder="e.g. GSC-2026-04589" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FAFAF8] font-mono transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Expiry Date</label>
+                <input type="date" value={addForm.expiryDate} onChange={(e) => setAddForm({ ...addForm, expiryDate: e.target.value })} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Notes</label>
+                <textarea value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} placeholder="Add any notes about this certificate..." maxLength={500} rows={3} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] resize-none bg-[#FAFAF8] transition-colors"></textarea>
+                <p className="text-xs text-[#94A3B8] mt-1 text-right">{addForm.notes.length}/500</p>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={() => setShowAddModal(false)} className="flex-1 border-2 border-[#D5D9D5] text-sm font-semibold py-3 rounded-xl hover:bg-[#EBE5DA] hover:border-[#C28A78] transition-colors text-[#3A3F3A]">Cancel</button>
+                <button onClick={handleAdd} className="flex-1 bg-[#C28A78] hover:bg-[#143828] text-white text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-line text-sm"></i></div>
+                  Add Record
+                </button>
               </div>
             </div>
           </div>

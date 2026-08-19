@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { workflowJobs, workflowSteps, notifications, type QuoteWorkflowJob } from "./QuoteWorkflowData";
@@ -30,7 +30,14 @@ export default function QuoteWorkflowPage() {
   const [showInviteModal, setShowInviteModal] = useState<string | null>(null);
   const [showApproveModal, setShowApproveModal] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobList, setJobList] = useState(workflowJobs);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const unreadCount = notifList.filter((n) => !n.read).length;
 
@@ -55,7 +62,8 @@ export default function QuoteWorkflowPage() {
 
   const showToast = (message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleAddComment = (jobId: string) => {

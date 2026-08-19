@@ -1,41 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
+import RentChangeModal from "@/components/dashboard/RentChangeModal";
 
-const myProperties = [
-  { id: 1, name: "12 Rose Avenue", city: "London", tenant: "John Miller", rent: 1850, deposit: 1850, status: "Paid", paidDate: "1 Jun 2026", dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "15 Sep 2024", tenancyEnd: "14 Sep 2026" },
-  { id: 2, name: "45 Baker Street", city: "Manchester", tenant: "Emily Carter", rent: 2100, deposit: 2100, status: "Due Soon", paidDate: null, dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "1 Mar 2025", tenancyEnd: "28 Feb 2026" },
-  { id: 3, name: "34 Maple Gardens", city: "Cardiff", tenant: "Michael Brown", rent: 2400, deposit: 2400, status: "Paid", paidDate: "1 Jun 2026", dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "1 May 2024", tenancyEnd: "30 Apr 2026" },
-  { id: 4, name: "8 The Crescent", city: "Leeds", tenant: "Michael Brown", rent: 1650, deposit: 1650, status: "Overdue", paidDate: null, dueDate: "1 Jun 2026", outstanding: 1650, tenancyStart: "1 Apr 2024", tenancyEnd: "31 Mar 2026" },
-];
+const statusConfig: Record<string, { dot: string; badge: string; icon: string }> = {
+  Paid: { dot: "bg-[#10B981]", badge: "bg-[#10B981]/10 text-[#10B981]", icon: "ri-check-line" },
+  "Due Soon": { dot: "bg-[#F59E0B]", badge: "bg-[#F59E0B]/10 text-[#F59E0B]", icon: "ri-time-line" },
+  Overdue: { dot: "bg-[#EF4444]", badge: "bg-[#EF4444]/10 text-[#EF4444]", icon: "ri-error-warning-line" },
+  "In Arrears": { dot: "bg-[#EF4444]", badge: "bg-[#EF4444]/10 text-[#EF4444]", icon: "ri-error-warning-line" },
+};
 
 const paymentHistory = [
-  { id: 1, property: "12 Rose Avenue", tenant: "John Miller", amount: 1850, date: "1 Jun 2026", month: "Jun 2026", status: "Paid" },
-  { id: 2, property: "12 Rose Avenue", tenant: "John Miller", amount: 1850, date: "1 May 2026", month: "May 2026", status: "Paid" },
-  { id: 3, property: "45 Baker Street", tenant: "Emily Carter", amount: 2100, date: "1 May 2026", month: "May 2026", status: "Paid" },
-  { id: 4, property: "34 Maple Gardens", tenant: "Michael Brown", amount: 2400, date: "1 Jun 2026", month: "Jun 2026", status: "Paid" },
-  { id: 5, property: "34 Maple Gardens", tenant: "Michael Brown", amount: 2400, date: "1 May 2026", month: "May 2026", status: "Paid" },
-  { id: 6, property: "8 The Crescent", tenant: "Michael Brown", amount: 1650, date: "1 May 2026", month: "May 2026", status: "Paid" },
-  { id: 7, property: "8 The Crescent", tenant: "Michael Brown", amount: 1650, date: "1 Apr 2026", month: "Apr 2026", status: "Paid" },
+  { id: "ph1", month: "June 2026", property: "12 Rose Avenue", tenant: "John Miller", amount: 1850, date: "1 Jun 2026", status: "Paid" },
+  { id: "ph2", month: "June 2026", property: "34 Maple Gardens", tenant: "Michael Brown", amount: 2400, date: "1 Jun 2026", status: "Paid" },
+  { id: "ph3", month: "May 2026", property: "12 Rose Avenue", tenant: "John Miller", amount: 1850, date: "1 May 2026", status: "Paid" },
+  { id: "ph4", month: "May 2026", property: "45 Baker Street", tenant: "Emily Carter", amount: 2100, date: "1 May 2026", status: "Paid" },
+  { id: "ph5", month: "May 2026", property: "34 Maple Gardens", tenant: "Michael Brown", amount: 2400, date: "1 May 2026", status: "Paid" },
+  { id: "ph6", month: "April 2026", property: "12 Rose Avenue", tenant: "John Miller", amount: 1850, date: "1 Apr 2026", status: "Paid" },
+  { id: "ph7", month: "April 2026", property: "45 Baker Street", tenant: "Emily Carter", amount: 2100, date: "1 Apr 2026", status: "Paid" },
+  { id: "ph8", month: "April 2026", property: "34 Maple Gardens", tenant: "Michael Brown", amount: 2400, date: "1 Apr 2026", status: "Paid" },
+  { id: "ph9", month: "April 2026", property: "8 The Crescent", tenant: "Michael Brown", amount: 1650, date: "1 Apr 2026", status: "Paid" },
 ];
 
-const statusConfig: Record<string, { badge: string; dot: string; icon: string }> = {
-  Paid: { badge: "bg-[#10B981]/10 text-[#10B981]", dot: "bg-[#10B981]", icon: "ri-check-double-line" },
-  "Due Soon": { badge: "bg-[#F59E0B]/10 text-[#F59E0B]", dot: "bg-[#F59E0B]", icon: "ri-time-line" },
-  Overdue: { badge: "bg-[#EF4444]/10 text-[#EF4444]", dot: "bg-[#EF4444]", icon: "ri-alarm-warning-line" },
-  "In Arrears": { badge: "bg-[#EF4444]/10 text-[#EF4444]", dot: "bg-[#EF4444]", icon: "ri-error-warning-line" },
-};
+const myProperties = [
+  { id: "prop-1", name: "12 Rose Avenue", city: "London", tenant: "John Miller", rent: 1850, deposit: 1850, status: "Paid", paidDate: "1 Jun 2026", dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "15 Sep 2024", tenancyEnd: "14 Sep 2026" },
+  { id: "prop-2", name: "45 Baker Street", city: "Manchester", tenant: "Emily Carter", rent: 2100, deposit: 2100, status: "Due Soon", paidDate: null, dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "1 Mar 2025", tenancyEnd: "28 Feb 2026" },
+  { id: "prop-3", name: "34 Maple Gardens", city: "Cardiff", tenant: "Michael Brown", rent: 2400, deposit: 2400, status: "Paid", paidDate: "1 Jun 2026", dueDate: "1 Jul 2026", outstanding: 0, tenancyStart: "1 May 2024", tenancyEnd: "30 Apr 2026" },
+  { id: "prop-4", name: "8 The Crescent", city: "Leeds", tenant: "Michael Brown", rent: 1650, deposit: 1650, status: "Overdue", paidDate: null, dueDate: "1 Jun 2026", outstanding: 1650, tenancyStart: "1 Apr 2024", tenancyEnd: "31 Mar 2026" },
+];
 
 export default function LandlordRentPage() {
   const [selectedProperty, setSelectedProperty] = useState<typeof myProperties[0] | null>(null);
   const [filter, setFilter] = useState("All");
   const [showRemind, setShowRemind] = useState(false);
+  const [rentModalOpen, setRentModalOpen] = useState(false);
+  const [rentMap, setRentMap] = useState<Record<string, number>>(
+    Object.fromEntries(myProperties.map((p) => [p.id, p.rent]))
+  );
 
   const filtered = filter === "All" ? myProperties : myProperties.filter((p) => p.status === filter);
-  const totalRent = myProperties.reduce((sum, p) => sum + p.rent, 0);
-  const paidTotal = myProperties.filter((p) => p.status === "Paid").reduce((sum, p) => sum + p.rent, 0);
+  const totalRent = myProperties.reduce((sum, p) => sum + (rentMap[p.id] ?? p.rent), 0);
+  const paidTotal = myProperties.filter((p) => p.status === "Paid").reduce((sum, p) => sum + (rentMap[p.id] ?? p.rent), 0);
   const outstandingTotal = myProperties.filter((p) => p.status !== "Paid").reduce((sum, p) => sum + p.outstanding, 0);
   const overdueCount = myProperties.filter((p) => p.status === "Overdue" || p.status === "In Arrears").length;
 
@@ -48,13 +54,30 @@ export default function LandlordRentPage() {
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Rent Income</h1>
             <p className="text-sm text-[#687068] mt-1">Track payments and outstanding rent across your portfolio</p>
           </div>
-          <button
-            onClick={() => setShowRemind(true)}
-            className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2"
-          >
-            <i className="ri-notification-3-line text-sm"></i>
-            Send Reminders
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (selectedProperty) {
+                  setRentModalOpen(true);
+                }
+              }}
+              className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <div className="w-4 h-4 flex items-center justify-center">
+                <i className="ri-edit-line text-sm"></i>
+              </div>
+              Change Rent
+            </button>
+            <button
+              onClick={() => setShowRemind(true)}
+              className="bg-[#3A3F3A] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <div className="w-4 h-4 flex items-center justify-center">
+                <i className="ri-notification-3-line text-sm"></i>
+              </div>
+              Send Reminders
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -67,7 +90,9 @@ export default function LandlordRentPage() {
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl border border-[#E2E8F0] p-4 flex items-center gap-4">
               <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                <i className={`${stat.icon} text-white text-xl`}></i>
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <i className={`${stat.icon} text-white text-xl`}></i>
+                </div>
               </div>
               <div>
                 <p className="text-xl font-bold text-[#3A3F3A]">{stat.value}</p>
@@ -83,7 +108,9 @@ export default function LandlordRentPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 border-b border-[#E2E8F0] gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#C28A78]/10 rounded-lg flex items-center justify-center">
-                <i className="ri-building-4-line text-[#C28A78] text-sm"></i>
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className="ri-building-4-line text-[#C28A78] text-sm"></i>
+                </div>
               </div>
               <h2 className="font-semibold text-[#3A3F3A]">My Properties</h2>
               <span className="text-xs font-medium text-[#C28A78] bg-[#C28A78]/10 px-2 py-0.5 rounded-full">{myProperties.length}</span>
@@ -117,8 +144,12 @@ export default function LandlordRentPage() {
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]">
                 {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5">
+                  <tr
+                    key={p.id}
+                    className={`hover:bg-[#F8FAFC] transition-colors ${selectedProperty?.id === p.id ? "bg-[#C28A78]/5" : ""}`}
+                    onClick={() => setSelectedProperty(p)}
+                  >
+                    <td className="px-5 py-3.5 cursor-pointer">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${statusConfig[p.status].dot}`}></div>
                         <span className="font-medium text-[#3A3F3A]">{p.name}</span>
@@ -126,11 +157,13 @@ export default function LandlordRentPage() {
                       <p className="text-xs text-[#94A3B8] ml-4">{p.city}</p>
                     </td>
                     <td className="px-5 py-3.5 text-[#687068]">{p.tenant}</td>
-                    <td className="px-5 py-3.5 font-medium text-[#3A3F3A]">£{p.rent.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 font-medium text-[#3A3F3A]">£{(rentMap[p.id] ?? p.rent).toLocaleString()}</td>
                     <td className="px-5 py-3.5 text-[#687068]">{p.dueDate}</td>
                     <td className="px-5 py-3.5">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${statusConfig[p.status].badge}`}>
-                        <i className={`${statusConfig[p.status].icon} text-xs`}></i>
+                        <div className="w-3 h-3 flex items-center justify-center">
+                          <i className={`${statusConfig[p.status].icon} text-xs`}></i>
+                        </div>
                         {p.status}
                       </span>
                     </td>
@@ -141,10 +174,14 @@ export default function LandlordRentPage() {
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button
-                        onClick={() => setSelectedProperty(p)}
-                        className="text-sm font-medium text-[#C28A78] hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProperty(p);
+                          setRentModalOpen(true);
+                        }}
+                        className="text-sm font-medium text-[#C28A78] hover:underline whitespace-nowrap"
                       >
-                        View
+                        Change Rent
                       </button>
                     </td>
                   </tr>
@@ -159,7 +196,9 @@ export default function LandlordRentPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#10B981]/10 rounded-lg flex items-center justify-center">
-                <i className="ri-history-line text-[#10B981] text-sm"></i>
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className="ri-history-line text-[#10B981] text-sm"></i>
+                </div>
               </div>
               <h2 className="font-semibold text-[#3A3F3A]">Recent Payment History</h2>
               <span className="text-xs font-medium text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded-full">{paymentHistory.length}</span>
@@ -196,13 +235,15 @@ export default function LandlordRentPage() {
         </div>
 
         {/* Property Detail Modal */}
-        {selectedProperty && (
+        {selectedProperty && !rentModalOpen && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#C28A78]/10 rounded-xl flex items-center justify-center">
-                    <i className="ri-building-4-line text-[#C28A78] text-lg"></i>
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <i className="ri-building-4-line text-[#C28A78] text-lg"></i>
+                    </div>
                   </div>
                   <div>
                     <h3 className="font-semibold text-[#3A3F3A]">{selectedProperty.name}</h3>
@@ -210,14 +251,16 @@ export default function LandlordRentPage() {
                   </div>
                 </div>
                 <button onClick={() => setSelectedProperty(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
-                  <i className="ri-close-line text-[#687068]"></i>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-close-line text-[#687068]"></i>
+                  </div>
                 </button>
               </div>
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-[#F8FAFC] rounded-xl p-4 text-center">
                     <p className="text-xs text-[#94A3B8]">Monthly Rent</p>
-                    <p className="text-xl font-bold text-[#3A3F3A]">£{selectedProperty.rent}</p>
+                    <p className="text-xl font-bold text-[#3A3F3A]">£{rentMap[selectedProperty.id] ?? selectedProperty.rent}</p>
                   </div>
                   <div className="bg-[#F8FAFC] rounded-xl p-4 text-center">
                     <p className="text-xs text-[#94A3B8]">Deposit</p>
@@ -247,13 +290,20 @@ export default function LandlordRentPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap">
-                    <i className="ri-notification-3-line mr-1"></i>
-                    Send Reminder
+                  <button
+                    onClick={() => setRentModalOpen(true)}
+                    className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"
+                  >
+                    <div className="w-4 h-4 inline-flex items-center justify-center mr-1">
+                      <i className="ri-edit-line text-sm"></i>
+                    </div>
+                    Change Rent
                   </button>
-                  <button className="flex-1 py-3 text-sm font-medium text-[#C28A78] border border-[#C28A78] rounded-xl hover:bg-[#C28A78]/5 transition-colors whitespace-nowrap">
-                    <i className="ri-file-list-3-line mr-1"></i>
-                    View Receipt
+                  <button className="flex-1 py-3 text-sm font-medium text-white bg-[#3A3F3A] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap">
+                    <div className="w-4 h-4 inline-flex items-center justify-center mr-1">
+                      <i className="ri-notification-3-line text-sm"></i>
+                    </div>
+                    Send Reminder
                   </button>
                 </div>
               </div>
@@ -268,7 +318,9 @@ export default function LandlordRentPage() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-[#3A3F3A]">Send Rent Reminders</h3>
                 <button onClick={() => setShowRemind(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
-                  <i className="ri-close-line text-[#687068]"></i>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-close-line text-[#687068]"></i>
+                  </div>
                 </button>
               </div>
               <p className="text-sm text-[#687068] mb-4">Select tenants to send reminders:</p>
@@ -282,14 +334,16 @@ export default function LandlordRentPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[#3A3F3A]">{p.tenant}</p>
-                        <p className="text-xs text-[#687068]">{p.name} · £{p.rent} · {p.status}</p>
+                        <p className="text-xs text-[#687068]">{p.name} · £{rentMap[p.id] ?? p.rent} · {p.status}</p>
                       </div>
                     </label>
                   ))}
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setShowRemind(false)} className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap">
-                  <i className="ri-send-plane-line mr-1"></i>
+                  <div className="w-4 h-4 inline-flex items-center justify-center mr-1">
+                    <i className="ri-send-plane-line text-sm"></i>
+                  </div>
                   Send Reminders
                 </button>
                 <button onClick={() => setShowRemind(false)} className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-colors whitespace-nowrap">
@@ -298,6 +352,20 @@ export default function LandlordRentPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Rent Change Modal */}
+        {rentModalOpen && selectedProperty && (
+          <RentChangeModal
+            propertyId={selectedProperty.id}
+            propertyName={selectedProperty.name}
+            currentRent={rentMap[selectedProperty.id] ?? selectedProperty.rent}
+            tenantName={selectedProperty.tenant}
+            onClose={() => setRentModalOpen(false)}
+            onUpdated={(newRent) => {
+              setRentMap((prev) => ({ ...prev, [selectedProperty.id]: newRent }));
+            }}
+          />
         )}
       </div>
     </DashboardShell>

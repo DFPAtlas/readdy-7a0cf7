@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import PortalActionCentre from "@/components/dashboard/PortalActionCentre";
@@ -36,6 +36,7 @@ export default function PortalSetupPage() {
   const [showInviteWizard, setShowInviteWizard] = useState(false);
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedUser, setSelectedUser] = useState<FlatPortalUser | null>(null);
   const [disableConfirm, setDisableConfirm] = useState<FlatPortalUser | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -44,7 +45,14 @@ export default function PortalSetupPage() {
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {

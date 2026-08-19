@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MobileLayout } from "@/components/MobileBottomNav";
 
 const quotes = [
@@ -17,7 +17,14 @@ export default function MobileQuotesPage() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const filteredQuotes = activeFilter === "All" ? quotes : quotes.filter((q) => q.status === activeFilter);
 
@@ -26,7 +33,8 @@ export default function MobileQuotesPage() {
     setSelectedQuote(null);
     setToastMessage("Quote approved. Contractor notified.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleReject = () => {
@@ -34,7 +42,8 @@ export default function MobileQuotesPage() {
     setSelectedQuote(null);
     setToastMessage("Quote rejected. Contractor notified.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const statusColor = (s: string) => {

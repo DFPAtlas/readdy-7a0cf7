@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
@@ -202,6 +202,7 @@ export default function CommunicationsPage() {
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
@@ -210,8 +211,15 @@ export default function CommunicationsPage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    const timer = setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = timer;
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const d = isDemoAccount();

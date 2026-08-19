@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { quotes } from "../LandlordData";
@@ -15,6 +15,13 @@ export default function LandlordQuotesPage() {
   const [alternativeReason, setAlternativeReason] = useState("");
   const [quoteList, setQuoteList] = useState(quotes);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const filtered = activeTab === "all" ? quoteList : quoteList.filter((q) => q.status.toLowerCase() === activeTab);
   const pendingCount = quoteList.filter((q) => q.status === "Pending").length;
@@ -23,7 +30,8 @@ export default function LandlordQuotesPage() {
 
   const showToast = (message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleApprove = (quoteId: string) => {

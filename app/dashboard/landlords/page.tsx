@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
@@ -36,17 +36,39 @@ export default function LandlordsPage() {
     notes: "",
   });
 
-  const demoMode = typeof window !== "undefined" && isDemoAccount();
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadLandlords();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
-  const loadLandlords = async () => {
+  useEffect(() => {
+    let active = true;
+
+    const timer = setTimeout(() => {
+      if (!active) return;
+      loadLandlords(active);
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const loadLandlords = async (activeOverride?: boolean) => {
+    const isActive = activeOverride !== undefined ? activeOverride : mountedRef.current;
     setLoading(true);
     setError(null);
     try {
-      if (demoMode) {
+      if (isDemoAccount()) {
+        if (!isActive) return;
         setOwnerList(owners);
         setLoading(false);
         return;
@@ -57,6 +79,7 @@ export default function LandlordsPage() {
         .select("id, display_name, email, phone, is_company, company_number, created_at, managing_agency_id, portfolio_type, ombudsman_member, ombudsman_ref");
 
       if (landlordsErr) throw landlordsErr;
+      if (!isActive) return;
 
       if (!landlords || landlords.length === 0) {
         setOwnerList([]);
@@ -72,6 +95,7 @@ export default function LandlordsPage() {
         .in("landlord_id", landlordIds);
 
       if (propErr) throw propErr;
+      if (!isActive) return;
 
       const { data: portalAccess, error: portalErr } = await supabase
         .from("owner_portal_access")
@@ -79,6 +103,7 @@ export default function LandlordsPage() {
         .in("landlord_id", landlordIds);
 
       if (portalErr) throw portalErr;
+      if (!isActive) return;
 
       const propsByLandlord: Record<string, { id: string; name: string; address: string }[]> = {};
       const propCountByLandlord: Record<string, number> = {};
@@ -132,18 +157,25 @@ export default function LandlordsPage() {
         };
       });
 
+      if (!isActive) return;
       setOwnerList(mapped);
     } catch (err: any) {
+      if (!isActive) return;
       console.error("Failed to load landlords:", err);
       setError(err.message || "Failed to load landlords");
     } finally {
+      if (!isActive) return;
       setLoading(false);
     }
   };
 
   const showToast = (msg: string) => {
+    if (!mountedRef.current) return;
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setToast(null);
+    }, 3000);
   };
 
   const filtered = ownerList.filter((o) => {
@@ -158,7 +190,7 @@ export default function LandlordsPage() {
 
   const handleAddOwner = async () => {
     if (!formData.fullName || !formData.email) return;
-    if (demoMode) { showDemoBlockedMessage(); return; }
+    if (isDemoAccount()) { showDemoBlockedMessage(); return; }
 
     try {
       const { data, error: insertErr } = await supabase
@@ -172,7 +204,7 @@ export default function LandlordsPage() {
       setAddModalOpen(false);
       setFormData({ fullName: "", email: "", phone: "", address: "", companyName: "", notes: "" });
       showToast("Landlord added successfully");
-      loadLandlords();
+      loadLandlords(true);
     } catch (err: any) {
       showToast("Failed to add landlord: " + (err.message || "Unknown error"));
     }
@@ -199,7 +231,7 @@ export default function LandlordsPage() {
 
   const handleSendInvite = async () => {
     if (!inviteEmail || !inviteModalOpen) return;
-    if (demoMode) { showDemoBlockedMessage(); return; }
+    if (isDemoAccount()) { showDemoBlockedMessage(); return; }
     setSending(true);
 
     try {
@@ -218,7 +250,7 @@ export default function LandlordsPage() {
     setSending(false);
     setInviteModalOpen(null);
     showToast(`Invite sent to ${inviteEmail}`);
-    loadLandlords();
+    loadLandlords(true);
   };
 
   const handleResendInvite = (owner: Owner) => {
@@ -226,7 +258,7 @@ export default function LandlordsPage() {
   };
 
   const handleDisablePortal = async (owner: Owner) => {
-    if (demoMode) { showDemoBlockedMessage(); setDisableConfirm(null); return; }
+    if (isDemoAccount()) { showDemoBlockedMessage(); setDisableConfirm(null); return; }
     try {
       await supabase
         .from("owner_portal_access")

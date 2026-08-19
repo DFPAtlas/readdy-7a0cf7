@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   NotificationItem,
@@ -24,12 +24,19 @@ export default function NotificationCentreContent() {
   const [channelFilter, setChannelFilter] = useState<"all" | "push" | "email">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const actionRequired = notifications.filter((n) => n.type === "compliance_expiry" || n.type === "rent_overdue" || n.type === "quote_awaiting").filter((n) => !n.isRead);
   const deliveryProblems = 0;
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+  const showToast = (msg: string) => { setToast(msg); if (toastTimerRef.current) clearTimeout(toastTimerRef.current); toastTimerRef.current = setTimeout(() => setToast(null), 2500); };
 
   const summaryCards = [
     { label: "Action Required", value: actionRequired.length, icon: "ri-error-warning-line", color: "#EF4444", bg: "bg-[#EF4444]/10", filter: "action_required" as const },

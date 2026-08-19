@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import DashboardShell from "@/components/DashboardShell"
 import { useEntitlements } from "@/lib/useEntitlements"
@@ -20,6 +20,7 @@ export default function RentSchedulePage() {
   const [pauseConfirm, setPauseConfirm] = useState<RentSchedule | null>(null)
   const [endConfirm, setEndConfirm] = useState<RentSchedule | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [detailOpen, setDetailOpen] = useState<RentSchedule | null>(null)
   const { isReadOnly } = useEntitlements()
 
@@ -37,8 +38,9 @@ export default function RentSchedulePage() {
   })
 
   const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }
 
   useEffect(() => {
@@ -49,6 +51,12 @@ export default function RentSchedulePage() {
     document.addEventListener("click", handleClick)
     return () => document.removeEventListener("click", handleClick)
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isDemoAccount()) {

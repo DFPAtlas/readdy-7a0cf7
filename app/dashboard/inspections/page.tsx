@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
@@ -77,6 +77,13 @@ export default function InspectionsPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
   const [toastMessage, setToastMessage] = useState("");
   const [activeTab, setActiveTab] = useState("upcoming");
   const [demoMode, setDemoMode] = useState(false);
@@ -255,21 +262,24 @@ export default function InspectionsPage() {
   const handleStartInspection = () => {
     setToastMessage("Inspection started. Mobile form ready.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleGenerateReport = () => {
     setShowReportModal(false);
     setToastMessage("Inspection report generated successfully.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleSchedule = () => {
     setShowScheduleModal(false);
     setToastMessage("Inspection scheduled successfully.");
     setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   if (loading) {
@@ -588,105 +598,95 @@ export default function InspectionsPage() {
       </div>
 
       {inspection && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#D5D9D5]">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${inspectionTypeLabels[inspection.type]?.bg}`}>
-                  <i className={`${inspectionTypeLabels[inspection.type]?.icon} ${inspectionTypeLabels[inspection.type]?.color} text-lg`}></i>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className={`relative p-5 rounded-t-2xl ${inspectionTypeLabels[inspection.type]?.bg || "bg-[#8A9FB0]"}`}>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <i className={`${inspectionTypeLabels[inspection.type]?.icon} text-white text-xl`}></i>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-[#3A3F3A]">{inspection.property}</h3>
-                  <p className="text-xs text-[#687068]">{inspection.type} · {inspection.date}</p>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-white">{inspection.property}</h3>
+                  <p className="text-xs text-white/80 mt-0.5 flex items-center gap-1">
+                    <i className="ri-map-pin-line"></i> {inspection.address}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">{inspection.type}</span>
+                  {inspection.reportGenerated && (
+                    <button className="text-xs font-semibold text-white border border-white/30 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                      <i className="ri-download-line mr-1"></i>PDF
+                    </button>
+                  )}
+                  <button onClick={() => setSelectedInspection(null)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                    <i className="ri-close-line text-white text-base"></i>
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {inspection.reportGenerated && (
-                  <button className="text-xs font-medium text-[#C28A78] border border-[#C28A78] px-3 py-1.5 rounded-lg hover:bg-[#C28A78]/5 whitespace-nowrap">
-                    <i className="ri-download-line mr-1"></i>
-                    PDF
-                  </button>
-                )}
-                <button onClick={() => setSelectedInspection(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
-                  <i className="ri-close-line text-[#687068]"></i>
-                </button>
+              <div className="mt-4 grid grid-cols-4 gap-3">
+                {[
+                  { label: "Date", value: inspection.date },
+                  { label: "Status", value: inspection.status },
+                  { label: "Rating", value: inspection.overallRating },
+                  { label: "Inspector", value: inspection.inspector },
+                ].map((s) => (
+                  <div key={s.label} className="bg-white/10 rounded-lg px-3 py-2">
+                    <p className="text-xs text-white/70">{s.label}</p>
+                    <p className="text-sm font-bold text-white truncate">{s.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-[#FBF9F4] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#94A3B8] uppercase">Status</p>
-                  <p className="text-sm font-medium text-[#3A3F3A]">{inspection.status}</p>
-                </div>
-                <div className="bg-[#FBF9F4] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#94A3B8] uppercase">Rating</p>
-                  <p className={`text-sm font-medium ${ratingConfig[inspection.overallRating]?.color}`}>{inspection.overallRating}</p>
-                </div>
-                <div className="bg-[#FBF9F4] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#94A3B8] uppercase">Inspector</p>
-                  <p className="text-sm font-medium text-[#3A3F3A]">{inspection.inspector}</p>
-                </div>
-                <div className="bg-[#FBF9F4] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#94A3B8] uppercase">Tenant</p>
-                  <p className="text-sm font-medium text-[#3A3F3A]">{inspection.tenant}</p>
-                </div>
-              </div>
-
               {inspection.notes && (
-                <div className="bg-[#FBF9F4] rounded-xl p-4">
-                  <p className="text-xs font-medium text-[#687068] mb-1">Inspector Notes</p>
+                <div className="bg-[#F8F6F2] rounded-xl p-4">
+                  <p className="text-xs font-semibold text-[#94A3B8] mb-1 uppercase tracking-wide">Inspector Notes</p>
                   <p className="text-sm text-[#475569]">{inspection.notes}</p>
                 </div>
               )}
 
               {inspection.rooms.length > 0 ? (
                 <div>
-                  <p className="text-sm font-medium text-[#3A3F3A] mb-3">Room Checklist</p>
+                  <p className="text-sm font-semibold text-[#3A3F3A] mb-3">Room Checklist</p>
                   <div className="space-y-3">
                     {inspection.rooms.map((room) => (
-                      <div key={room.id} className="bg-[#FBF9F4] rounded-xl p-4 border border-[#D5D9D5]">
+                      <div key={room.id} className="bg-[#F8F6F2] rounded-xl p-4 border border-[#D5D9D5]">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <i className="ri-door-open-line text-[#94A3B8]"></i>
-                            <p className="text-sm font-medium text-[#3A3F3A]">{room.name}</p>
+                            <p className="text-sm font-semibold text-[#3A3F3A]">{room.name}</p>
                           </div>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ratingConfig[room.condition]?.bg} ${ratingConfig[room.condition]?.color}`}>
-                            {room.condition}
-                          </span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ratingConfig[room.condition]?.bg} ${ratingConfig[room.condition]?.color}`}>{room.condition}</span>
                         </div>
                         {room.notes && room.notes !== "To be inspected" && (
-                          <p className="text-xs text-[#687068] mb-3">{room.notes}</p>
+                          <p className="text-xs text-[#687068]">{room.notes}</p>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="bg-[#FBF9F4] rounded-xl p-4 text-center">
+                <div className="bg-[#F8F6F2] rounded-xl p-4 text-center">
                   <p className="text-xs text-[#94A3B8]">No room data recorded</p>
                 </div>
               )}
 
               {inspection.observations.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-[#3A3F3A] mb-3">Observations</p>
+                  <p className="text-sm font-semibold text-[#3A3F3A] mb-3">Observations</p>
                   <div className="space-y-3">
                     {inspection.observations.map((obs) => (
-                      <div key={obs.id} className="bg-[#FBF9F4] rounded-xl p-4 border border-[#D5D9D5]">
+                      <div key={obs.id} className="bg-[#F8F6F2] rounded-xl p-4 border border-[#D5D9D5]">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${severityConfig[obs.severity]?.bg} ${severityConfig[obs.severity]?.color}`}>
-                              {obs.severity}
-                            </span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${severityConfig[obs.severity]?.bg} ${severityConfig[obs.severity]?.color}`}>{obs.severity}</span>
                             <span className="text-xs text-[#94A3B8]">{obs.room} · {obs.category}</span>
                           </div>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${obs.status === "Open" ? "bg-[#C46868]/10 text-[#C46868]" : "bg-[#7A9A7E]/10 text-[#7A9A7E]"}`}>
-                            {obs.status}
-                          </span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${obs.status === "Open" ? "bg-[#C46868]/10 text-[#C46868]" : "bg-[#7A9A7E]/10 text-[#7A9A7E]"}`}>{obs.status}</span>
                         </div>
                         <p className="text-sm text-[#3A3F3A] mb-2">{obs.description}</p>
-                        <p className="text-xs text-[#687068] mb-2">Action: {obs.action}</p>
+                        <p className="text-xs text-[#687068]">Action: {obs.action}</p>
                       </div>
                     ))}
                   </div>
@@ -695,22 +695,20 @@ export default function InspectionsPage() {
 
               {inspection.followUpActions.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-[#3A3F3A] mb-3">Follow-up Actions</p>
+                  <p className="text-sm font-semibold text-[#3A3F3A] mb-3">Follow-up Actions</p>
                   <div className="space-y-2">
                     {inspection.followUpActions.map((action) => (
-                      <div key={action.id} className="flex items-center justify-between bg-[#FBF9F4] rounded-xl p-3 border border-[#D5D9D5]">
+                      <div key={action.id} className="flex items-center justify-between bg-[#F8F6F2] rounded-xl p-3 border border-[#D5D9D5]">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${action.status === "Completed" ? "bg-[#7A9A7E]/10" : "bg-[#D4A85C]/10"}`}>
                             <i className={`${action.status === "Completed" ? "ri-check-line text-[#7A9A7E]" : "ri-time-line text-[#D4A85C]"} text-sm`}></i>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-[#3A3F3A]">{action.description}</p>
+                            <p className="text-sm font-semibold text-[#3A3F3A]">{action.description}</p>
                             <p className="text-xs text-[#687068]">{action.assignee} · Due {action.dueDate}</p>
                           </div>
                         </div>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusConfig[action.status]?.badge}`}>
-                          {action.status}
-                        </span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusConfig[action.status]?.badge}`}>{action.status}</span>
                       </div>
                     ))}
                   </div>
@@ -719,10 +717,10 @@ export default function InspectionsPage() {
 
               {inspection.photos.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-[#3A3F3A] mb-3">Property Photos</p>
+                  <p className="text-sm font-semibold text-[#3A3F3A] mb-3">Property Photos</p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     {inspection.photos.map((photo, idx) => (
-                      <img key={idx} src={photo} alt={`Property photo ${idx + 1}`} className="w-full h-24 rounded-lg object-cover" />
+                      <img key={idx} src={photo} alt={`Property photo ${idx + 1}`} className="w-full h-24 rounded-xl object-cover" />
                     ))}
                   </div>
                 </div>
@@ -733,26 +731,36 @@ export default function InspectionsPage() {
       )}
 
       {showScheduleModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-[#3A3F3A]">Schedule Inspection</h3>
-              <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9]">
-                <i className="ri-close-line text-[#687068]"></i>
-              </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-[#7A9A7E] to-[#5A7A5E] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-calendar-check-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Schedule Inspection</h3>
+                    <p className="text-xs text-white/70">Set date, property and inspector</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <i className="ri-close-line text-white text-base"></i>
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Property</label>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {propertiesForInspection.map((p) => (
-                    <label key={p.id} className="flex items-center gap-3 p-3 bg-[#FBF9F4] rounded-xl cursor-pointer">
-                      <div className="w-5 h-5 rounded border border-[#D5D9D5] flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-sm bg-[#C28A78]"></div>
+                    <label key={p.id} className="flex items-center gap-3 p-3 bg-[#F8F6F2] rounded-xl cursor-pointer border-2 border-transparent hover:border-[#7A9A7E]/40 transition-colors">
+                      <div className="w-5 h-5 rounded border-2 border-[#D5D9D5] flex items-center justify-center flex-shrink-0">
+                        <div className="w-3 h-3 rounded-sm bg-[#7A9A7E]"></div>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-[#3A3F3A]">{p.name}</p>
+                        <p className="text-sm font-semibold text-[#3A3F3A]">{p.name}</p>
                         <p className="text-xs text-[#687068]">{p.address} · {p.tenant}</p>
                       </div>
                     </label>
@@ -761,10 +769,10 @@ export default function InspectionsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Inspection Type</label>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspection Type</label>
                 <div className="grid grid-cols-2 gap-2">
                   {inspectionTypes.map((type) => (
-                    <button key={type} className="py-2.5 text-xs font-medium border border-[#D5D9D5] rounded-xl text-[#687068] hover:border-[#C28A78] hover:text-[#C28A78] transition-colors">
+                    <button key={type} className="py-2.5 text-xs font-semibold border-2 border-[#D5D9D5] rounded-xl text-[#687068] hover:border-[#7A9A7E] hover:text-[#7A9A7E] transition-colors bg-[#FAFAF8]">
                       {type}
                     </button>
                   ))}
@@ -773,33 +781,25 @@ export default function InspectionsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-[#687068] mb-1.5 block">Date</label>
-                  <input
-                    type="date"
-                    defaultValue="2026-07-01"
-                    className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]"
-                  />
+                  <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Date</label>
+                  <input type="date" defaultValue="2026-07-01" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] transition-colors" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-[#687068] mb-1.5 block">Time</label>
-                  <input
-                    type="time"
-                    defaultValue="14:00"
-                    className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]"
-                  />
+                  <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Time</label>
+                  <input type="time" defaultValue="14:00" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] transition-colors" />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Inspector</label>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspector</label>
                 <div className="space-y-2">
                   {inspectors.map((i) => (
-                    <label key={i.id} className="flex items-center gap-3 p-3 bg-[#FBF9F4] rounded-xl cursor-pointer">
-                      <div className="w-5 h-5 rounded border border-[#D5D9D5] flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-sm bg-[#C28A78]"></div>
+                    <label key={i.id} className="flex items-center gap-3 p-3 bg-[#F8F6F2] rounded-xl cursor-pointer border-2 border-transparent hover:border-[#7A9A7E]/40 transition-colors">
+                      <div className="w-5 h-5 rounded border-2 border-[#D5D9D5] flex items-center justify-center flex-shrink-0">
+                        <div className="w-3 h-3 rounded-sm bg-[#7A9A7E]"></div>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-[#3A3F3A]">{i.name}</p>
+                        <p className="text-sm font-semibold text-[#3A3F3A]">{i.name}</p>
                         <p className="text-xs text-[#687068]">{i.role}</p>
                       </div>
                     </label>
@@ -808,28 +808,16 @@ export default function InspectionsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Notes</label>
-                <textarea
-                  placeholder="Any special instructions for the inspector..."
-                  rows={3}
-                  className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78] resize-none"
-                ></textarea>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Notes</label>
+                <textarea placeholder="Any special instructions for the inspector..." rows={3} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] resize-none transition-colors placeholder:text-[#94A3B8]"></textarea>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  onClick={handleSchedule}
-                  className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"
-                >
-                  <i className="ri-calendar-check-line mr-1"></i>
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={handleSchedule} className="flex-1 py-3 text-sm font-semibold text-white bg-[#7A9A7E] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-calendar-check-line text-sm"></i></div>
                   Schedule Inspection
                 </button>
-                <button
-                  onClick={() => setShowScheduleModal(false)}
-                  className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors whitespace-nowrap"
-                >
-                  Cancel
-                </button>
+                <button onClick={() => setShowScheduleModal(false)} className="flex-1 py-3 text-sm font-semibold text-[#687068] border-2 border-[#D5D9D5] rounded-xl hover:bg-[#F8F6F2] hover:border-[#7A9A7E] transition-colors whitespace-nowrap">Cancel</button>
               </div>
             </div>
           </div>
@@ -837,35 +825,33 @@ export default function InspectionsPage() {
       )}
 
       {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#C28A78]/10 rounded-lg flex items-center justify-center">
-                  <i className="ri-file-chart-line text-[#C28A78] text-lg"></i>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="bg-gradient-to-r from-[#8A9FB0] to-[#7A8FA0] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-chart-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Generate Report</h3>
+                    <p className="text-xs text-white/70">Compile inspection findings into a PDF</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-[#3A3F3A]">Generate Report</h3>
-                  <p className="text-xs text-[#687068]">Inspection report for {inspection?.property}</p>
-                </div>
+                <button onClick={() => setShowReportModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <i className="ri-close-line text-white text-base"></i>
+                </button>
               </div>
-              <button onClick={() => setShowReportModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#FBF9F4]">
-                <i className="ri-close-line text-[#94A3B8]"></i>
-              </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Report Title</label>
-                <input
-                  type="text"
-                  defaultValue={`${inspection?.type} Report - ${inspection?.property}`}
-                  className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78]"
-                />
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Report Title</label>
+                <input type="text" defaultValue={`${inspection?.type} Report - ${inspection?.property}`} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#8A9FB0] transition-colors" />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-2 block">Include Sections</label>
+                <label className="text-xs font-semibold text-[#687068] mb-2 block uppercase tracking-wide">Include Sections</label>
                 <div className="space-y-2">
                   {[
                     { label: "Property details & address", checked: true },
@@ -875,8 +861,8 @@ export default function InspectionsPage() {
                     { label: "Follow-up actions", checked: true },
                     { label: "Tenant & landlord signatures", checked: false },
                   ].map((section) => (
-                    <label key={section.label} className="flex items-center gap-3 cursor-pointer">
-                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${section.checked ? "bg-[#C28A78] border-[#C28A78]" : "border-[#D5D9D5]"}`}>
+                    <label key={section.label} className="flex items-center gap-3 cursor-pointer p-2.5 rounded-xl hover:bg-[#F8F6F2] transition-colors">
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${section.checked ? "bg-[#8A9FB0] border-[#8A9FB0]" : "border-[#D5D9D5]"}`}>
                         {section.checked && <i className="ri-check-line text-white text-xs"></i>}
                       </div>
                       <span className="text-sm text-[#475569]">{section.label}</span>
@@ -886,28 +872,16 @@ export default function InspectionsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#687068] mb-1.5 block">Additional Notes</label>
-                <textarea
-                  placeholder="Notes to include in the report..."
-                  rows={3}
-                  className="w-full px-3 py-3 border border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FBF9F4] focus:outline-none focus:border-[#C28A78] resize-none"
-                ></textarea>
+                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Additional Notes</label>
+                <textarea placeholder="Notes to include in the report..." rows={3} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#8A9FB0] resize-none transition-colors placeholder:text-[#94A3B8]"></textarea>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  onClick={handleGenerateReport}
-                  className="flex-1 py-3 text-sm font-medium text-white bg-[#C28A78] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap"
-                >
-                  <i className="ri-file-chart-line mr-1"></i>
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={handleGenerateReport} className="flex-1 py-3 text-sm font-semibold text-white bg-[#8A9FB0] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-file-chart-line text-sm"></i></div>
                   Generate Report
                 </button>
-                <button
-                  onClick={() => setShowReportModal(false)}
-                  className="flex-1 py-3 text-sm font-medium text-[#687068] border border-[#D5D9D5] rounded-xl hover:bg-[#FBF9F4] transition-colors whitespace-nowrap"
-                >
-                  Cancel
-                </button>
+                <button onClick={() => setShowReportModal(false)} className="flex-1 py-3 text-sm font-semibold text-[#687068] border-2 border-[#D5D9D5] rounded-xl hover:bg-[#F8F6F2] hover:border-[#8A9FB0] transition-colors whitespace-nowrap">Cancel</button>
               </div>
             </div>
           </div>

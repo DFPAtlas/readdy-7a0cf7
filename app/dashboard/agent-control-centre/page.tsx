@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import AgentLogModal from "./AgentLogModal";
 import AgentOutputModal from "./AgentOutputModal";
@@ -22,6 +22,13 @@ export default function AgentControlCentrePage() {
   const [showLogModal, setShowLogModal] = useState<ControlAgent | null>(null);
   const [showOutputModal, setShowOutputModal] = useState<ControlAgent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const groupedAgents = getAgentsByGroup();
 
@@ -60,7 +67,8 @@ export default function AgentControlCentrePage() {
       })
     );
 
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleDownloadLog = (agent: ControlAgent) => {
@@ -76,14 +84,16 @@ export default function AgentControlCentrePage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setToast(`${agent.name} log downloaded`);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleCopyOutput = (agent: ControlAgent) => {
     const content = generateMockOutput(agent);
     navigator.clipboard.writeText(content).then(() => {
       setToast(`${agent.name} output copied to clipboard`);
-      setTimeout(() => setToast(null), 3000);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setToast(null), 3000);
     });
   };
 
@@ -141,7 +151,8 @@ export default function AgentControlCentrePage() {
               onClick={() => {
                 setAgentList(agents.map(a => ({ ...a })));
                 setToast("All agents refreshed");
-                setTimeout(() => setToast(null), 3000);
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                toastTimerRef.current = setTimeout(() => setToast(null), 3000);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#3A3F3A] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap cursor-pointer"
             >

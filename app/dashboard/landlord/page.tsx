@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
+import TenantRequestCentre from "@/components/dashboard/TenantRequestCentre";
 import { properties, maintenanceJobs, quotes, complianceCerts, documents, getPriorityActions, getUpcomingItems, getRecentActivity } from "./LandlordData";
 
 const navSections = [
@@ -55,7 +56,21 @@ export default function LandlordPortalPage() {
           </div>
         </div>
 
-        {/* SECTION 2 — Priority Action Centre */}
+        {/* SECTION 2 — Navigation quick links */}
+        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {navSections.map((section) => (
+            <Link key={section.label} href={section.href} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-[#D5D9D5] bg-white hover:shadow-md transition-shadow hover:border-[#C28A78]/20">
+              <div className={`w-10 h-10 ${section.color} rounded-lg flex items-center justify-center`}>
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <i className={`${section.icon} text-white text-lg`}></i>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-[#3A3F3A] text-center whitespace-nowrap">{section.label}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* SECTION 3 — Priority Action Centre */}
         <div>
           {priorityActions.length > 0 ? (
             <div className="bg-[#FEF9F5] border border-[#F59E0B]/20 rounded-xl p-5">
@@ -102,7 +117,7 @@ export default function LandlordPortalPage() {
           )}
         </div>
 
-        {/* SECTION 3 — Portfolio Snapshot */}
+        {/* SECTION 4 — Portfolio Snapshot */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             { label: "Properties", value: properties.length, icon: "ri-building-4-line", sub: `${occupied}/${properties.length} occupied`, status: "neutral", link: "/dashboard/landlord/properties" },
@@ -131,20 +146,6 @@ export default function LandlordPortalPage() {
               </Link>
             );
           })}
-        </div>
-
-        {/* SECTION 4 — Navigation quick links */}
-        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {navSections.map((section) => (
-            <Link key={section.label} href={section.href} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-[#D5D9D5] bg-white hover:shadow-md transition-shadow hover:border-[#C28A78]/20">
-              <div className={`w-10 h-10 ${section.color} rounded-lg flex items-center justify-center`}>
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <i className={`${section.icon} text-white text-lg`}></i>
-                </div>
-              </div>
-              <span className="text-xs font-medium text-[#3A3F3A] text-center whitespace-nowrap">{section.label}</span>
-            </Link>
-          ))}
         </div>
 
         {/* SECTION 5 — Dashboard Widgets */}
@@ -290,6 +291,9 @@ export default function LandlordPortalPage() {
             </div>
           </div>
         </div>
+
+        {/* Tenant Requests — Pet & Modification */}
+        <TenantRequestCentre />
 
         {/* SECTION 6 — Recent Activity */}
         <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">

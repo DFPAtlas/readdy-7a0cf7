@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
@@ -104,6 +104,17 @@ export default function PortfolioPage() {
   const [formNationDropdown, setFormNationDropdown] = useState(false);
   const [editFormNationDropdown, setEditFormNationDropdown] = useState(false);
 
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const detectAccountType = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -113,7 +124,7 @@ export default function PortfolioPage() {
           .select("account_type")
           .eq("id", session.user.id)
           .maybeSingle();
-        if (profile) {
+        if (profile && mountedRef.current) {
           setAccountType((profile as any).account_type || null);
         }
       }
@@ -126,6 +137,8 @@ export default function PortfolioPage() {
         .from("properties")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (!mountedRef.current) return;
 
       if (data && data.length > 0) {
         const mapped: Property[] = data.map((p: any, idx: number) => {
@@ -164,19 +177,37 @@ export default function PortfolioPage() {
     } catch {
       // Supabase not connected
     }
+    if (!mountedRef.current) return;
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (isDemoAccount()) {
-      setDemoMode(true);
-      setAccountType("agency");
-      setLoading(false);
-      return;
-    }
-    detectAccountType();
-    fetchProperties();
-  }, [detectAccountType, fetchProperties]);
+    let active = true;
+
+    const timer = setTimeout(() => {
+      if (!active) return;
+
+      if (isDemoAccount()) {
+        setDemoMode(true);
+        setAccountType("agency");
+        setLoading(false);
+        return;
+      }
+      const run = async () => {
+        if (!active) return;
+        await detectAccountType();
+        if (!active) return;
+        await fetchProperties();
+      };
+      run();
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const filtered = properties.filter((p) => {
     const matchesSearch =
@@ -200,8 +231,12 @@ export default function PortfolioPage() {
   const byNation = (nation: string) => properties.filter((p) => p.nation === nation).length;
 
   const showToast = (msg: string) => {
+    if (!mountedRef.current) return;
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setToast(null);
+    }, 3000);
   };
 
   const handleAdd = async (e: React.FormEvent) => {

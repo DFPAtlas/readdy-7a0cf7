@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import {
   inventoryServices,
@@ -39,6 +39,13 @@ export default function InventoryMarketplacePage() {
   const [showUploadPhotos, setShowUploadPhotos] = useState<InventoryRequest | null>(null);
   const [showUploadReport, setShowUploadReport] = useState<InventoryRequest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const [newRequestForm, setNewRequestForm] = useState({
     propertyId: "",
@@ -49,7 +56,8 @@ export default function InventoryMarketplacePage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const activeServiceData = inventoryServices.find((s) => s.key === activeService);

@@ -3,12 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
-import { properties } from "../LandlordData";
+import { properties } from "@/app/dashboard/landlord/LandlordData";
+import RentChangeModal from "@/components/dashboard/RentChangeModal";
 
 export default function LandlordPropertiesPage() {
   const [selectedProperty, setSelectedProperty] = useState<string>(properties[0].id);
   const [activeTab, setActiveTab] = useState("overview");
+  const [rentModalOpen, setRentModalOpen] = useState(false);
+  const [propertyRent, setPropertyRent] = useState<Record<string, number>>(
+    Object.fromEntries(properties.map((p) => [p.id, p.rent]))
+  );
   const p = properties.find((prop) => prop.id === selectedProperty) || properties[0];
+  const currentRent = propertyRent[p.id] ?? p.rent;
 
   return (
     <DashboardShell>
@@ -17,7 +23,9 @@ export default function LandlordPropertiesPage() {
         <div>
           <div className="flex items-center gap-2 text-sm text-[#687068] mb-3">
             <Link href="/dashboard/landlord" className="hover:text-[#C28A78] transition-colors">Landlord Portal</Link>
-            <i className="ri-arrow-right-s-line text-xs"></i>
+            <div className="w-4 h-4 flex items-center justify-center">
+              <i className="ri-arrow-right-s-line text-xs"></i>
+            </div>
             <span className="text-[#3A3F3A] font-medium">Properties</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -28,10 +36,14 @@ export default function LandlordPropertiesPage() {
             <div className="relative">
               <button className="flex items-center gap-2 px-3 py-2 border border-[#E2E8F0] rounded-lg bg-white text-sm text-[#3A3F3A]">
                 <span className="flex items-center gap-2">
-                  <i className="ri-building-4-line text-[#94A3B8] text-sm"></i>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-building-4-line text-[#94A3B8] text-sm"></i>
+                  </div>
                   {p.name}
                 </span>
-                <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
+                </div>
               </button>
             </div>
           </div>
@@ -76,8 +88,16 @@ export default function LandlordPropertiesPage() {
           </div>
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-5">
-              <p className="text-xs text-[#687068] uppercase tracking-wide font-medium">Monthly Rent</p>
-              <p className="text-3xl font-bold text-[#3A3F3A] mt-1">£{p.rent.toLocaleString()}</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-[#687068] uppercase tracking-wide font-medium">Monthly Rent</p>
+                <button
+                  onClick={() => setRentModalOpen(true)}
+                  className="text-xs font-medium text-[#C28A78] hover:text-[#143828] transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Change Rent
+                </button>
+              </div>
+              <p className="text-3xl font-bold text-[#3A3F3A] mt-1">£{currentRent.toLocaleString()}</p>
               <p className="text-xs text-[#94A3B8] mt-1">per calendar month</p>
             </div>
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-5">
@@ -110,7 +130,9 @@ export default function LandlordPropertiesPage() {
                   activeTab === tab.id ? "border-[#C28A78] text-[#C28A78]" : "border-transparent text-[#687068] hover:text-[#3A3F3A]"
                 }`}
               >
-                <i className={`${tab.icon} text-sm`}></i>
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className={`${tab.icon} text-sm`}></i>
+                </div>
                 {tab.label}
               </button>
             ))}
@@ -188,11 +210,11 @@ export default function LandlordPropertiesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-[#F8FAFC] rounded-lg p-4">
                     <p className="text-xs text-[#94A3B8] mb-1">Monthly Rent</p>
-                    <p className="text-xl font-bold text-[#3A3F3A]">£{p.rent.toLocaleString()}</p>
+                    <p className="text-xl font-bold text-[#3A3F3A]">£{currentRent.toLocaleString()}</p>
                   </div>
                   <div className="bg-[#F8FAFC] rounded-lg p-4">
                     <p className="text-xs text-[#94A3B8] mb-1">Annual Rent</p>
-                    <p className="text-xl font-bold text-[#3A3F3A]">£{(p.rent * 12).toLocaleString()}</p>
+                    <p className="text-xl font-bold text-[#3A3F3A]">£{(currentRent * 12).toLocaleString()}</p>
                   </div>
                   <div className="bg-[#F8FAFC] rounded-lg p-4">
                     <p className="text-xs text-[#94A3B8] mb-1">Deposit</p>
@@ -208,6 +230,19 @@ export default function LandlordPropertiesPage() {
           </div>
         </div>
       </div>
+
+      {rentModalOpen && (
+        <RentChangeModal
+          propertyId={p.id}
+          propertyName={p.name}
+          currentRent={currentRent}
+          tenantName={p.tenant}
+          onClose={() => setRentModalOpen(false)}
+          onUpdated={(newRent) => {
+            setPropertyRent((prev) => ({ ...prev, [p.id]: newRent }));
+          }}
+        />
+      )}
     </DashboardShell>
   );
 }

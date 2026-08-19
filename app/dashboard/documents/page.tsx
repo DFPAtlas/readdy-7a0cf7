@@ -63,9 +63,9 @@ export default function DocumentsPage() {
     setLoading(true); setError(null);
     try {
       if (demoMode) { setLiveDocuments(allDocuments); setLoading(false); return; }
-      const { data: docs, error: docsErr } = await supabase.from('documents').select('id, property_id, tenancy_id, kind, storage_path, issued_on, expires_on, created_at').order('created_at', { ascending: false });
+      const { data: docs, error: docsErr } = await supabase.from('documents').select('id, property_id, tenancy_id, kind, storage_path, issued_on, expires_on, created_at, file_size').order('created_at', { ascending: false });
       if (docsErr) throw docsErr;
-      const { data: compDocs, error: compErr } = await supabase.from('compliance_documents').select('id, property_id, document_id, document_type, certificate_number, issued_date, expiry_date, verification_status, uploaded_file_url, created_at').order('created_at', { ascending: false });
+      const { data: compDocs, error: compErr } = await supabase.from('compliance_documents').select('id, property_id, document_id, document_type, certificate_number, issued_date, expiry_date, verification_status, uploaded_file_url, created_at, file_size').order('created_at', { ascending: false });
       if (compErr) throw compErr;
       const propIds = [...new Set([...(docs || []).map(d => d.property_id).filter(Boolean), ...(compDocs || []).map(c => c.property_id).filter(Boolean)])] as string[];
       const { data: properties, error: propErr } = await supabase.from('properties').select('id, line1, city, postcode').in('id', propIds.length > 0 ? propIds : ['00000000-0000-0000-0000-000000000000']);
@@ -77,13 +77,14 @@ export default function DocumentsPage() {
       const kindFolderMap: Record<string, string> = { tenancy_agreement: 'Tenancy Agreements', gas_safety: 'Compliance Certificates', eicr: 'Compliance Certificates', epc: 'Compliance Certificates' };
       const kindIconMap: Record<string, string> = { tenancy_agreement: 'ri-file-text-line', gas_safety: 'ri-file-shield-line', eicr: 'ri-file-shield-line', epc: 'ri-file-shield-line' };
       const kindColorMap: Record<string, string> = { tenancy_agreement: 'bg-[#3B82F6]', gas_safety: 'bg-[#10B981]', eicr: 'bg-[#10B981]', epc: 'bg-[#10B981]' };
+      const formatSize = (bytes: number | null): string => { if (!bytes) return '—'; if (bytes < 1024) return `${bytes} B`; if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`; return `${(bytes / 1048576).toFixed(1)} MB`; };
       const docItems: DocumentItem[] = (docs || []).map(d => {
         const prop = propMap[d.property_id]; const kind = d.kind || 'other';
         return {
           id: d.id, name: `${kindLabelMap[kind] || kind} - ${prop ? prop.line1 : 'Unknown'}`, type: kindLabelMap[kind] || 'Other', folder: kindFolderMap[kind] || 'Other',
           propertyId: d.property_id || 'all', propertyName: prop ? `${prop.line1}, ${prop.city || ''}` : 'Unknown',
           date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
-          size: '—', description: d.storage_path || '', fileType: 'pdf', icon: kindIconMap[kind] || 'ri-file-line', color: kindColorMap[kind] || 'bg-[#94A3B8]',
+          size: formatSize(d.file_size), description: d.storage_path || '', fileType: 'pdf', icon: kindIconMap[kind] || 'ri-file-line', color: kindColorMap[kind] || 'bg-[#94A3B8]',
           uploadedBy: 'System', uploadedByRole: 'Agent', versions: [{ version: 1, date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-', uploadedBy: 'System', uploadedByRole: 'Agent', size: '—', notes: '' }], access: ['agent'],
         };
       });
@@ -91,7 +92,7 @@ export default function DocumentsPage() {
         id: c.id, name: c.document_type || 'Compliance Document', type: c.document_type || 'Other', folder: 'Compliance Certificates',
         propertyId: c.property_id || 'all', propertyName: c.property_id && propMap[c.property_id] ? propMap[c.property_id].line1 : 'Unknown',
         date: c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
-        size: '—', description: c.verification_status || 'pending', fileType: 'pdf', icon: 'ri-file-shield-line', color: 'bg-[#10B981]',
+        size: formatSize(c.file_size), description: c.verification_status || 'pending', fileType: 'pdf', icon: 'ri-file-shield-line', color: 'bg-[#10B981]',
         uploadedBy: 'System', uploadedByRole: 'Agent', versions: [{ version: 1, date: c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-', uploadedBy: 'System', uploadedByRole: 'Agent', size: '—', notes: '' }], access: ['agent'],
       }));
       setLiveDocuments([...docItems, ...compItems]);
@@ -107,7 +108,7 @@ export default function DocumentsPage() {
         const { error: uploadErr } = await supabase.storage.from(bucket).upload(filePath, uploadedFile);
         if (uploadErr) throw uploadErr;
         const kindMap: Record<string, string> = { 'Tenancy Agreement': 'tenancy_agreement', 'Gas Safety': 'gas_safety', 'EICR': 'eicr', 'EPC': 'epc' };
-        await supabase.from('documents').insert({ property_id: uploadProperty !== 'all' ? uploadProperty : null, tenancy_id: uploadLinkTenancy || null, kind: kindMap[uploadType] || 'tenancy_agreement', storage_path: filePath });
+        await supabase.from('documents').insert({ property_id: uploadProperty !== 'all' ? uploadProperty : null, tenancy_id: uploadLinkTenancy || null, kind: kindMap[uploadType] || 'tenancy_agreement', storage_path: filePath, file_size: uploadedFile.size });
       }
     } catch (err: any) { if (showRlsError(err, 'documents')) { setUploading(false); return; } }
     setUploading(false); setUploadSuccess(true);
@@ -358,65 +359,85 @@ export default function DocumentsPage() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#D5D9D5]"><h2 className="font-semibold text-[#3A3F3A]">Upload Document</h2><button onClick={() => setShowUploadModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#687068]"></i></div></button></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="bg-gradient-to-r from-[#C28A78] to-[#B87A68] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-upload-cloud-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Upload Document</h2>
+                    <p className="text-xs text-white/70">Add to your document library</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowUploadModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white text-base"></i></div>
+                </button>
+              </div>
+            </div>
             <div className="p-5 space-y-4">
               {uploadSuccess ? (
-                <div className="text-center py-4"><div className="w-12 h-12 bg-[#10B981]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-check-line text-[#10B981] text-xl"></i></div></div><p className="text-sm font-medium text-[#10B981]">Document uploaded successfully!</p></div>
+                <div className="text-center py-6">
+                  <div className="w-14 h-14 bg-[#10B981]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div className="w-6 h-6 flex items-center justify-center"><i className="ri-check-line text-[#10B981] text-2xl"></i></div>
+                  </div>
+                  <p className="text-sm font-semibold text-[#10B981]">Document uploaded successfully!</p>
+                </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Document Name</label>
-                    <input type="text" value={uploadDocName} onChange={e => setUploadDocName(e.target.value)} placeholder="e.g., Tenancy Agreement - John Smith" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C28A78]" />
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Document Name</label>
+                    <input type="text" value={uploadDocName} onChange={e => setUploadDocName(e.target.value)} placeholder="e.g., Tenancy Agreement - John Smith" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C28A78] bg-[#FAFAF8] transition-colors" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Folder</label>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Folder</label>
                     <div className="grid grid-cols-2 gap-2">
                       {displayFolders.filter(f => f.id !== 'all').map(f => (
-                        <button key={f.id} onClick={() => setUploadFolder(f.id)} className={`text-xs font-medium px-3 py-2 rounded-lg border text-center transition-colors cursor-pointer ${uploadFolder === f.id ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:bg-[#FBF9F4]'}`}>{f.name}</button>
+                        <button key={f.id} onClick={() => setUploadFolder(f.id)} className={`text-xs font-semibold px-3 py-2.5 rounded-xl border-2 text-center transition-colors cursor-pointer ${uploadFolder === f.id ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:border-[#C28A78]/50 bg-[#FAFAF8]'}`}>{f.name}</button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Document Type</label>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Document Type</label>
                     <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto">
                       {displayTypes.filter(t => t !== 'All').map(t => (
-                        <button key={t} onClick={() => setUploadType(t)} className={`text-xs font-medium px-3 py-2 rounded-lg border text-center transition-colors cursor-pointer ${uploadType === t ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:bg-[#FBF9F4]'}`}>{t}</button>
+                        <button key={t} onClick={() => setUploadType(t)} className={`text-xs font-semibold px-3 py-2 rounded-xl border-2 text-center transition-colors cursor-pointer ${uploadType === t ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:border-[#C28A78]/50 bg-[#FAFAF8]'}`}>{t}</button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Link to Property</label>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Link to Property</label>
                     <div className="grid grid-cols-2 gap-2">
                       {displayProperties.filter(p => p.id !== 'all').map(p => (
-                        <button key={p.id} onClick={() => setUploadProperty(p.id)} className={`text-xs font-medium px-3 py-2 rounded-lg border text-center transition-colors truncate cursor-pointer ${uploadProperty === p.id ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:bg-[#FBF9F4]'}`}>{p.name}</button>
+                        <button key={p.id} onClick={() => setUploadProperty(p.id)} className={`text-xs font-semibold px-3 py-2 rounded-xl border-2 text-center transition-colors truncate cursor-pointer ${uploadProperty === p.id ? 'bg-[#C28A78] text-white border-[#C28A78]' : 'text-[#687068] border-[#D5D9D5] hover:border-[#C28A78]/50 bg-[#FAFAF8]'}`}>{p.name}</button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Select File</label>
-                    <div onDragOver={handleUploadDragOver} onDragLeave={handleUploadDragLeave} onDrop={handleUploadDrop} onClick={() => document.getElementById('doc-file-input')?.click()} className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${uploadDragOver ? 'border-[#C28A78] bg-[#C28A78]/5' : 'border-[#D5D9D5] hover:border-[#C28A78]/40'}`}>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Select File</label>
+                    <div onDragOver={handleUploadDragOver} onDragLeave={handleUploadDragLeave} onDrop={handleUploadDrop} onClick={() => document.getElementById('doc-file-input')?.click()} className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors cursor-pointer ${uploadDragOver ? 'border-[#C28A78] bg-[#C28A78]/5' : 'border-[#D5D9D5] hover:border-[#C28A78]/40 bg-[#FAFAF8]'}`}>
                       <input id="doc-file-input" type="file" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) { setUploadedFile(file); if (!uploadDocName) setUploadDocName(file.name.replace(/\.[^/.]+$/, '')); } }} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
                       {uploadedFile ? (
                         <div className="flex items-center gap-3 justify-center">
                           <div className="w-10 h-10 bg-[#10B981]/10 rounded-lg flex items-center justify-center"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-line text-[#10B981] text-lg"></i></div></div>
-                          <div className="text-left"><p className="text-sm font-medium text-[#3A3F3A]">{uploadedFile.name}</p><p className="text-xs text-[#94A3B8]">{(uploadedFile.size / 1024 / 1024).toFixed(1)} MB</p></div>
+                          <div className="text-left"><p className="text-sm font-semibold text-[#3A3F3A]">{uploadedFile.name}</p><p className="text-xs text-[#94A3B8]">{(uploadedFile.size / 1024 / 1024).toFixed(1)} MB</p></div>
                           <button onClick={e => { e.stopPropagation(); setUploadedFile(null); }} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[#FEE2E2] transition-colors cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#EF4444] text-sm"></i></div></button>
                         </div>
                       ) : (
                         <>
                           <div className="w-10 h-10 bg-[#F1F5F9] rounded-full flex items-center justify-center mx-auto mb-2"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-file-upload-line text-[#94A3B8] text-lg"></i></div></div>
-                          <p className="text-sm text-[#687068]">Drag & drop a file here or click to browse</p>
+                          <p className="text-sm text-[#687068]">Drag & drop or click to browse</p>
                           <p className="text-xs text-[#94A3B8] mt-1">PDF, JPG, PNG, DOC up to 50MB</p>
                         </>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 pt-2">
-                    <button onClick={() => { setShowUploadModal(false); setUploadedFile(null); }} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                    <button onClick={handleUploadToSupabase} disabled={!uploadDocName || uploading} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer ${!uploadDocName || uploading ? 'bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed' : 'bg-[#C28A78] text-white hover:bg-[#143828]'}`}>
-                      {uploading ? <><div className="w-4 h-4 flex items-center justify-center"><i className="ri-loader-4-line animate-spin text-sm"></i></div>Uploading...</> : 'Upload'}
+                  <div className="flex items-center gap-3 pt-1">
+                    <button onClick={() => { setShowUploadModal(false); setUploadedFile(null); }} className="flex-1 px-4 py-3 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FBF9F4] hover:border-[#C28A78] transition-colors cursor-pointer">Cancel</button>
+                    <button onClick={handleUploadToSupabase} disabled={!uploadDocName || uploading} className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer ${!uploadDocName || uploading ? 'bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed' : 'bg-[#C28A78] text-white hover:bg-[#143828]'}`}>
+                      {uploading ? <><div className="w-4 h-4 flex items-center justify-center"><i className="ri-loader-4-line animate-spin text-sm"></i></div>Uploading...</> : <><div className="w-4 h-4 flex items-center justify-center"><i className="ri-upload-cloud-line text-sm"></i></div>Upload</>}
                     </button>
                   </div>
                 </>
@@ -428,15 +449,41 @@ export default function DocumentsPage() {
 
       {/* Delete Modal */}
       {showDeleteModal && docToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-sm">
-            <div className="p-5 text-center">
-              <div className="w-12 h-12 bg-[#EF4444]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-delete-bin-line text-[#EF4444] text-xl"></i></div></div>
-              <h3 className="text-lg font-semibold text-[#3A3F3A] mb-1">Delete Document</h3>
-              <p className="text-sm text-[#687068]">Are you sure you want to delete <span className="font-medium text-[#3A3F3A]">{docToDelete.name}</span>?</p>
-              <div className="flex items-center gap-3 mt-5">
-                <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                <button onClick={handleDelete} className="flex-1 px-4 py-2.5 bg-[#EF4444] text-white rounded-lg text-sm font-medium hover:bg-[#DC2626] transition-colors cursor-pointer">Delete</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="bg-gradient-to-r from-[#EF4444] to-[#DC2626] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-delete-bin-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Delete Document</h3>
+                    <p className="text-xs text-white/70">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDeleteModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white text-base"></i></div>
+                </button>
+              </div>
+            </div>
+            <div className="p-5">
+              <div className="bg-[#F8F6F2] rounded-xl p-4 flex items-center gap-3 mb-5">
+                <div className={`w-9 h-9 ${docToDelete.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                  <div className="w-4 h-4 flex items-center justify-center"><i className={`${docToDelete.icon} text-white text-sm`}></i></div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#3A3F3A]">{docToDelete.name}</p>
+                  <p className="text-xs text-[#687068]">{docToDelete.propertyName}</p>
+                </div>
+              </div>
+              <p className="text-sm text-[#687068] mb-5 text-center">Are you sure you want to permanently delete this document?</p>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-3 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FBF9F4] hover:border-[#C28A78] transition-colors cursor-pointer">Cancel</button>
+                <button onClick={handleDelete} className="flex-1 px-4 py-3 bg-[#EF4444] text-white rounded-xl text-sm font-semibold hover:bg-[#DC2626] transition-colors cursor-pointer flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-delete-bin-line text-sm"></i></div>
+                  Delete
+                </button>
               </div>
             </div>
           </div>
@@ -445,22 +492,53 @@ export default function DocumentsPage() {
 
       {/* Share Modal */}
       {showShareModal && docToShare && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#D5D9D5]"><h2 className="font-semibold text-[#3A3F3A]">Share Document</h2><button onClick={() => setShowShareModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer"><div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-[#687068]"></i></div></button></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="bg-gradient-to-r from-[#3B82F6] to-[#2563EB] p-5 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-5 h-5 flex items-center justify-center"><i className="ri-share-line text-white text-lg"></i></div>
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Share Document</h2>
+                    <p className="text-xs text-white/70">Send via email to a recipient</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowShareModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-close-line text-white text-base"></i></div>
+                </button>
+              </div>
+            </div>
             <div className="p-5 space-y-4">
               {shareSuccess ? (
-                <div className="text-center py-4"><div className="w-12 h-12 bg-[#10B981]/10 rounded-full flex items-center justify-center mx-auto mb-3"><div className="w-5 h-5 flex items-center justify-center"><i className="ri-check-line text-[#10B981] text-xl"></i></div></div><p className="text-sm font-medium text-[#10B981]">Document shared successfully!</p></div>
+                <div className="text-center py-6">
+                  <div className="w-14 h-14 bg-[#10B981]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div className="w-6 h-6 flex items-center justify-center"><i className="ri-check-line text-[#10B981] text-2xl"></i></div>
+                  </div>
+                  <p className="text-sm font-semibold text-[#10B981]">Document shared successfully!</p>
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 p-3 bg-[#FBF9F4] rounded-lg">
-                    <div className={`w-8 h-8 ${docToShare.color} rounded-lg flex items-center justify-center flex-shrink-0`}><div className="w-4 h-4 flex items-center justify-center"><i className={`${docToShare.icon} text-white text-xs`}></i></div></div>
-                    <div className="min-w-0"><p className="text-sm font-medium text-[#3A3F3A] truncate">{docToShare.name}</p><span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getTypeStyle(docToShare.type)}`}>{docToShare.type}</span></div>
+                  <div className="bg-[#F8F6F2] rounded-xl p-3 flex items-center gap-3">
+                    <div className={`w-9 h-9 ${docToShare.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                      <div className="w-4 h-4 flex items-center justify-center"><i className={`${docToShare.icon} text-white text-xs`}></i></div>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#3A3F3A] truncate">{docToShare.name}</p>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getTypeStyle(docToShare.type)}`}>{docToShare.type}</span>
+                    </div>
                   </div>
-                  <div><label className="text-sm font-medium text-[#3A3F3A] block mb-1.5">Email Address</label><input type="email" value={shareEmail} onChange={e => setShareEmail(e.target.value)} placeholder="recipient@example.com" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#C28A78]" /></div>
-                  <div className="flex items-center gap-3 pt-2">
-                    <button onClick={() => setShowShareModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
-                    <button onClick={handleShare} className="flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143728] transition-colors cursor-pointer">Share</button>
+                  <div>
+                    <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Recipient Email</label>
+                    <input type="email" value={shareEmail} onChange={e => setShareEmail(e.target.value)} placeholder="recipient@example.com" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#3B82F6] bg-[#FAFAF8] transition-colors" />
+                  </div>
+                  <div className="flex items-center gap-3 pt-1">
+                    <button onClick={() => setShowShareModal(false)} className="flex-1 px-4 py-3 border-2 border-[#D5D9D5] rounded-xl text-sm font-semibold text-[#687068] hover:bg-[#FBF9F4] transition-colors cursor-pointer">Cancel</button>
+                    <button onClick={handleShare} className="flex-1 px-4 py-3 bg-[#3B82F6] text-white rounded-xl text-sm font-semibold hover:bg-[#2563EB] transition-colors cursor-pointer flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 flex items-center justify-center"><i className="ri-send-plane-line text-sm"></i></div>
+                      Share
+                    </button>
                   </div>
                 </>
               )}
