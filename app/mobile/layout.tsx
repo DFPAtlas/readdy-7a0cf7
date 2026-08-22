@@ -1,6 +1,7 @@
 import "../globals.css";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export const viewport = {
   width: "device-width",
@@ -24,7 +25,9 @@ export const metadata = {
 export default function MobileRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="font-sans antialiased bg-[#F8FAFC]">
-      {children}
+      <AuthGuard allowDemo showDemoBanner>
+        {children}
+      </AuthGuard>
       <ServiceWorkerRegistration />
       <PWAInstallPrompt />
     </div>

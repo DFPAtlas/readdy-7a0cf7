@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { downloadLogoPack, downloadBrandGuidelines, downloadScreenshots } from "@/lib/pressAssets";
 
 export default function PressPage() {
   return (
@@ -39,15 +40,24 @@ export default function PressPage() {
               Download our logo and brand guidelines. For additional assets or questions, contact our press team.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link href="#" className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap">
+              <button
+                onClick={downloadLogoPack}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap cursor-pointer"
+              >
                 <i className="ri-download-line"></i> Logo pack (ZIP)
-              </Link>
-              <Link href="#" className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap">
+              </button>
+              <button
+                onClick={downloadBrandGuidelines}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap cursor-pointer"
+              >
                 <i className="ri-palette-line"></i> Brand guidelines (PDF)
-              </Link>
-              <Link href="#" className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap">
+              </button>
+              <button
+                onClick={() => void downloadScreenshots()}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#3A3F3A] bg-[#FBF9F4] border border-[#E2E8F0] px-5 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap cursor-pointer"
+              >
                 <i className="ri-image-line"></i> Screenshots (ZIP)
-              </Link>
+              </button>
             </div>
           </div>
 

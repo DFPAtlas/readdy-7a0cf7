@@ -115,17 +115,18 @@ export default function ImportPage() {
         try {
           const { data: landlord } = await supabase
             .from("landlords")
-            .upsert({ name: p.landlord, email: p.landlordEmail, phone: p.landlordPhone }, { onConflict: "email" })
+            .upsert({ display_name: p.landlord, email: p.landlordEmail, phone: p.landlordPhone, is_company: false }, { onConflict: "email" })
             .select("id")
             .maybeSingle();
           const landlordId = landlord?.id;
           await supabase
             .from("properties")
             .upsert({
-              address: p.address, city: p.city, postcode: p.postcode, property_type: p.propertyType,
+              line1: p.address, city: p.city, postcode: p.postcode, type: p.propertyType,
               bedrooms: p.bedrooms, bathrooms: p.bathrooms, landlord_id: landlordId,
-              monthly_rent: p.rent, deposit: p.deposit, status: p.status,
-            }, { onConflict: "address" })
+              rent_pcm: p.rent, deposit_amount: p.deposit, status: p.status,
+              nation: "england", is_hmo: false, is_furnished: false,
+            }, { onConflict: "line1" })
             .select("id")
             .maybeSingle();
           imported++;

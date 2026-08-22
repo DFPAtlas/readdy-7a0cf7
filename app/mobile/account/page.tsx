@@ -60,6 +60,8 @@ export default function MobileAccountPage() {
       localStorage.removeItem("lethub_authenticated");
       localStorage.removeItem("lethub_role");
       localStorage.removeItem("lethub_mobile_role");
+      const { deactivateDemoSession } = await import("@/lib/demoMode");
+      deactivateDemoSession();
       await supabase.auth.signOut();
       window.location.href = "/login";
     }

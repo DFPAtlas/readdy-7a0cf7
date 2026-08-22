@@ -305,12 +305,8 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("lethub_authenticated");
-    localStorage.removeItem("lethub_role");
-    localStorage.removeItem("lethub_user");
-    localStorage.removeItem("lethub_name");
-    localStorage.removeItem("lethub_demo_mode");
-    localStorage.removeItem("lethub_account_type");
+    const { deactivateDemoSession } = await import("@/lib/demoMode");
+    deactivateDemoSession();
     const { supabase } = await import("@/lib/supabaseClient");
     await supabase.auth.signOut();
     window.location.href = "/login";

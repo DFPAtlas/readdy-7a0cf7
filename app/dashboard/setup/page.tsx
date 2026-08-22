@@ -84,7 +84,6 @@ export default function SetupPage() {
         await supabase.from("profiles").upsert({
           id: session.user.id,
           account_type: accountType,
-          setup_completed: true,
           full_name: profileForm.displayName || undefined,
         }, { onConflict: "id" });
       }

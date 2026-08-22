@@ -118,11 +118,11 @@ export async function fetchForecastingData(window: TimeHorizon): Promise<Forecas
   const cutoffStr = cutoff.toISOString().split("T")[0]
 
   const [complianceRes, maintenanceRes, tenanciesRes, rentRes, healthRes, propertiesRes] = await Promise.all([
-    supabase.from("property_compliance_items").select("id, property_id, obligation_code, status, next_due, properties(address, city, postcode)").not("next_due", "is", null).order("next_due", { ascending: true }),
-    supabase.from("maintenance_jobs").select("id, property_id, title, status, created_at, properties(address, city)").order("created_at", { ascending: false }).limit(100),
-    supabase.from("tenancies").select("id, property_id, status, term_type, end_date, rent_amount, properties(address, city)").eq("status", "active"),
-    supabase.from("rent_payments").select("id, tenancy_id, property_id, amount, due_date, paid_date, status, properties(address, city)").order("due_date", { ascending: false }).limit(200),
-    supabase.from("property_health_scores").select("property_id, overall_score, compliance_score, maintenance_score, tenancy_score, rent_score, health_level, calculated_at, properties(address, city)").order("calculated_at", { ascending: false }),
+    supabase.from("property_compliance_items").select("id, property_id, obligation_code, status, next_due, properties(line1, city, postcode)").not("next_due", "is", null).order("next_due", { ascending: true }),
+    supabase.from("maintenance_jobs").select("id, property_id, title, status, created_at, properties(line1, city)").order("created_at", { ascending: false }).limit(100),
+    supabase.from("tenancies").select("id, property_id, status, term_type, end_date, rent_amount, properties(line1, city)").eq("status", "active"),
+    supabase.from("rent_payments").select("id, tenancy_id, property_id, amount, due_date, paid_date, status, properties(line1, city)").order("due_date", { ascending: false }).limit(200),
+    supabase.from("property_health_scores").select("property_id, overall_score, compliance_score, maintenance_score, tenancy_score, rent_score, health_level, calculated_at, properties(line1, city)").order("calculated_at", { ascending: false }),
     supabase.from("properties").select("id, line1, city, postcode, bedrooms"),
   ])
 
@@ -154,7 +154,7 @@ export async function fetchForecastingData(window: TimeHorizon): Promise<Forecas
     riskScore: compRiskScore,
     expiringItems: [...overdueNow, ...expiringInWindow].slice(0, 15).map((c: any) => ({
       obligationCode: c.obligation_code || "Unknown",
-      propertyAddress: c.properties?.address || "—",
+      propertyAddress: c.properties?.line1 || "—",
       propertyCity: c.properties?.city || "—",
       dueDate: c.next_due,
       daysUntilDue: daysFromNow(c.next_due),
@@ -238,7 +238,7 @@ export async function fetchForecastingData(window: TimeHorizon): Promise<Forecas
     riskLevel: churnRiskLevel,
     riskScore: churnRiskScore,
     atRiskTenancies: churnAtRisk.slice(0, 12).map((t: any) => ({
-      propertyAddress: t.properties?.address || "—",
+      propertyAddress: t.properties?.line1 || "—",
       tenantName: "Tenant", 
       endDate: t.end_date || "Periodic",
       rentAmount: t.rent_amount || 0,
@@ -257,7 +257,7 @@ export async function fetchForecastingData(window: TimeHorizon): Promise<Forecas
   overduePayments.forEach((p: any) => {
     const propId = p.property_id || "unknown"
     if (!arrearsByProperty[propId]) {
-      arrearsByProperty[propId] = { count: 0, amount: 0, address: p.properties?.address || "—" }
+      arrearsByProperty[propId] = { count: 0, amount: 0, address: p.properties?.line1 || "—" }
     }
     arrearsByProperty[propId].count += 1
     arrearsByProperty[propId].amount += p.amount || 0

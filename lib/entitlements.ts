@@ -9,6 +9,8 @@ export interface SubscriptionPlan {
   name: string;
   monthly_price: number | null;
   annual_price: number | null;
+  stripe_monthly_price_id: string | null;
+  stripe_annual_price_id: string | null;
   trial_days: number;
   max_properties: number | null;
   max_team_members: number | null;
@@ -56,6 +58,8 @@ const DENY_PLAN: SubscriptionPlan = {
   name: "Restricted",
   monthly_price: null,
   annual_price: null,
+  stripe_monthly_price_id: null,
+  stripe_annual_price_id: null,
   trial_days: 0,
   max_properties: 0,
   max_team_members: 0,
@@ -81,6 +85,8 @@ const DEMO_PLAN: SubscriptionPlan = {
   name: "Business (Demo)",
   monthly_price: 199,
   annual_price: 166,
+  stripe_monthly_price_id: null,
+  stripe_annual_price_id: null,
   trial_days: 0,
   max_properties: null,
   max_team_members: null,
@@ -126,6 +132,8 @@ function mapPlan(data: Record<string, unknown>): SubscriptionPlan {
     name: String(data.name),
     monthly_price: data.monthly_price == null ? null : Number(data.monthly_price),
     annual_price: data.annual_price == null ? null : Number(data.annual_price),
+    stripe_monthly_price_id: data.stripe_monthly_price_id == null ? null : String(data.stripe_monthly_price_id),
+    stripe_annual_price_id: data.stripe_annual_price_id == null ? null : String(data.stripe_annual_price_id),
     trial_days: Number(data.trial_days || 0),
     max_properties: data.max_properties == null ? null : Number(data.max_properties),
     max_team_members: data.max_team_members == null ? null : Number(data.max_team_members),

@@ -1,10 +1,11 @@
-import "../globals.css";
-import "../lethub-theme.css";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="font-sans antialiased">
-      {children}
+      <AuthGuard allowDemo showDemoBanner>
+        {children}
+      </AuthGuard>
     </div>
   );
 }

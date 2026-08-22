@@ -178,11 +178,11 @@ function BillingContent() {
       setEntitlements(nextEntitlements);
       setPropertyCount(properties.count || 0);
 
-      if (agencyMember?.agency_id) {
+      if (agencyMember.data?.agency_id) {
         const { count: memberCount } = await supabase
           .from("agency_members")
           .select("id", { count: "exact", head: true })
-          .eq("agency_id", agencyMember.agency_id);
+          .eq("agency_id", agencyMember.data.agency_id);
         setTeamCount(memberCount || 1);
       } else {
         setTeamCount(1);

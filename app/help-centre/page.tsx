@@ -15,7 +15,7 @@ interface VideoSection {
     title: string;
     description: string;
     duration: string;
-    embedId: string;
+    embedId?: string;
     level: string;
   }[];
 }
@@ -28,11 +28,11 @@ const videoSections: VideoSection[] = [
     description: "Everything you need to set up your LetHub account and start managing properties.",
     color: "bg-[#C28A78]",
     videos: [
-      { id: "gs1", title: "Welcome to LetHub — Platform Overview", description: "A tour of the dashboard, key features, and how to navigate the platform.", duration: "4:32", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "gs2", title: "Creating Your Agency Profile", description: "How to set up your agency details, logo, and branding settings.", duration: "3:15", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "gs3", title: "Importing Your Portfolio", description: "Bulk import properties via CSV, mapping fields, and validating data.", duration: "6:48", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "gs4", title: "Adding Properties Manually", description: "Step-by-step guide to adding individual properties with full details.", duration: "4:10", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "gs5", title: "Inviting Your Team", description: "How to add team members, set permissions, and manage access.", duration: "3:55", embedId: "dQw4w9WgXcQ", level: "Beginner" },
+      { id: "gs1", title: "Welcome to LetHub — Platform Overview", description: "A tour of the dashboard, key features, and how to navigate the platform.", duration: "4:32", level: "Beginner" },
+      { id: "gs2", title: "Creating Your Agency Profile", description: "How to set up your agency details, logo, and branding settings.", duration: "3:15", level: "Beginner" },
+      { id: "gs3", title: "Importing Your Portfolio", description: "Bulk import properties via CSV, mapping fields, and validating data.", duration: "6:48", level: "Beginner" },
+      { id: "gs4", title: "Adding Properties Manually", description: "Step-by-step guide to adding individual properties with full details.", duration: "4:10", level: "Beginner" },
+      { id: "gs5", title: "Inviting Your Team", description: "How to add team members, set permissions, and manage access.", duration: "3:55", level: "Beginner" },
     ],
   },
   {
@@ -42,10 +42,10 @@ const videoSections: VideoSection[] = [
     description: "Learn how LetHub automates compliance tracking so you never miss a deadline.",
     color: "bg-[#EF4444]",
     videos: [
-      { id: "cp1", title: "Compliance Dashboard Overview", description: "Understanding the compliance hub, certificate tracking, and expiry alerts.", duration: "5:20", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "cp2", title: "Managing Gas Safety Certificates", description: "How to upload CP12 certificates, set reminders, and track renewals.", duration: "4:45", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "cp3", title: "EPC Compliance Tracking", description: "Energy Performance Certificate management and minimum rating requirements.", duration: "3:30", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "cp4", title: "Renters' Rights Bill 2025 Readiness", description: "What the new legislation means and how LetHub helps you comply.", duration: "7:15", embedId: "dQw4w9WgXcQ", level: "Advanced" },
+      { id: "cp1", title: "Compliance Dashboard Overview", description: "Understanding the compliance hub, certificate tracking, and expiry alerts.", duration: "5:20", level: "Intermediate" },
+      { id: "cp2", title: "Managing Gas Safety Certificates", description: "How to upload CP12 certificates, set reminders, and track renewals.", duration: "4:45", level: "Intermediate" },
+      { id: "cp3", title: "EPC Compliance Tracking", description: "Energy Performance Certificate management and minimum rating requirements.", duration: "3:30", level: "Intermediate" },
+      { id: "cp4", title: "Renters' Rights Bill 2025 Readiness", description: "What the new legislation means and how LetHub helps you comply.", duration: "7:15", level: "Advanced" },
     ],
   },
   {
@@ -55,10 +55,10 @@ const videoSections: VideoSection[] = [
     description: "From logging issues to contractor quotes — master the maintenance workflow.",
     color: "bg-[#F59E0B]",
     videos: [
-      { id: "mt1", title: "Logging Maintenance Issues", description: "How to create, categorise, and prioritise maintenance tickets.", duration: "4:10", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "mt2", title: "AI Maintenance Triage", description: "How the AI triage system auto-categorises and routes maintenance jobs.", duration: "5:25", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "mt3", title: "Quote Approval Workflow", description: "Requesting quotes, contractor submissions, and owner approvals.", duration: "6:00", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "mt4", title: "Managing Contractors", description: "Adding contractors, tracking performance, and managing job assignments.", duration: "5:40", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
+      { id: "mt1", title: "Logging Maintenance Issues", description: "How to create, categorise, and prioritise maintenance tickets.", duration: "4:10", level: "Beginner" },
+      { id: "mt2", title: "AI Maintenance Triage", description: "How the AI triage system auto-categorises and routes maintenance jobs.", duration: "5:25", level: "Intermediate" },
+      { id: "mt3", title: "Quote Approval Workflow", description: "Requesting quotes, contractor submissions, and owner approvals.", duration: "6:00", level: "Intermediate" },
+      { id: "mt4", title: "Managing Contractors", description: "Adding contractors, tracking performance, and managing job assignments.", duration: "5:40", level: "Intermediate" },
     ],
   },
   {
@@ -68,10 +68,10 @@ const videoSections: VideoSection[] = [
     description: "Set up and manage owner and tenant portals for seamless communication.",
     color: "bg-[#3B82F6]",
     videos: [
-      { id: "pt1", title: "Setting Up Owner Portals", description: "How to create landlord accounts, set permissions, and customise dashboards.", duration: "5:50", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "pt2", title: "Setting Up Tenant Portals", description: "Give tenants access to rent payments, documents, and maintenance requests.", duration: "4:35", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "pt3", title: "Portal Customisation", description: "White-label your portals with agency branding and custom welcome messages.", duration: "3:20", embedId: "dQw4w9WgXcQ", level: "Advanced" },
-      { id: "pt4", title: "Owner Monthly Reports", description: "How to generate, review, and send monthly reports to property owners.", duration: "5:10", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
+      { id: "pt1", title: "Setting Up Owner Portals", description: "How to create landlord accounts, set permissions, and customise dashboards.", duration: "5:50", level: "Intermediate" },
+      { id: "pt2", title: "Setting Up Tenant Portals", description: "Give tenants access to rent payments, documents, and maintenance requests.", duration: "4:35", level: "Intermediate" },
+      { id: "pt3", title: "Portal Customisation", description: "White-label your portals with agency branding and custom welcome messages.", duration: "3:20", level: "Advanced" },
+      { id: "pt4", title: "Owner Monthly Reports", description: "How to generate, review, and send monthly reports to property owners.", duration: "5:10", level: "Intermediate" },
     ],
   },
   {
@@ -81,9 +81,9 @@ const videoSections: VideoSection[] = [
     description: "Manage tenancy agreements, certificates, and all property documents in one place.",
     color: "bg-[#8B5CF6]",
     videos: [
-      { id: "dc1", title: "Document Hub Overview", description: "How to upload, organise, and search all property documents.", duration: "3:45", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "dc2", title: "E-Signatures and Tenancy Agreements", description: "Send documents for e-signature and track signing status.", duration: "4:30", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "dc3", title: "Document Expiry Tracking", description: "Set expiry dates on certificates and get automatic renewal reminders.", duration: "3:15", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
+      { id: "dc1", title: "Document Hub Overview", description: "How to upload, organise, and search all property documents.", duration: "3:45", level: "Beginner" },
+      { id: "dc2", title: "E-Signatures and Tenancy Agreements", description: "Send documents for e-signature and track signing status.", duration: "4:30", level: "Intermediate" },
+      { id: "dc3", title: "Document Expiry Tracking", description: "Set expiry dates on certificates and get automatic renewal reminders.", duration: "3:15", level: "Intermediate" },
     ],
   },
   {
@@ -93,9 +93,9 @@ const videoSections: VideoSection[] = [
     description: "Schedule, conduct, and document property inspections with photo evidence.",
     color: "bg-[#14B8A6]",
     videos: [
-      { id: "in1", title: "Scheduling Inspections", description: "How to set up routine, move-in, and move-out inspections.", duration: "4:20", embedId: "dQw4w9WgXcQ", level: "Beginner" },
-      { id: "in2", title: "Conducting Digital Inspections", description: "Room-by-room digital inspection with photo capture and condition ratings.", duration: "6:10", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
-      { id: "in3", title: "Inspection Reports and Follow-ups", description: "Generating reports, flagging issues, and scheduling remediation.", duration: "4:55", embedId: "dQw4w9WgXcQ", level: "Intermediate" },
+      { id: "in1", title: "Scheduling Inspections", description: "How to set up routine, move-in, and move-out inspections.", duration: "4:20", level: "Beginner" },
+      { id: "in2", title: "Conducting Digital Inspections", description: "Room-by-room digital inspection with photo capture and condition ratings.", duration: "6:10", level: "Intermediate" },
+      { id: "in3", title: "Inspection Reports and Follow-ups", description: "Generating reports, flagging issues, and scheduling remediation.", duration: "4:55", level: "Intermediate" },
     ],
   },
 ];
@@ -168,13 +168,25 @@ export default function HelpCentrePage() {
                       Back to {section.title}
                     </button>
                     <div className="aspect-video bg-[#0F172A] rounded-xl overflow-hidden mb-4">
-                      <iframe
-                        src={`https://www.youtube-nocookie.com/embed/${video.embedId}?rel=0&modestbranding=1`}
-                        title={video.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full"
-                      ></iframe>
+                      {video.embedId ? (
+                        <iframe
+                          src={`https://www.youtube-nocookie.com/embed/${video.embedId}?rel=0&modestbranding=1`}
+                          title={video.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full"
+                        ></iframe>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-center p-6">
+                          <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-4">
+                            <i className="ri-play-line text-white text-xl"></i>
+                          </div>
+                          <p className="text-white font-semibold">Video coming soon</p>
+                          <p className="text-white/60 text-sm mt-1 max-w-sm">
+                            We&apos;re recording this tutorial — it&apos;ll be here shortly.
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-start justify-between gap-4">
                       <div>
