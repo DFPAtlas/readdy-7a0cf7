@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, startTransition } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
@@ -39,79 +39,74 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   useEffect(() => {
     let active = true;
-    let mounted = false;
 
     const checkSession = async () => {
-      if (isDemoAccount()) {
+      try {
+        if (isDemoAccount()) {
+          if (!active) return;
+          setRole("estate_agent_admin");
+          setUserName("Sarah Cooper (Demo)");
+          setAccountType("agency");
+          setCompletedSteps(["profile", "portfolio", "properties", "owners"]);
+          setReady(true);
+          return;
+        }
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const user = userData.user;
+
         if (!active) return;
-        setRole("estate_agent_admin");
-        setUserName("Sarah Cooper (Demo)");
-        setAccountType("agency");
-        setCompletedSteps(["profile", "portfolio", "properties", "owners"]);
-        setReady(true);
-        return;
-      }
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      const user = userData.user;
-
-      if (!active) return;
-
-      if (userError || !user) {
-        startTransition(() => {
+        if (userError || !user) {
           router.replace("/login");
-        });
-        return;
-      }
+          return;
+        }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("full_name, role, account_type, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name, role, account_type, avatar_url")
+          .eq("id", user.id)
+          .maybeSingle();
 
-      if (!active) return;
+        if (!active) return;
 
-      if (profileError || !profile) {
-        setAccessError("Your authenticated account does not have a configured profile. Please contact support.");
+        if (profileError || !profile) {
+          setAccessError("Your authenticated account does not have a configured profile. Please contact support.");
+          setReady(true);
+          return;
+        }
+
+        const trustedRole = normaliseRole(profile.role);
+        if (!active) return;
+        if (!trustedRole || trustedRole === "suspended") {
+          setRole(trustedRole || null);
+          setAccessError(
+            trustedRole === "suspended"
+              ? "This account has been suspended. Please contact a platform administrator."
+              : "Your account role is missing or invalid. Please contact a platform administrator.",
+          );
+          setReady(true);
+          return;
+        }
+
+        if (!active) return;
+        setRole(trustedRole);
+        setUserName(profile.full_name || user.email || "User");
+        setUserId(user.id);
+        setAvatarUrl((profile as any).avatar_url || null);
+        setAccountType(profile.account_type || null);
         setReady(true);
-        return;
-      }
-
-      const trustedRole = normaliseRole(profile.role);
-      if (!active) return;
-      if (!trustedRole || trustedRole === "suspended") {
-        setRole(trustedRole || null);
-        setAccessError(
-          trustedRole === "suspended"
-            ? "This account has been suspended. Please contact a platform administrator."
-            : "Your account role is missing or invalid. Please contact a platform administrator.",
-        );
+      } catch {
+        if (!active) return;
+        setAccessError("Something went wrong while verifying your account. Please refresh the page or sign in again.");
         setReady(true);
-        return;
       }
-
-      if (!active) return;
-      setRole(trustedRole);
-      setUserName(profile.full_name || user.email || "User");
-      setUserId(user.id);
-      setAvatarUrl((profile as any).avatar_url || null);
-      setAccountType(profile.account_type || null);
-      setReady(true);
     };
 
-    const timer = setTimeout(() => {
-      mounted = true;
-      if (active) {
-        setReady(false);
-        setAccessError("");
-        checkSession();
-      }
-    }, 0);
+    checkSession();
 
     return () => {
       active = false;
-      clearTimeout(timer);
     };
   }, []);
 
@@ -119,17 +114,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     if (!ready || !role || accessError) return;
     const usesDedicatedPortalHome = role === "landlord" || role === "tenant" || role === "contractor";
     if (usesDedicatedPortalHome && pathname === "/dashboard") {
-      startTransition(() => {
-        router.replace(getRoleHome(role));
-      });
+      router.replace(getRoleHome(role));
     }
   }, [accessError, pathname, ready, role]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    startTransition(() => {
-      router.replace("/login");
-    });
+    router.replace("/login");
   };
 
   useEffect(() => {

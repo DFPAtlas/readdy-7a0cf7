@@ -10,6 +10,7 @@ import AdminDataTable from "./components/AdminDataTable";
 import AdminDetailDrawer from "./components/AdminDetailDrawer";
 import AdminActionModal from "./components/AdminActionModal";
 import AdminAccessDenied from "./components/AdminAccessDenied";
+import SiteOwnerQuickStart from "./components/SiteOwnerQuickStart";
 import {
   useOverviewKpis,
   useProfiles,
@@ -43,26 +44,13 @@ import {
   type OverviewKpi,
 } from "./SupaAdminData";
 
-const tabs = [
-  { id: "overview", label: "Overview", icon: "ri-dashboard-line" },
-  { id: "users", label: "Users & Roles", icon: "ri-group-line" },
-  { id: "entities", label: "Entities", icon: "ri-building-4-line" },
-  { id: "properties", label: "Properties", icon: "ri-home-4-line" },
-  { id: "compliance", label: "Compliance", icon: "ri-shield-check-line" },
-  { id: "maintenance", label: "Maintenance", icon: "ri-tools-line" },
-  { id: "documents", label: "Documents", icon: "ri-folder-line" },
-  { id: "billing", label: "Billing & Stripe", icon: "ri-bank-card-line" },
-  { id: "payments", label: "Payments & Rent", icon: "ri-money-pound-circle-line" },
-  { id: "n8n", label: "n8n Agents", icon: "ri-cpu-line" },
-  { id: "notifications", label: "Notifications", icon: "ri-notification-3-line" },
-  { id: "audit", label: "Audit Trail", icon: "ri-shield-keyhole-line" },
-  { id: "health", label: "System Health", icon: "ri-heart-pulse-line" },
-  { id: "settings", label: "Site Settings", icon: "ri-settings-4-line" },
-  { id: "tasks", label: "Admin Tasks", icon: "ri-task-line" },
-];
-
-export default function SupaAdminClient() {
-  const [activeTab, setActiveTab] = useState("overview");
+export default function SupaAdminClient({
+  activeTab,
+  onNavigate,
+}: {
+  activeTab: string;
+  onNavigate: (tab: string) => void;
+}) {
   const [authCheckDone, setAuthCheckDone] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentRole, setCurrentRole] = useState("");
@@ -118,28 +106,53 @@ export default function SupaAdminClient() {
   };
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "/login";
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, id")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (!profile || profile.role !== "platform_admin") {
-        setCurrentRole(profile?.role || "unknown");
-        setIsAdmin(false);
-      } else {
-        setIsAdmin(true);
-        setCurrentUserId(session.user.id);
-      }
+    let active = true;
+    const timer = setTimeout(() => {
+      if (!active) return;
       setAuthCheckDone(true);
+      setIsAdmin(false);
+      setCurrentRole("unknown");
+    }, 10000);
+
+    const check = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!active) return;
+        if (!session) {
+          setIsAdmin(false);
+          setCurrentRole("unknown");
+        } else {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, id")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+          if (!active) return;
+
+          if (!profile || profile.role !== "platform_admin") {
+            setCurrentRole(profile?.role || "unknown");
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(true);
+            setCurrentUserId(session.user.id);
+          }
+        }
+      } catch {
+        if (!active) return;
+        setIsAdmin(false);
+        setCurrentRole("unknown");
+      }
+      if (active) {
+        clearTimeout(timer);
+        setAuthCheckDone(true);
+      }
     };
     check();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSuspendUser = async (userId: string, userName: string) => {
@@ -237,10 +250,10 @@ export default function SupaAdminClient() {
 
   if (!authCheckDone) {
     return (
-      <div className="min-h-screen bg-[#FBF9F4] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-sm text-[#687068]">Verifying access...</p>
+          <div className="w-8 h-8 border-2 border-[#818CF8] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-[#94A3B8]">Verifying access...</p>
         </div>
       </div>
     );
@@ -255,7 +268,7 @@ export default function SupaAdminClient() {
 
   const kpiCards = overviewKpis
     ? [
-        { label: "Total Users", value: overviewKpis.totalUsers.count ?? "—", icon: "ri-group-line", color: "bg-[#C28A78]", change: undefined, changeType: "up" as const, error: overviewKpis.totalUsers.error },
+        { label: "Total Users", value: overviewKpis.totalUsers.count ?? "—", icon: "ri-group-line", color: "bg-[#6366F1]", change: undefined, changeType: "up" as const, error: overviewKpis.totalUsers.error },
         { label: "Landlords", value: overviewKpis.totalLandlords.count ?? "—", icon: "ri-user-star-line", color: "bg-emerald-500", change: undefined, changeType: "up" as const, error: overviewKpis.totalLandlords.error },
         { label: "Tenants", value: overviewKpis.totalTenants.count ?? "—", icon: "ri-user-3-line", color: "bg-sky-500", change: undefined, changeType: "up" as const, error: overviewKpis.totalTenants.error },
         { label: "Contractors", value: overviewKpis.totalContractors.count ?? "—", icon: "ri-briefcase-line", color: "bg-orange-500", change: undefined, changeType: "up" as const, error: overviewKpis.totalContractors.error },
@@ -265,7 +278,7 @@ export default function SupaAdminClient() {
         { label: "Overdue Compliance", value: overviewKpis.overdueCompliance.count ?? "—", icon: "ri-shield-flash-line", color: "bg-[#EF4444]", change: undefined, changeType: "down" as const, error: overviewKpis.overdueCompliance.error },
         { label: "Active Subs", value: overviewKpis.activeSubscriptions.count ?? "—", icon: "ri-vip-crown-line", color: "bg-[#14B8A6]", change: undefined, changeType: "up" as const, error: overviewKpis.activeSubscriptions.error },
         { label: "Unread Notifications", value: overviewKpis.unreadNotifications.count ?? "—", icon: "ri-notification-4-line", color: "bg-purple-500", change: undefined, changeType: "down" as const, error: overviewKpis.unreadNotifications.error },
-        { label: "n8n Agents Active", value: overviewKpis.n8nAgentsEnabled.count ?? "—", icon: "ri-cpu-line", color: "bg-[#C28A78]", change: undefined, changeType: "up" as const, error: overviewKpis.n8nAgentsEnabled.error },
+        { label: "n8n Agents Active", value: overviewKpis.n8nAgentsEnabled.count ?? "—", icon: "ri-cpu-line", color: "bg-[#6366F1]", change: undefined, changeType: "up" as const, error: overviewKpis.n8nAgentsEnabled.error },
       ]
     : [];
 
@@ -273,8 +286,8 @@ export default function SupaAdminClient() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#3A3F3A]">Platform Administration</h1>
-          <p className="text-sm text-[#687068] mt-1">Manage users, monitor system health, and configure the platform</p>
+          <h1 className="text-2xl font-bold text-[#E2E8F0]">Platform Administration</h1>
+          <p className="text-sm text-[#94A3B8] mt-1">Manage users, monitor system health, and configure the platform</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -286,63 +299,49 @@ export default function SupaAdminClient() {
               adminTasks.reload();
               showToast("Data refreshed");
             }}
-            className="text-xs text-[#687068] bg-[#F1F5F9] px-3 py-1.5 rounded-lg hover:bg-[#EBE5DA] transition-colors whitespace-nowrap"
+            className="text-xs text-[#94A3B8] bg-[#1E293B] px-3 py-1.5 rounded-lg hover:bg-[#1E293B] transition-colors whitespace-nowrap"
           >
             <i className="ri-refresh-line mr-1"></i>Refresh
           </button>
-          <span className="text-xs text-[#687068] bg-[#F1F5F9] border border-[#D5D9D5] px-3 py-1.5 rounded-lg font-medium whitespace-nowrap">
+          <span className="text-xs text-[#94A3B8] bg-[#1E293B] border border-[#1E293B] px-3 py-1.5 rounded-lg font-medium whitespace-nowrap">
             <i className="ri-admin-line mr-1"></i>Platform Admin
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 bg-[#F1F5F9] rounded-lg p-1 overflow-x-auto">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`text-sm font-medium px-3 py-2 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === t.id ? "bg-white text-[#3A3F3A] shadow-sm" : "text-[#687068] hover:text-[#3A3F3A]"
-            }`}
-          >
-            <i className={`${t.icon} text-sm`}></i>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
       {/* OVERVIEW TAB */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          <SiteOwnerQuickStart overview={overviewKpis} onNavigate={onNavigate} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {kpiCards.map((card) => (
               <AdminStatCard key={card.label} {...card} loading={overviewLoading} />
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-              <h3 className="font-semibold text-[#3A3F3A] mb-3">Recent Audit Events</h3>
+            <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5">
+              <h3 className="font-semibold text-[#E2E8F0] mb-3">Recent Audit Events</h3>
               {auditLogs.loading ? (
-                <div className="h-20 bg-[#F1F5F9] rounded animate-pulse" />
+                <div className="h-20 bg-[#1E293B] rounded animate-pulse" />
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {auditLogs.data.slice(0, 10).map((a: any) => (
-                    <div key={a.id} className="flex items-start gap-2 text-sm border-b border-[#F1F5F9] pb-2">
-                      <span className="text-xs text-[#94A3B8] whitespace-nowrap">
+                    <div key={a.id} className="flex items-start gap-2 text-sm border-b border-[#1E293B] pb-2">
+                      <span className="text-xs text-[#64748B] whitespace-nowrap">
                         {a.created_at ? new Date(a.created_at).toLocaleString("en-GB") : "—"}
                       </span>
-                      <span className="text-[#3A3F3A] font-medium">{a.action}</span>
+                      <span className="text-[#E2E8F0] font-medium">{a.action}</span>
                       {a.target_table && (
-                        <span className="text-xs text-[#687068]">on {a.target_table}</span>
+                        <span className="text-xs text-[#94A3B8]">on {a.target_table}</span>
                       )}
                     </div>
                   ))}
-                  {!auditLogs.data.length && <p className="text-sm text-[#94A3B8]">No audit events yet</p>}
+                  {!auditLogs.data.length && <p className="text-sm text-[#64748B]">No audit events yet</p>}
                 </div>
               )}
             </div>
-            <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-              <h3 className="font-semibold text-[#3A3F3A] mb-3">Administration Tools</h3>
+            <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5">
+              <h3 className="font-semibold text-[#E2E8F0] mb-3">Administration Tools</h3>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { label: "Environment Config", fn: "check-secrets", icon: "ri-key-2-line" },
@@ -354,11 +353,11 @@ export default function SupaAdminClient() {
                     key={a.label}
                     onClick={() => {
                       if ("fn" in a) handleRunEdgeFn(a.fn as string);
-                      else setActiveTab(a.tab as string);
+                      else onNavigate(a.tab as string);
                     }}
-                    className="flex items-center gap-2 px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 py-2.5 border border-[#1E293B] rounded-lg text-sm text-[#E2E8F0] hover:bg-[#1E293B] transition-colors whitespace-nowrap"
                   >
-                    <i className={`${a.icon} text-[#C28A78] text-sm`}></i>
+                    <i className={`${a.icon} text-[#818CF8] text-sm`}></i>
                     {a.label}
                   </button>
                 ))}
@@ -379,21 +378,21 @@ export default function SupaAdminClient() {
                     {(v || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-[#3A3F3A]">{v || "—"}</p>
-                    <p className="text-xs text-[#687068]">{r.email}</p>
+                    <p className="text-sm font-medium text-[#E2E8F0]">{v || "—"}</p>
+                    <p className="text-xs text-[#94A3B8]">{r.email}</p>
                   </div>
                 </div>
               )},
               { key: "role", label: "Role", render: (v: string) => <span className="text-xs">{roleLabels[v] || v}</span> },
-              { key: "account_type", label: "Type", render: (v: string) => <span className="text-xs text-[#687068]">{v || "—"}</span> },
+              { key: "account_type", label: "Type", render: (v: string) => <span className="text-xs text-[#94A3B8]">{v || "—"}</span> },
               { key: "created_at", label: "Registered", render: (v: string) => (
-                <span className="text-xs text-[#687068]">{v ? new Date(v).toLocaleDateString("en-GB") : "—"}</span>
+                <span className="text-xs text-[#94A3B8]">{v ? new Date(v).toLocaleDateString("en-GB") : "—"}</span>
               )},
               { key: "id", label: "Actions", render: (v: string, r: any) => (
                 <div className="flex items-center gap-1">
                   <button onClick={(e) => { e.stopPropagation(); setDrawerData(r); setDrawerMode("user"); }}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F1F5F9]" title="View">
-                    <i className="ri-eye-line text-[#687068] text-sm"></i>
+                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#1E293B]" title="View">
+                    <i className="ri-eye-line text-[#94A3B8] text-sm"></i>
                   </button>
                   <button onClick={(e) => {
                     e.stopPropagation();
@@ -404,7 +403,7 @@ export default function SupaAdminClient() {
                       confirmClass: "bg-[#EF4444] hover:bg-[#DC2626]",
                       onConfirm: () => handleSuspendUser(r.id, r.full_name),
                     });
-                  }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F1F5F9]" title="Suspend">
+                  }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#1E293B]" title="Suspend">
                     <i className="ri-pause-circle-line text-[#EF4444] text-sm"></i>
                   </button>
                 </div>
@@ -422,7 +421,7 @@ export default function SupaAdminClient() {
       {/* ENTITIES TAB */}
       {activeTab === "entities" && (
         <div className="space-y-6">
-          <h3 className="font-semibold text-[#3A3F3A] text-lg">Landlords ({landlords.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg">Landlords ({landlords.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "display_name", label: "Name" },
@@ -434,7 +433,7 @@ export default function SupaAdminClient() {
             searchPlaceholder="Search landlords..."
             onRowClick={(r) => { setDrawerData(r); setDrawerMode("landlord"); }}
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Tenants ({tenants.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Tenants ({tenants.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "full_name", label: "Name" },
@@ -446,7 +445,7 @@ export default function SupaAdminClient() {
             searchPlaceholder="Search tenants..."
             onRowClick={(r) => { setDrawerData(r); setDrawerMode("tenant"); }}
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Contractors ({contractors.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Contractors ({contractors.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "business_name", label: "Business" },
@@ -461,7 +460,7 @@ export default function SupaAdminClient() {
             searchPlaceholder="Search contractors..."
             onRowClick={(r) => { setDrawerData(r); setDrawerMode("contractor"); }}
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Tenancies ({tenancies.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Tenancies ({tenancies.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "property_id", label: "Property" },
@@ -486,8 +485,8 @@ export default function SupaAdminClient() {
             columns={[
               { key: "line1", label: "Address", render: (v: string, r: any) => (
                 <div>
-                  <p className="text-sm font-medium text-[#3A3F3A]">{v}{r.line2 ? `, ${r.line2}` : ""}</p>
-                  <p className="text-xs text-[#687068]">{r.city}, {r.postcode}</p>
+                  <p className="text-sm font-medium text-[#E2E8F0]">{v}{r.line2 ? `, ${r.line2}` : ""}</p>
+                  <p className="text-xs text-[#94A3B8]">{r.city}, {r.postcode}</p>
                 </div>
               )},
               { key: "bedrooms", label: "Beds" },
@@ -509,7 +508,7 @@ export default function SupaAdminClient() {
       {/* COMPLIANCE TAB */}
       {activeTab === "compliance" && (
         <div className="space-y-6">
-          <h3 className="font-semibold text-[#3A3F3A] text-lg">Compliance Items ({complianceItems.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg">Compliance Items ({complianceItems.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "property_id", label: "Property" },
@@ -522,7 +521,7 @@ export default function SupaAdminClient() {
             rows={complianceItems.data}
             searchPlaceholder="Search compliance items..."
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Compliance Documents ({complianceDocs.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Compliance Documents ({complianceDocs.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "property_id", label: "Property" },
@@ -543,7 +542,7 @@ export default function SupaAdminClient() {
         <div className="space-y-4">
           <AdminDataTable
             columns={[
-              { key: "title", label: "Title", render: (v: string) => <span className="text-sm font-medium text-[#3A3F3A]">{v}</span> },
+              { key: "title", label: "Title", render: (v: string) => <span className="text-sm font-medium text-[#E2E8F0]">{v}</span> },
               { key: "status", label: "Status", render: (v: string) => (
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[v] || "bg-gray-100 text-gray-600"}`}>{v}</span>
               )},
@@ -563,7 +562,7 @@ export default function SupaAdminClient() {
       {/* DOCUMENTS TAB */}
       {activeTab === "documents" && (
         <div className="space-y-6">
-          <h3 className="font-semibold text-[#3A3F3A] text-lg">Documents ({documents.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg">Documents ({documents.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "name", label: "Name", render: (v: string) => v || "—" },
@@ -573,7 +572,7 @@ export default function SupaAdminClient() {
             rows={documents.data}
             searchPlaceholder="Search documents..."
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Signatures ({signatures.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Signatures ({signatures.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "document_id", label: "Document" },
@@ -593,20 +592,20 @@ export default function SupaAdminClient() {
       {activeTab === "billing" && (
         <div className="space-y-6">
           <div className="flex items-center gap-3 flex-wrap">
-            <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#C28A78] text-white px-4 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
+            <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors whitespace-nowrap">
               <i className="ri-key-2-line mr-1"></i>Verify Configuration
             </button>
-            <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#C28A78] text-[#C28A78] px-4 py-2 rounded-lg hover:bg-[#C28A78]/10 transition-colors whitespace-nowrap">
+            <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#818CF8] text-[#818CF8] px-4 py-2 rounded-lg hover:bg-[#6366F1]/20 transition-colors whitespace-nowrap">
               <i className="ri-price-tag-3-line mr-1"></i>Synchronise Stripe Products
             </button>
-            <Link href="/dashboard/billing" className="text-sm border border-[#D5D9D5] text-[#687068] px-4 py-2 rounded-lg hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">
+            <Link href="/dashboard/billing" className="text-sm border border-[#1E293B] text-[#94A3B8] px-4 py-2 rounded-lg hover:bg-[#1E293B] transition-colors whitespace-nowrap">
               <i className="ri-external-link-line mr-1"></i>Billing Dashboard
             </Link>
           </div>
           {healthData["check-secrets"] && (
-            <div className="bg-white rounded-xl border border-[#D5D9D5] p-4">
-              <h4 className="text-sm font-semibold text-[#3A3F3A] mb-2">Configuration Status</h4>
-              <pre className="text-xs text-[#687068] max-h-40 overflow-y-auto bg-[#F1F5F9] p-3 rounded-lg">
+            <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-4">
+              <h4 className="text-sm font-semibold text-[#E2E8F0] mb-2">Configuration Status</h4>
+              <pre className="text-xs text-[#94A3B8] max-h-40 overflow-y-auto bg-[#1E293B] p-3 rounded-lg">
                 {JSON.stringify(healthData["check-secrets"].data, null, 2)}
               </pre>
             </div>
@@ -632,7 +631,7 @@ export default function SupaAdminClient() {
       {/* PAYMENTS TAB */}
       {activeTab === "payments" && (
         <div className="space-y-6">
-          <h3 className="font-semibold text-[#3A3F3A] text-lg">Rent Payments ({rentPayments.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg">Rent Payments ({rentPayments.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "tenancy_id", label: "Tenancy" },
@@ -646,7 +645,7 @@ export default function SupaAdminClient() {
             searchPlaceholder="Search payments..."
             onExport={() => handleExportCsv(rentPayments.data, "rent-payments")}
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Arrears Cases ({arrears.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Arrears Cases ({arrears.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "tenancy_id", label: "Tenancy" },
@@ -666,7 +665,7 @@ export default function SupaAdminClient() {
         <div className="space-y-4">
           <AdminDataTable
             columns={[
-              { key: "agent_name", label: "Name", render: (v: string) => <span className="text-sm font-medium text-[#3A3F3A]">{v}</span> },
+              { key: "agent_name", label: "Name", render: (v: string) => <span className="text-sm font-medium text-[#E2E8F0]">{v}</span> },
               { key: "agent_key", label: "Key" },
               { key: "agent_group", label: "Group" },
               { key: "enabled", label: "Enabled", render: (v: boolean) => v ? (
@@ -679,7 +678,7 @@ export default function SupaAdminClient() {
               { key: "agent_key", label: "Actions", render: (v: string) => (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRunN8nAgent(v); }}
-                  className="text-xs bg-[#C28A78] text-white px-2.5 py-1 rounded hover:bg-[#143828] transition-colors whitespace-nowrap"
+                  className="text-xs bg-[#6366F1] text-white px-2.5 py-1 rounded hover:bg-[#4F46E5] transition-colors whitespace-nowrap"
                 >
                   <i className="ri-play-line mr-0.5"></i>Run
                 </button>
@@ -695,10 +694,10 @@ export default function SupaAdminClient() {
       {/* NOTIFICATIONS TAB */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
-          <h3 className="font-semibold text-[#3A3F3A] text-lg">Notifications ({notifications.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg">Notifications ({notifications.data.length})</h3>
           <AdminDataTable
             columns={[
-              { key: "title", label: "Title", render: (v: string) => <span className="text-sm font-medium text-[#3A3F3A]">{v}</span> },
+              { key: "title", label: "Title", render: (v: string) => <span className="text-sm font-medium text-[#E2E8F0]">{v}</span> },
               { key: "type", label: "Type" },
               { key: "is_read", label: "Read", render: (v: boolean) => v ? (
                 <span className="text-xs text-[#10B981]"><i className="ri-check-line mr-0.5"></i>Yes</span>
@@ -710,7 +709,7 @@ export default function SupaAdminClient() {
             rows={notifications.data}
             searchPlaceholder="Search notifications..."
           />
-          <h3 className="font-semibold text-[#3A3F3A] text-lg mt-6">Messages ({messages.data.length})</h3>
+          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Messages ({messages.data.length})</h3>
           <AdminDataTable
             columns={[
               { key: "id", label: "ID" },
@@ -726,30 +725,30 @@ export default function SupaAdminClient() {
       {activeTab === "audit" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-2 border border-[#D5D9D5] rounded-lg bg-white flex-1 max-w-sm">
-              <i className="ri-search-line text-[#94A3B8] text-sm"></i>
+            <div className="flex items-center gap-2 px-3 py-2 border border-[#1E293B] rounded-lg bg-[#111827] flex-1 max-w-sm">
+              <i className="ri-search-line text-[#64748B] text-sm"></i>
               <input
                 type="text"
                 value={auditFilter.search}
                 onChange={(e) => setAuditFilter((p) => ({ ...p, search: e.target.value }))}
                 placeholder="Search audit log..."
-                className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
+                className="flex-1 text-sm text-[#E2E8F0] placeholder:text-[#64748B] outline-none bg-transparent"
               />
             </div>
-            <button onClick={() => handleExportCsv(auditLogs.data, "audit-log")} className="text-xs text-[#687068] font-medium px-3 py-2 border border-[#D5D9D5] rounded-lg hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">
+            <button onClick={() => handleExportCsv(auditLogs.data, "audit-log")} className="text-xs text-[#94A3B8] font-medium px-3 py-2 border border-[#1E293B] rounded-lg hover:bg-[#1E293B] transition-colors whitespace-nowrap">
               <i className="ri-download-line mr-1"></i>Export CSV
             </button>
           </div>
           <AdminDataTable
             columns={[
               { key: "created_at", label: "Timestamp", render: (v: string) => (
-                <span className="text-xs text-[#687068] whitespace-nowrap">{v ? new Date(v).toLocaleString("en-GB") : "—"}</span>
+                <span className="text-xs text-[#94A3B8] whitespace-nowrap">{v ? new Date(v).toLocaleString("en-GB") : "—"}</span>
               )},
-              { key: "action", label: "Action", render: (v: string) => <span className="text-sm font-medium text-[#3A3F3A]">{v}</span> },
+              { key: "action", label: "Action", render: (v: string) => <span className="text-sm font-medium text-[#E2E8F0]">{v}</span> },
               { key: "target_table", label: "Target Table" },
               { key: "actor_profile_id", label: "Actor" },
               { key: "details", label: "Details", render: (v: any) => v ? (
-                <span className="text-xs text-[#687068] max-w-40 truncate block">{JSON.stringify(v)}</span>
+                <span className="text-xs text-[#94A3B8] max-w-40 truncate block">{JSON.stringify(v)}</span>
               ) : "—" },
             ]}
             rows={auditLogs.data.filter((r: any) => {
@@ -777,20 +776,20 @@ export default function SupaAdminClient() {
               { label: "Automation Engine", icon: "ri-cpu-line", check: "n8n_check" },
               { label: "Edge Functions", icon: "ri-cloud-line", check: "edge_functions" },
             ].map((item) => (
-              <div key={item.check} className="bg-white rounded-xl border border-[#D5D9D5] p-4">
+              <div key={item.check} className="bg-[#111827] rounded-xl border border-[#1E293B] p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 bg-[#C28A78]/10 rounded-lg flex items-center justify-center">
-                    <i className={`${item.icon} text-[#C28A78] text-lg`}></i>
+                  <div className="w-10 h-10 bg-[#6366F1]/15 rounded-lg flex items-center justify-center">
+                    <i className={`${item.icon} text-[#818CF8] text-lg`}></i>
                   </div>
                   {healthData[item.check] ? (
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${healthData[item.check].ok ? "bg-[#10B981]/10 text-[#10B981]" : "bg-[#EF4444]/10 text-[#EF4444]"}`}>
                       {healthData[item.check].ok ? "Healthy" : "Issue"}
                     </span>
                   ) : (
-                    <span className="text-xs text-[#94A3B8]">Not checked</span>
+                    <span className="text-xs text-[#64748B]">Not checked</span>
                   )}
                 </div>
-                <p className="text-sm font-medium text-[#3A3F3A]">{item.label}</p>
+                <p className="text-sm font-medium text-[#E2E8F0]">{item.label}</p>
                 <button
                   onClick={() => {
                     if (item.check === "supabase_auth") {
@@ -809,25 +808,25 @@ export default function SupaAdminClient() {
                       handleRunEdgeFn(item.check);
                     }
                   }}
-                  className="text-xs text-[#C28A78] font-medium mt-2 hover:underline"
+                  className="text-xs text-[#818CF8] font-medium mt-2 hover:underline"
                 >
                   Check now
                 </button>
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-            <h3 className="font-semibold text-[#3A3F3A] mb-3">Diagnostics</h3>
+          <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5">
+            <h3 className="font-semibold text-[#E2E8F0] mb-3">Diagnostics</h3>
             <div className="flex items-center gap-3 flex-wrap">
-              <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#C28A78] text-white px-4 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
+              <button onClick={() => handleRunEdgeFn("check-secrets")} className="text-sm bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors whitespace-nowrap">
                 <i className="ri-key-2-line mr-1"></i>Verify Configuration
               </button>
-              <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#C28A78] text-[#C28A78] px-4 py-2 rounded-lg hover:bg-[#C28A78]/10 transition-colors whitespace-nowrap">
+              <button onClick={() => handleRunEdgeFn("setup-stripe-products")} className="text-sm border border-[#818CF8] text-[#818CF8] px-4 py-2 rounded-lg hover:bg-[#6366F1]/20 transition-colors whitespace-nowrap">
                 <i className="ri-price-tag-3-line mr-1"></i>Synchronise Stripe Products
               </button>
             </div>
             {Object.keys(healthData).filter((k) => healthData[k]?.data).length > 0 && (
-              <pre className="text-xs text-[#687068] max-h-60 overflow-y-auto bg-[#F1F5F9] p-3 rounded-lg mt-4">
+              <pre className="text-xs text-[#94A3B8] max-h-60 overflow-y-auto bg-[#1E293B] p-3 rounded-lg mt-4">
                 {JSON.stringify(
                   Object.fromEntries(
                     Object.entries(healthData).filter(([, v]: any) => v?.data).map(([k, v]: any) => [k, v])
@@ -844,8 +843,8 @@ export default function SupaAdminClient() {
       {/* SITE SETTINGS TAB */}
       {activeTab === "settings" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-            <h3 className="font-semibold text-[#3A3F3A] mb-4">Platform Settings</h3>
+          <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5">
+            <h3 className="font-semibold text-[#E2E8F0] mb-4">Platform Settings</h3>
             <div className="space-y-4 max-w-xl">
               {[
                 { key: "platform_name", label: "Platform Name", type: "text" },
@@ -854,7 +853,7 @@ export default function SupaAdminClient() {
                 { key: "timezone", label: "Timezone", type: "text" },
               ].map((setting) => (
                 <div key={setting.key} className="flex items-center gap-3">
-                  <label className="text-sm text-[#687068] w-36 flex-shrink-0">{setting.label}</label>
+                  <label className="text-sm text-[#94A3B8] w-36 flex-shrink-0">{setting.label}</label>
                   <input
                     type={setting.type}
                     defaultValue={platformSettings.settings[setting.key] || ""}
@@ -863,16 +862,16 @@ export default function SupaAdminClient() {
                         handleSaveSetting(setting.key, e.target.value);
                       }
                     }}
-                    className="flex-1 px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] focus:outline-none focus:border-[#C28A78]"
+                    className="flex-1 px-3 py-2 border border-[#1E293B] rounded-lg text-sm text-[#E2E8F0] focus:outline-none focus:border-[#818CF8]"
                   />
                 </div>
               ))}
-              <div className="pt-2 text-xs text-[#94A3B8]">Changes save on blur. All edits are logged to audit trail.</div>
+              <div className="pt-2 text-xs text-[#64748B]">Changes save on blur. All edits are logged to audit trail.</div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
-            <h3 className="font-semibold text-[#3A3F3A] mb-4">Feature Toggles</h3>
+          <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5">
+            <h3 className="font-semibold text-[#E2E8F0] mb-4">Feature Toggles</h3>
             <div className="space-y-3 max-w-xl">
               {[
                 "maintenance_mode",
@@ -884,9 +883,9 @@ export default function SupaAdminClient() {
                 "n8n_enabled",
               ].map((key) => (
                 <div key={key} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-[#3A3F3A] capitalize">{key.replace(/_/g, " ")}</span>
+                  <span className="text-sm text-[#E2E8F0] capitalize">{key.replace(/_/g, " ")}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#94A3B8]">
+                    <span className="text-xs text-[#64748B]">
                       {platformSettings.settings[key] === "true" ? "On" : platformSettings.settings[key] === "false" ? "Off" : "Not set"}
                     </span>
                     <button
@@ -897,11 +896,11 @@ export default function SupaAdminClient() {
                           title: `Toggle ${key.replace(/_/g, " ")}`,
                           message: `Set "${key}" to ${next}?`,
                           confirmLabel: `Set to ${next}`,
-                          confirmClass: "bg-[#C28A78] hover:bg-[#143828]",
+                          confirmClass: "bg-[#6366F1] hover:bg-[#4F46E5]",
                           onConfirm: () => { handleSaveSetting(key, next); setConfirmModal(null); },
                         });
                       }}
-                      className={`w-11 h-6 rounded-full transition-colors relative ${platformSettings.settings[key] === "true" ? "bg-[#C28A78]" : "bg-[#D5D9D5]"}`}
+                      className={`w-11 h-6 rounded-full transition-colors relative ${platformSettings.settings[key] === "true" ? "bg-[#6366F1]" : "bg-[#1E293B]"}`}
                     >
                       <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${platformSettings.settings[key] === "true" ? "left-[22px]" : "left-0.5"}`}></span>
                     </button>
@@ -919,11 +918,11 @@ export default function SupaAdminClient() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#687068]">Open:</span>
+                <span className="text-[#94A3B8]">Open:</span>
                 <span className="font-bold text-[#F59E0B]">{adminTasks.data.filter((t: any) => t.status === "open").length}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-[#687068]">Closed:</span>
+                <span className="text-[#94A3B8]">Closed:</span>
                 <span className="font-bold text-[#10B981]">{adminTasks.data.filter((t: any) => t.status === "closed").length}</span>
               </div>
             </div>
@@ -937,23 +936,23 @@ export default function SupaAdminClient() {
                   });
                 }
               }}
-              className="text-sm bg-[#C28A78] text-white px-4 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap"
+              className="text-sm bg-[#6366F1] text-white px-4 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors whitespace-nowrap"
             >
               <i className="ri-add-line mr-1"></i>New Task
             </button>
           </div>
           <div className="space-y-2">
             {adminTasks.data.map((task: any) => (
-              <div key={task.id} className={`bg-white rounded-xl border p-4 flex items-start gap-3 ${task.status === "closed" ? "opacity-60" : ""}`}>
+              <div key={task.id} className={`bg-[#111827] rounded-xl border p-4 flex items-start gap-3 ${task.status === "closed" ? "opacity-60" : ""}`}>
                 <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
                   task.priority === "high" ? "bg-[#EF4444]" : task.priority === "medium" ? "bg-[#F59E0B]" : "bg-[#94A3B8]"
                 }`} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${task.status === "closed" ? "text-[#94A3B8] line-through" : "text-[#3A3F3A]"}`}>
+                  <p className={`text-sm font-medium ${task.status === "closed" ? "text-[#64748B] line-through" : "text-[#E2E8F0]"}`}>
                     {task.title}
                   </p>
                   {task.description && (
-                    <p className="text-xs text-[#687068] mt-0.5">{task.description}</p>
+                    <p className="text-xs text-[#94A3B8] mt-0.5">{task.description}</p>
                   )}
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -962,12 +961,12 @@ export default function SupaAdminClient() {
                       {task.status}
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      task.priority === "high" ? "bg-[#EF4444]/10 text-[#EF4444]" : task.priority === "medium" ? "bg-[#F59E0B]/10 text-[#F59E0B]" : "bg-[#94A3B8]/10 text-[#94A3B8]"
+                      task.priority === "high" ? "bg-[#EF4444]/10 text-[#EF4444]" : task.priority === "medium" ? "bg-[#F59E0B]/10 text-[#F59E0B]" : "bg-[#94A3B8]/10 text-[#64748B]"
                     }`}>
                       {task.priority}
                     </span>
-                    {task.source && <span className="text-xs text-[#94A3B8]">{task.source}</span>}
-                    <span className="text-xs text-[#94A3B8]">{task.created_at ? new Date(task.created_at).toLocaleDateString("en-GB") : ""}</span>
+                    {task.source && <span className="text-xs text-[#64748B]">{task.source}</span>}
+                    <span className="text-xs text-[#64748B]">{task.created_at ? new Date(task.created_at).toLocaleDateString("en-GB") : ""}</span>
                   </div>
                 </div>
                 {task.status === "open" && (
@@ -985,9 +984,9 @@ export default function SupaAdminClient() {
               </div>
             ))}
             {!adminTasks.loading && adminTasks.data.length === 0 && (
-              <div className="text-center py-12 bg-white rounded-xl border border-[#D5D9D5]">
-                <i className="ri-task-line text-[#94A3B8] text-2xl"></i>
-                <p className="text-sm text-[#687068] mt-2">No admin tasks yet</p>
+              <div className="text-center py-12 bg-[#111827] rounded-xl border border-[#1E293B]">
+                <i className="ri-task-line text-[#64748B] text-2xl"></i>
+                <p className="text-sm text-[#94A3B8] mt-2">No admin tasks yet</p>
               </div>
             )}
           </div>
@@ -1003,9 +1002,9 @@ export default function SupaAdminClient() {
         {drawerData && (
           <div className="space-y-3">
             {Object.entries(drawerData).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between py-1 border-b border-[#F1F5F9]">
-                <span className="text-xs text-[#94A3B8] capitalize">{key.replace(/_/g, " ")}</span>
-                <span className="text-sm text-[#3A3F3A] max-w-[60%] text-right break-all">
+              <div key={key} className="flex items-center justify-between py-1 border-b border-[#1E293B]">
+                <span className="text-xs text-[#64748B] capitalize">{key.replace(/_/g, " ")}</span>
+                <span className="text-sm text-[#E2E8F0] max-w-[60%] text-right break-all">
                   {value === null ? "—" : value === true ? "Yes" : value === false ? "No" : typeof value === "object" ? JSON.stringify(value) : String(value)}
                 </span>
               </div>
@@ -1020,7 +1019,7 @@ export default function SupaAdminClient() {
                     confirmClass: "bg-emerald-500 hover:bg-emerald-600",
                     onConfirm: () => handleChangeRole(drawerData.id, "landlord", drawerData.full_name),
                   })}
-                  className="text-xs bg-[#C28A78] text-white px-3 py-2 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap"
+                  className="text-xs bg-[#6366F1] text-white px-3 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors whitespace-nowrap"
                 >
                   Change Role
                 </button>
@@ -1055,7 +1054,7 @@ export default function SupaAdminClient() {
 
       {/* TOAST */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#C28A78] text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#6366F1] text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
           <i className="ri-check-line text-sm"></i>
           <span className="text-sm font-medium">{toastMsg}</span>
         </div>

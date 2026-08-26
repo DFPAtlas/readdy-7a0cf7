@@ -1,10 +1,5 @@
-import DashboardShell from "@/components/DashboardShell";
-import SupaAdminClient from "./SupaAdminClient";
+import SupaAdminShell from "./SupaAdminShell";
 
 export default function SupaAdminPage() {
-  return (
-    <DashboardShell>
-      <SupaAdminClient />
-    </DashboardShell>
-  );
+  return <SupaAdminShell />;
 }

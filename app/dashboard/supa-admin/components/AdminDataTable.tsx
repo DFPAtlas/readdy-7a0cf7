@@ -34,49 +34,49 @@ export default function AdminDataTable({
     : rows;
 
   return (
-    <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
-      <div className="px-5 py-3 border-b border-[#D5D9D5] flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 px-3 py-2 border border-[#D5D9D5] rounded-lg bg-white flex-1 max-w-sm">
-          <i className="ri-search-line text-[#94A3B8] text-sm"></i>
+    <div className="bg-[#111827] rounded-xl border border-[#1E293B] overflow-hidden">
+      <div className="px-5 py-3 border-b border-[#1E293B] flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 px-3 py-2 border border-[#1E293B] rounded-lg bg-[#111827] flex-1 max-w-sm">
+          <i className="ri-search-line text-[#64748B] text-sm"></i>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder || "Search..."}
-            className="flex-1 text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none bg-transparent"
+            className="flex-1 text-sm text-[#E2E8F0] placeholder:text-[#64748B] outline-none bg-transparent"
           />
         </div>
         <div className="flex items-center gap-2">
           {onExport && (
             <button
               onClick={onExport}
-              className="text-xs text-[#687068] font-medium px-3 py-2 border border-[#D5D9D5] rounded-lg hover:bg-[#FBF9F4] transition-colors whitespace-nowrap"
+              className="text-xs text-[#94A3B8] font-medium px-3 py-2 border border-[#1E293B] rounded-lg hover:bg-[#1E293B] transition-colors whitespace-nowrap"
             >
               <i className="ri-download-line mr-1"></i>CSV
             </button>
           )}
-          <span className="text-xs text-[#94A3B8]">{filtered.length} records</span>
+          <span className="text-xs text-[#64748B]">{filtered.length} records</span>
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-[#D5D9D5]">
+            <tr className="border-b border-[#1E293B]">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-5 py-3 text-xs font-medium text-[#687068] uppercase whitespace-nowrap"
+                  className="px-5 py-3 text-xs font-medium text-[#94A3B8] uppercase whitespace-nowrap"
                 >
                   {col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#D5D9D5]">
+          <tbody className="divide-y divide-[#1E293B]">
             {filtered.map((row, i) => (
               <tr
                 key={row.id || i}
-                className={`hover:bg-[#FBF9F4] transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
+                className={`hover:bg-[#1E293B] transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
                 onClick={() => onRowClick?.(row)}
               >
                 {columns.map((col) => (
@@ -91,8 +91,8 @@ export default function AdminDataTable({
       </div>
       {filtered.length === 0 && (
         <div className="text-center py-12">
-          <i className="ri-search-line text-[#94A3B8] text-2xl"></i>
-          <p className="text-sm text-[#687068] mt-2">{emptyMessage || "No records found"}</p>
+          <i className="ri-search-line text-[#64748B] text-2xl"></i>
+          <p className="text-sm text-[#94A3B8] mt-2">{emptyMessage || "No records found"}</p>
         </div>
       )}
     </div>

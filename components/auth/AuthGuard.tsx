@@ -26,57 +26,71 @@ export default function AuthGuard({
 
   useEffect(() => {
     let active = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const check = async () => {
-      if (allowDemo && isDemoAccount()) {
+      try {
+        if (allowDemo && isDemoAccount()) {
+          if (!active) return;
+          setDemo(true);
+          setReady(true);
+          return;
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData.session?.user ?? null;
+
         if (!active) return;
-        setDemo(true);
-        setReady(true);
-        return;
-      }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user ?? null;
+        if (!user) {
+          router.replace(LOGIN_PATH);
+          return;
+        }
 
-      if (!active) return;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
 
-      if (!user) {
+        if (!active) return;
+
+        const role = normaliseRole(profile?.role ?? null);
+
+        if (!profile || !role) {
+          router.replace(UNAUTHORISED_PATH);
+          return;
+        }
+
+        if (role === "suspended") {
+          router.replace(SUSPENDED_PATH);
+          return;
+        }
+
+        if (allowedRoles && !allowedRoles.includes(role)) {
+          router.replace(UNAUTHORISED_PATH);
+          return;
+        }
+
+        if (active) setReady(true);
+      } catch {
+        if (!active) return;
         router.replace(LOGIN_PATH);
-        return;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!active) return;
-
-      const role = normaliseRole(profile?.role ?? null);
-
-      if (!profile || !role) {
-        router.replace(UNAUTHORISED_PATH);
-        return;
-      }
-
-      if (role === "suspended") {
-        router.replace(SUSPENDED_PATH);
-        return;
-      }
-
-      if (allowedRoles && !allowedRoles.includes(role)) {
-        router.replace(UNAUTHORISED_PATH);
-        return;
-      }
-
-      if (active) setReady(true);
     };
+
+    timeoutId = setTimeout(() => {
+      if (!active) return;
+      router.replace(LOGIN_PATH);
+    }, 15000);
 
     check();
 
     return () => {
       active = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [router, allowedRoles, allowDemo]);
 

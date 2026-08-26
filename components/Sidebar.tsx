@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import SidebarNavItem from "@/components/SidebarNavItem";
 import { usePathname } from "next/navigation";
 import GettingStartedChecklist from "@/components/onboarding/GettingStartedChecklist";
 import AvatarUploader from "@/components/dashboard/AvatarUploader";
@@ -289,6 +291,23 @@ export default function Sidebar({
   const groups = useMemo(() => groupsForRole(role), [role]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["home", "portfolio", "platform"]));
   const home = getRoleHome(role);
+  const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
+
+  const showTooltip = (label: string, element: HTMLElement) => {
+    if (!element || !element.isConnected) return;
+    const rect = element.getBoundingClientRect();
+    setTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 12 });
+  };
+
+  const hideTooltip = () => setTooltip(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTooltip(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -330,7 +349,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" onScroll={hideTooltip}>
           {groups.map((group) => {
             const groupActive = group.items.some((item) => isActive(item.href));
             const expanded = expandedGroups.has(group.id) || groupActive;
@@ -347,17 +366,15 @@ export default function Sidebar({
                   {group.items.map((item) => {
                     const active = isActive(item.href);
                     return (
-                      <Link
+                      <SidebarNavItem
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-[#C28A78] text-white" : "text-[#687068] hover:bg-[#EBE5DA] hover:text-[#3A3F3A]"} ${collapsed ? "justify-center" : ""}`}
-                        title={collapsed ? item.label : undefined}
-                      >
-                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center"><i className={`${item.icon} text-base`}></i></span>
-                        <span className={collapsed ? "hidden" : "block"}>{item.label}</span>
-                        {item.badge && !collapsed && <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#C46868] px-1 text-xs font-bold text-white">{item.badge}</span>}
-                      </Link>
+                        item={item}
+                        active={active}
+                        collapsed={collapsed}
+                        onNavigate={() => setMobileOpen(false)}
+                        onTooltipShow={showTooltip}
+                        onTooltipHide={hideTooltip}
+                      />
                     );
                   })}
                 </div>
@@ -394,6 +411,20 @@ export default function Sidebar({
           </div>
         </div>
       </aside>
+      {tooltip && typeof document !== "undefined" && createPortal(
+        <>
+          <style>{`@keyframes sidebarTooltipIn { 0% { opacity: 0; transform: translateY(-50%) translateX(-6px); } 100% { opacity: 1; transform: translateY(-50%) translateX(0); } }`}</style>
+          <div
+            role="tooltip"
+            className="pointer-events-none fixed z-[100] rounded-lg bg-[#3A3F3A] px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
+            style={{ top: tooltip.top, left: tooltip.left, transform: "translateY(-50%)", animation: "sidebarTooltipIn 150ms ease-out" }}
+          >
+            {tooltip.label}
+            <span className="absolute -left-[5px] top-1/2 h-0 w-0 -translate-y-1/2 border-y-[5px] border-y-transparent border-r-[5px] border-r-[#3A3F3A]" />
+          </div>
+        </>,
+        document.body
+      )}
     </>
   );
 }

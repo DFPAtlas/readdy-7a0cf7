@@ -34,7 +34,6 @@ export const ROLE_HOME: Record<AppRole, string> = {
 
 const PLATFORM_ONLY_PREFIXES = [
   "/dashboard/supa-admin",
-  "/dashboard/super-admin",
   "/dashboard/admin",
 ];
 

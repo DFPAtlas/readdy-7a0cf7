@@ -22,7 +22,7 @@ export default function AdminStatCard({
   error?: string | null;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-[#D5D9D5] p-5 hover:shadow-md transition-shadow">
+    <div className="bg-[#111827] rounded-xl border border-[#1E293B] p-5 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
         <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center`}>
           <i className={`${icon} text-white text-lg`}></i>
@@ -38,13 +38,13 @@ export default function AdminStatCard({
         )}
       </div>
       {loading ? (
-        <div className="h-7 w-12 bg-[#F1F5F9] rounded animate-pulse" />
+        <div className="h-7 w-12 bg-[#1E293B] rounded animate-pulse" />
       ) : error ? (
         <p className="text-sm font-medium text-[#EF4444]">—</p>
       ) : (
-        <p className="text-2xl font-bold text-[#3A3F3A]">{value ?? "—"}</p>
+        <p className="text-2xl font-bold text-[#E2E8F0]">{value ?? "—"}</p>
       )}
-      <p className="text-sm text-[#687068] mt-0.5">{label}</p>
+      <p className="text-sm text-[#94A3B8] mt-0.5">{label}</p>
       {error && <p className="text-xs text-[#EF4444] mt-1">{error}</p>}
     </div>
   );
