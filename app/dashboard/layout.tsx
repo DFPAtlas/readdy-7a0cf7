@@ -1,4 +1,5 @@
 import AuthGuard from "@/components/auth/AuthGuard";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,6 +7,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AuthGuard allowDemo showDemoBanner>
         {children}
       </AuthGuard>
+      <ImpersonationBanner />
     </div>
   );
 }

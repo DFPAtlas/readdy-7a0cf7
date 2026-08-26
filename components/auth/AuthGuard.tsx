@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { normaliseRole, type AppRole } from "@/lib/rbac";
 import { isDemoAccount } from "@/lib/demoMode";
 import { LOGIN_PATH, UNAUTHORISED_PATH, SUSPENDED_PATH } from "@/lib/auth";
+import { getImpersonation } from "@/lib/impersonation";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -28,6 +29,12 @@ export default function AuthGuard({
     let active = true;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
+    const redirect = (path: string) => {
+      setTimeout(() => {
+        if (active) router.replace(path);
+      }, 0);
+    };
+
     const check = async () => {
       try {
         if (allowDemo && isDemoAccount()) {
@@ -43,7 +50,7 @@ export default function AuthGuard({
         if (!active) return;
 
         if (!user) {
-          router.replace(LOGIN_PATH);
+          redirect(LOGIN_PATH);
           return;
         }
 
@@ -58,24 +65,36 @@ export default function AuthGuard({
         const role = normaliseRole(profile?.role ?? null);
 
         if (!profile || !role) {
-          router.replace(UNAUTHORISED_PATH);
+          redirect(UNAUTHORISED_PATH);
           return;
         }
 
-        if (role === "suspended") {
-          router.replace(SUSPENDED_PATH);
+        let effectiveRole = role;
+        const impersonation = getImpersonation();
+        if (
+          impersonation &&
+          role === "platform_admin" &&
+          impersonation.realUserId === user.id &&
+          allowedRoles &&
+          allowedRoles.some((r) => r === "landlord" || r === "tenant" || r === "contractor")
+        ) {
+          effectiveRole = impersonation.role;
+        }
+
+        if (effectiveRole === "suspended") {
+          redirect(SUSPENDED_PATH);
           return;
         }
 
-        if (allowedRoles && !allowedRoles.includes(role)) {
-          router.replace(UNAUTHORISED_PATH);
+        if (allowedRoles && !allowedRoles.includes(effectiveRole)) {
+          redirect(UNAUTHORISED_PATH);
           return;
         }
 
         if (active) setReady(true);
       } catch {
         if (!active) return;
-        router.replace(LOGIN_PATH);
+        redirect(LOGIN_PATH);
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
       }
@@ -83,7 +102,7 @@ export default function AuthGuard({
 
     timeoutId = setTimeout(() => {
       if (!active) return;
-      router.replace(LOGIN_PATH);
+      redirect(LOGIN_PATH);
     }, 15000);
 
     check();

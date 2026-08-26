@@ -19,19 +19,9 @@ const navSections: (NavEntry | NavSection)[] = [
     ],
   },
   {
-    label: "Operations",
-    items: [
-      { id: "properties", label: "Properties", icon: "ri-home-4-line" },
-      { id: "compliance", label: "Compliance", icon: "ri-shield-check-line" },
-      { id: "maintenance", label: "Maintenance", icon: "ri-tools-line" },
-      { id: "documents", label: "Documents", icon: "ri-folder-line" },
-    ],
-  },
-  {
     label: "Finance",
     items: [
       { id: "billing", label: "Billing & Stripe", icon: "ri-bank-card-line" },
-      { id: "payments", label: "Payments & Rent", icon: "ri-money-pound-circle-line" },
     ],
   },
   {

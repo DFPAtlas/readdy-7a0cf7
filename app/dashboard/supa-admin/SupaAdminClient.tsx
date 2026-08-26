@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { logPlatformAdminAction, fetchAuditLogs } from "@/lib/adminAudit";
 import { fetchPlatformKpi } from "@/lib/platformAdmin";
+import { startImpersonation } from "@/lib/impersonation";
+import { getRoleHome } from "@/lib/rbac";
 import AdminStatCard from "./components/AdminStatCard";
 import AdminDataTable from "./components/AdminDataTable";
 import AdminDetailDrawer from "./components/AdminDetailDrawer";
@@ -25,8 +28,6 @@ import {
   useDocuments,
   useSignatures,
   useSubscriptions,
-  useRentPayments,
-  useArrears,
   useN8nAgents,
   useNotifications,
   useMessages,
@@ -51,6 +52,7 @@ export default function SupaAdminClient({
   activeTab: string;
   onNavigate: (tab: string) => void;
 }) {
+  const router = useRouter();
   const [authCheckDone, setAuthCheckDone] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentRole, setCurrentRole] = useState("");
@@ -87,8 +89,6 @@ export default function SupaAdminClient({
   const documents = useDocuments();
   const signatures = useSignatures();
   const subscriptions = useSubscriptions();
-  const rentPayments = useRentPayments();
-  const arrears = useArrears();
   const n8nAgents = useN8nAgents();
   const notifications = useNotifications();
   const messages = useMessages();
@@ -206,6 +206,30 @@ export default function SupaAdminClient({
     }
     setConfirmModal(null);
     setDrawerData(null);
+  };
+
+  const handleImpersonate = async (user: any) => {
+    const role = user?.role;
+    if (!role || !["landlord", "tenant", "contractor"].includes(role)) {
+      showToast("Preview is available for landlord, tenant, and contractor accounts");
+      return;
+    }
+    const targetName = user.full_name || user.email || user.id;
+    startImpersonation({
+      role,
+      targetUserId: user.id,
+      targetName,
+      realUserId: currentUserId,
+      startedAt: new Date().toISOString(),
+    });
+    await logPlatformAdminAction({
+      action: "impersonate_user",
+      targetTable: "profiles",
+      targetId: user.id,
+      metadata: { role, targetName },
+    });
+    setDrawerData(null);
+    router.replace(getRoleHome(role));
   };
 
   const handleSaveSetting = async (key: string, value: string) => {
@@ -394,6 +418,12 @@ export default function SupaAdminClient({
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#1E293B]" title="View">
                     <i className="ri-eye-line text-[#94A3B8] text-sm"></i>
                   </button>
+                  {["landlord", "tenant", "contractor"].includes(r.role) && (
+                    <button onClick={(e) => { e.stopPropagation(); handleImpersonate(r); }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#6366F1]/20" title={`Preview as ${roleLabels[r.role]}`}>
+                      <i className="ri-eye-2-line text-[#818CF8] text-sm"></i>
+                    </button>
+                  )}
                   <button onClick={(e) => {
                     e.stopPropagation();
                     setConfirmModal({
@@ -628,38 +658,6 @@ export default function SupaAdminClient({
         </div>
       )}
 
-      {/* PAYMENTS TAB */}
-      {activeTab === "payments" && (
-        <div className="space-y-6">
-          <h3 className="font-semibold text-[#E2E8F0] text-lg">Rent Payments ({rentPayments.data.length})</h3>
-          <AdminDataTable
-            columns={[
-              { key: "tenancy_id", label: "Tenancy" },
-              { key: "amount", label: "Amount", render: (v: number) => `£${v?.toLocaleString() || "—"}` },
-              { key: "status", label: "Status", render: (v: string) => (
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[v] || "bg-gray-100 text-gray-600"}`}>{v}</span>
-              )},
-              { key: "created_at", label: "Date", render: (v: string) => v ? new Date(v).toLocaleDateString("en-GB") : "—" },
-            ]}
-            rows={rentPayments.data}
-            searchPlaceholder="Search payments..."
-            onExport={() => handleExportCsv(rentPayments.data, "rent-payments")}
-          />
-          <h3 className="font-semibold text-[#E2E8F0] text-lg mt-6">Arrears Cases ({arrears.data.length})</h3>
-          <AdminDataTable
-            columns={[
-              { key: "tenancy_id", label: "Tenancy" },
-              { key: "status", label: "Status", render: (v: string) => (
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[v] || "bg-gray-100 text-gray-600"}`}>{v}</span>
-              )},
-              { key: "created_at", label: "Created", render: (v: string) => v ? new Date(v).toLocaleDateString("en-GB") : "—" },
-            ]}
-            rows={arrears.data}
-            searchPlaceholder="Search arrears..."
-          />
-        </div>
-      )}
-
       {/* N8N AGENTS TAB */}
       {activeTab === "n8n" && (
         <div className="space-y-4">
@@ -675,9 +673,9 @@ export default function SupaAdminClient({
               )},
               { key: "last_run_at", label: "Last Run", render: (v: string) => v ? new Date(v).toLocaleString("en-GB") : "—" },
               { key: "status", label: "Status" },
-              { key: "agent_key", label: "Actions", render: (v: string) => (
+              { key: "actions", label: "Actions", render: (v: string, r: any) => (
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleRunN8nAgent(v); }}
+                  onClick={(e) => { e.stopPropagation(); handleRunN8nAgent(r.agent_key); }}
                   className="text-xs bg-[#6366F1] text-white px-2.5 py-1 rounded hover:bg-[#4F46E5] transition-colors whitespace-nowrap"
                 >
                   <i className="ri-play-line mr-0.5"></i>Run
@@ -1011,6 +1009,14 @@ export default function SupaAdminClient({
             ))}
             {drawerMode === "user" && (
               <div className="pt-3 flex gap-2">
+                {["landlord", "tenant", "contractor"].includes(drawerData.role) && (
+                  <button
+                    onClick={() => handleImpersonate(drawerData)}
+                    className="text-xs bg-[#6366F1] text-white px-3 py-2 rounded-lg hover:bg-[#4F46E5] transition-colors whitespace-nowrap"
+                  >
+                    <i className="ri-eye-2-line mr-1"></i>Preview as {roleLabels[drawerData.role]}
+                  </button>
+                )}
                 <button
                   onClick={() => setConfirmModal({
                     title: "Change Role",
