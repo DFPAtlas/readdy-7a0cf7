@@ -167,6 +167,25 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
+      <section className="py-20 px-6 lg:px-12 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#3A3F3A] text-center mb-8">Integration FAQs</h2>
+          <div className="space-y-4">
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">How do integrations work?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">LetHub connects to your tools through secure APIs and pre-built connectors. Once linked, data such as rent payments, financial records and property listings sync automatically, so you stop re-keying information between systems.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">Can I build my own integration?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Yes. Our API gives developers full access to properties, tenancies, maintenance and compliance data, with per-key permissions and full audit logging for every request.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">Which integration should I set up first?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Most agencies start with accounting (Xero or QuickBooks) and rent collection (GoCardless or Stripe), then add property portals like Rightmove and Zoopla once their listings are ready to syndicate.</p>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
     </main>
   );

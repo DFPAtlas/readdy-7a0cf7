@@ -195,6 +195,25 @@ export default function BookDemoPage() {
         </div>
       </div>
 
+      <section className="py-20 px-6 lg:px-12 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#3A3F3A] text-center mb-8">What to expect from your demo</h2>
+          <div className="space-y-4">
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">How long is the demo?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Most Enterprise demos run for 30&ndash;45 minutes. We tailor the session to your portfolio size and workflows, and leave plenty of time for questions.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">What do I need to prepare?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Nothing in advance. It helps to have a rough idea of your portfolio size and current pain points, but our team will guide the conversation either way.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">Is there any obligation?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">No. The demo is completely free and there is no obligation to subscribe afterwards. You can also try the interactive self-service demo at any time without speaking to our team.</p>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
     </main>
   );

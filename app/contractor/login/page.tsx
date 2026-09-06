@@ -254,6 +254,16 @@ export default function ContractorLoginPage() {
             </div>
           </div>
 
+          <div className="mt-6 p-5 rounded-xl border border-[#E2E8F0] bg-white">
+            <h2 className="text-sm font-semibold text-[#3A3F3A] mb-3">What is the Contractor Portal?</h2>
+            <p className="text-xs text-[#687068] leading-relaxed mb-3">
+              The LetHub Contractor Portal gives tradespeople secure access to the jobs, quotes and documents an agency has shared with them — view assigned maintenance work, submit quotes, upload invoices and track progress in one place.
+            </p>
+            <p className="text-xs text-[#687068] leading-relaxed">
+              Access is managed by the agent or landlord who invited you. If you haven&apos;t received an invitation, please contact the agency directly — contractor accounts are created through secure invitations rather than open sign-up.
+            </p>
+          </div>
+
           <div className="text-center mt-6">
             <Link href="/login" className="text-xs text-[#687068] hover:text-[#3A3F3A] transition-colors">
               Are you an agent? Sign in here

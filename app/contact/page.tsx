@@ -236,6 +236,25 @@ export default function ContactPage() {
         </div>
       </section>
 
+      <section className="py-20 px-6 lg:px-12 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#3A3F3A] text-center mb-8">Frequently asked questions</h2>
+          <div className="space-y-4">
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">How quickly will you respond?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">We aim to reply to every enquiry within one working day. Existing customers using the in-dashboard support channel typically hear back within two hours during business hours.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">Can I speak to someone directly?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Yes. Call our Manchester office on 0161 234 5678, Monday to Friday, 9am&ndash;6pm GMT. For account-specific questions, the dashboard support channel is usually the fastest route.</p>
+            </div>
+            <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">I&apos;m a journalist or partner — who should I contact?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Select &quot;Press &amp; media&quot; or &quot;Partnership opportunity&quot; from the reason dropdown and your message will be routed to the right team. We respond to media and partnership enquiries directly.</p>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
     </main>
   );

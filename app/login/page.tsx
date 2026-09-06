@@ -147,6 +147,27 @@ export default function LoginPage() {
         <p className="text-center text-sm text-[#687068] mt-6">
           Don&apos;t have an account? <Link href="/register" className="text-[#C28A78] font-medium hover:underline">Create one</Link>
         </p>
+
+        <div className="mt-8 pt-6 border-t border-[#E2E8F0]">
+          <h2 className="text-sm font-semibold text-[#3A3F3A] mb-3">Everything in one place</h2>
+          <p className="text-xs text-[#687068] leading-relaxed mb-4">
+            LetHub brings tenancy management, compliance tracking, maintenance, rent collection and owner &amp; tenant portals into a single platform for UK agents and landlords.
+          </p>
+          <ul className="space-y-2">
+            <li className="flex items-start gap-2 text-xs text-[#687068]">
+              <i className="ri-check-line text-[#7A9A7E] mt-0.5"></i>
+              <span>Automated compliance alerts for gas safety, EPCs and EICRs</span>
+            </li>
+            <li className="flex items-start gap-2 text-xs text-[#687068]">
+              <i className="ri-check-line text-[#7A9A7E] mt-0.5"></i>
+              <span>Rent collection with arrears tracking and automated reminders</span>
+            </li>
+            <li className="flex items-start gap-2 text-xs text-[#687068]">
+              <i className="ri-check-line text-[#7A9A7E] mt-0.5"></i>
+              <span>Secure owner and tenant portals with self-service access</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

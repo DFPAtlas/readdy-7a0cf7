@@ -65,6 +65,31 @@ export default function AboutPage() {
         </div>
       </section>
 
+      <section className="py-20 px-6 lg:px-12 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-[#3A3F3A] text-center mb-4">Our journey so far</h2>
+          <p className="text-[#687068] text-center mb-12 max-w-2xl mx-auto">From a shared frustration to a platform trusted by agencies across the UK.</p>
+          <div className="space-y-6">
+            {[
+              { year: "2021", title: "LetHub is founded", desc: "Founded in Manchester by a small team of property and technology professionals who believed legacy software was holding the industry back." },
+              { year: "2022", title: "First agency customers", desc: "We onboarded our first letting agents and landlords, iterating rapidly on real-world feedback from hundreds of properties under management." },
+              { year: "2024", title: "AI and automation", desc: "Launched AI-powered maintenance triage, compliance risk scoring and the Property Health Index to give agencies predictive insight." },
+              { year: "2026", title: "A complete platform", desc: "Today LetHub serves agents, landlords, tenants and contractors across England, Scotland, Wales and Northern Ireland with one connected platform." },
+            ].map((m) => (
+              <div key={m.year} className="flex items-start gap-6">
+                <div className="w-20 flex-shrink-0">
+                  <span className="text-2xl font-bold text-[#C28A78]">{m.year}</span>
+                </div>
+                <div className="flex-1 bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-5">
+                  <h3 className="font-bold text-[#3A3F3A] mb-1">{m.title}</h3>
+                  <p className="text-sm text-[#687068] leading-relaxed">{m.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="py-20 px-6 lg:px-12 bg-[#FAFBFC]">
         <div className="max-w-3xl mx-auto text-center bg-gradient-to-r from-[#C28A78] to-[#2D5A3D] rounded-2xl p-10 text-white">
           <h2 className="text-2xl font-bold mb-3">Want to learn more?</h2>

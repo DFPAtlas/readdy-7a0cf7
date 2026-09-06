@@ -34,6 +34,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <head>
+        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+        <link rel="preconnect" href="https://readdy.ai" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://readdy.ai" />
+        <link rel="preconnect" href="https://public.readdy.ai" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://public.readdy.ai" />
+        <link
+          rel="preload"
+          href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css"
+          as="style"
+        />
         <style>{`
           @keyframes slide-up {
             from {

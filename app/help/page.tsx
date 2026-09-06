@@ -65,6 +65,9 @@ export default function HelpPage() {
             <p className="text-lg text-[#687068] max-w-2xl mx-auto mb-8">
               Find guides, tutorials, and answers to common questions about using LetHub.
             </p>
+            <p className="text-sm text-[#687068] max-w-2xl mx-auto -mt-4 mb-8 leading-relaxed">
+              Whether you&apos;re just getting started, managing a growing portfolio, or preparing for the Renters&apos; Rights Bill, our step-by-step articles walk you through every part of the platform — from adding your first property to automating compliance and rent collection.
+            </p>
             <div className="max-w-xl mx-auto relative">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <i className="ri-search-line text-[#94A3B8]"></i>

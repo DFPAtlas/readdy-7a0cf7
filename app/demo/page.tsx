@@ -129,6 +129,24 @@ export default function DemoPage() {
             <p className="text-white/50 text-xs mt-4">Demo session resets when you log out. No data is saved.</p>
           </div>
         </div>
+
+        <section className="mt-16">
+          <h2 className="text-2xl font-bold text-[#3A3F3A] text-center mb-8">Demo FAQs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">What is the demo account?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">The demo lets you explore a realistic estate agent account — London Lettings Demo Agency — with 42 sample properties, tenants, compliance records and more. Nothing you do affects real data.</p>
+            </div>
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">Do I need to sign up?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">No. The demo works without an account. Just click &quot;Enter Demo Dashboard&quot; and you&apos;ll be taken straight in — no email or card required.</p>
+            </div>
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
+              <h3 className="font-semibold text-[#3A3F3A] mb-2">What can I explore?</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">Browse the portfolio, view compliance and maintenance tracking, explore rent and payments, and see how owner and tenant portals work — all with sample data.</p>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
