@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { platformProperties, type PlatformProperty } from "./AdminData";
 
 interface SupabaseProperty {
@@ -112,9 +113,13 @@ export default function QRCodeManager() {
     setSaving(true);
 
     try {
+      const { data: session } = await supabase.auth.getSession();
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-property`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.session?.access_token || ""}`,
+        },
         body: JSON.stringify({
           name: newProperty.name,
           address: newProperty.address,
@@ -133,9 +138,9 @@ export default function QRCodeManager() {
 
       const data = await res.json();
       const newQR: QRProperty = {
-        id: data.id,
-        name: data.name,
-        address: data.address,
+        id: data.property?.id,
+        name: data.property?.name,
+        address: data.property?.address,
         city: newProperty.city,
         postcode: newProperty.postcode,
         status: "Active",
