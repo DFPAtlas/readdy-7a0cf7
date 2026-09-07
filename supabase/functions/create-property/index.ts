@@ -298,16 +298,26 @@ Deno.serve(async (req: Request) => {
         return fail(req, 400, "INVALID_LANDLORD", "The supplied landlord_id does not exist.");
       }
 
-      if (
-        input.requestedAccountId &&
-        landlord.managing_agency_id &&
-        landlord.managing_agency_id !== input.requestedAccountId
-      ) {
-        return fail(req, 403, "ACCOUNT_MISMATCH", "The account does not match the target landlord.");
+      if (input.requestedAccountId) {
+        const { data: account, error: accountError } = await admin
+          .from("agencies")
+          .select("id")
+          .eq("id", input.requestedAccountId)
+          .maybeSingle();
+
+        if (accountError) {
+          return fail(req, 500, "ACCOUNT_LOOKUP_FAILED", "Unable to resolve the supplied account.");
+        }
+        if (!account) {
+          return fail(req, 400, "ACCOUNT_NOT_FOUND", "The supplied account_id does not exist.");
+        }
+        if (landlord.managing_agency_id !== input.requestedAccountId) {
+          return fail(req, 403, "ACCOUNT_MISMATCH", "The account does not match the target landlord.");
+        }
       }
 
       landlordId = landlord.id;
-      accountId = landlord.managing_agency_id || input.requestedAccountId || null;
+      accountId = landlord.managing_agency_id || null;
     }
 
     if (role !== "platform_admin") {
@@ -342,7 +352,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!plan.is_enterprise) {
-        const maxProperties = typeof plan.max_properties === "number" ? plan.max_properties : 5;
+        const maxProperties = plan.max_properties;
+        if (
+          typeof maxProperties !== "number" ||
+          !Number.isFinite(maxProperties) ||
+          maxProperties < 0
+        ) {
+          return fail(req, 500, "PLAN_LIMIT_INVALID", "Your plan's property limit is misconfigured.");
+        }
 
         const countQuery = role === "landlord"
           ? admin.from("properties").select("id", { count: "exact", head: true }).eq("landlord_id", landlordId)

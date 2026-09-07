@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { isDemoAccount } from "@/lib/demoMode";
 import { platformProperties, type PlatformProperty } from "./AdminData";
 
 interface SupabaseProperty {
@@ -48,6 +49,7 @@ function supabaseToQR(p: SupabaseProperty): QRProperty {
 export default function QRCodeManager() {
   const [mockProps] = useState<PlatformProperty[]>(platformProperties);
   const [supaProps, setSupaProps] = useState<QRProperty[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -63,10 +65,31 @@ export default function QRCodeManager() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/list-properties`);
+        const { data: session } = await supabase.auth.getSession();
+        const user = session?.session?.user;
+        const demo = isDemoAccount(user ?? null);
+        setDemoMode(demo);
+
+        if (demo) {
+          setLoading(false);
+          return;
+        }
+
+        const token = session?.session?.access_token;
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/list-properties`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         if (res.ok) {
-          const data: SupabaseProperty[] = await res.json();
-          setSupaProps(data.map(supabaseToQR));
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.properties)) {
+            setSupaProps(data.properties.map(supabaseToQR));
+          }
         }
       } catch {}
       setLoading(false);
@@ -74,7 +97,7 @@ export default function QRCodeManager() {
     load();
   }, []);
 
-  const allProperties: QRProperty[] = [...mockProps.map(platformToQR), ...supaProps];
+  const allProperties: QRProperty[] = demoMode ? mockProps.map(platformToQR) : supaProps;
 
   const filteredProperties = allProperties.filter((p) => {
     const s = search.toLowerCase();
