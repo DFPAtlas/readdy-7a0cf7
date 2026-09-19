@@ -44,7 +44,7 @@ The root TypeScript and ESLint configuration validates the Next.js application. 
 
 Configure the GitHub ruleset for `main` to require a pull request and all three checks before merging. The connected GitHub app used to prepare this branch cannot change repository rulesets, so this is a one-time repository-admin setting.
 
-Repository controls reject tracked environment files, generated output, private-key formats, missing lockfiles and invalid or out-of-order Supabase migration filenames.
+Repository controls reject tracked environment files, generated output, private-key formats, missing lockfiles and invalid or out-of-order Supabase migration filenames. Migration numbering validation is syntactic only; production migration authority and replay rules are defined in `supabase/SCHEMA_AUTHORITY.md`.
 
 ## Production runtime
 
