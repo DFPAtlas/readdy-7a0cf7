@@ -82,19 +82,33 @@ The webhook still rejects every request without a valid Stripe signature.
 
 ## Database migrations
 
-Apply every migration in filename order:
+The existing production project `gejxrnreuafnyzwrchvy` must **not** be brought up to date by replaying the numbered migration directory from `001`.
+
+The repository files `001`–`006` are historical reconstruction/hardening records over a schema that was partly created outside tracked migrations. `007` and `008` are repository backfills of production changes already recorded in the live Supabase migration ledger. Therefore **none of `001`–`008` should be blindly replayed against existing production**.
+
+Before any database deployment:
+
+1. Read `supabase/SCHEMA_AUTHORITY.md`.
+2. Confirm the live schema fingerprint matches the latest `app_private.schema_authority` entry.
+3. Confirm the live `supabase_migrations.schema_migrations` ledger.
+4. Resolve any drift before applying new SQL.
+5. Introduce ordinary future schema work only as a new forward-only migration starting at `009_...`.
+6. Test that new migration in a Supabase development branch cloned from the authoritative production state.
+7. Apply only the reviewed migration that is not already present in the live ledger.
+
+A blank database cannot currently be reconstructed safely by replaying `001`–`008`; use an authoritative schema snapshot/branch workflow instead.
+
+Run `npm run check:migrations` before deployment. It validates repository numbering, duplicate numbers, filename format, empty SQL files and unresolved merge markers. Passing this syntactic check does **not** mean historical migrations are safe to replay.
+
+The documented Batch 0B live ledger contains:
 
 ```text
-001_core_schema.sql
-002_schema_foundation.sql
-003_security_containment.sql
-004_auth_rbac_hardening.sql
-005_billing_authority.sql
+20260728184005  fix_permissive_rls_policies        -> 007_fix_permissive_rls_policies.sql
+20260728213651  batch_0a_immediate_containment     -> exact numbered SQL counterpart not yet identified
+20260728214449  batch_0b_schema_authority          -> 008_schema_authority.sql
 ```
 
-Run `npm run check:migrations` before deployment. It rejects gaps, duplicate numbers, invalid filenames, empty SQL files and unresolved merge markers.
-
-Migration 005 removes browser write access to subscription state and changes any paid/trial row without a Stripe subscription ID to `incomplete`.
+The Batch 0A provenance gap must be resolved during live Supabase drift verification; do not manufacture a replacement migration.
 
 ## Build and start
 
