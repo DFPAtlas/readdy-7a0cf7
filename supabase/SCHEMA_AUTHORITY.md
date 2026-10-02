@@ -41,9 +41,23 @@ reconstruction and hardening work; they must **not** be replayed against product
 | `006_enable_missing_rls.sql` | Enable + force RLS on 21 tables | Historical — do not replay |
 | `007_fix_permissive_rls_policies.sql` | Re-scope permissive RLS policies | Already applied live (see below) |
 | `008_schema_authority.sql` | Authority ledger + fingerprint function | Already applied live (see below) |
+| `009_tenant_isolation_hardening.sql` | Revoke `TRUNCATE` from browser roles, stop future public tables granting `TRUNCATE` to `anon`/`authenticated`, drop cross-agency read policies on contractor tables | Forward-only — verify live status before applying |
 
-There are currently **no forward-only migrations** in the repository. The next forward
-migration must be numbered `009`.
+`009_tenant_isolation_hardening.sql` is the first forward-only migration after the
+historical/reconciliation chain. Its live application status must be verified against the
+production Supabase migration ledger before deployment. The next new migration must be
+numbered `010`.
+
+### Forward-only migration record: `009_tenant_isolation_hardening.sql`
+
+Classification: **Forward-only security hardening migration — verify live migration status before applying.**
+
+Purpose:
+
+- Revoke `TRUNCATE` from browser roles.
+- Prevent future public tables from inheriting `TRUNCATE` for `anon`/`authenticated`.
+- Remove the cross-agency read policy `cp_agency_read` from `contractor_profiles`.
+- Remove the cross-agency read policy `cp_perf_agency_read` from `contractor_performance`.
 
 ### Live Supabase migration history
 
@@ -92,6 +106,13 @@ limit 1;
 ```
 
 A different fingerprint without a corresponding reviewed migration means the database has drifted from its recorded authority.
+
+Before applying any new SQL to production, the deployment verification must:
+
+1. Verify that `app_private.compute_public_schema_authority()` returns a value.
+2. Compare that result with the latest record in `app_private.schema_authority`.
+3. Check `supabase_migrations.schema_migrations` to confirm which migrations are already recorded live.
+4. Resolve any mismatch between the computed fingerprint, the recorded authority and the live migration ledger before applying new SQL.
 
 ## Type generation
 
