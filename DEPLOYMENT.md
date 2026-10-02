@@ -82,19 +82,20 @@ The webhook still rejects every request without a valid Stripe signature.
 
 ## Database migrations
 
-Apply every migration in filename order:
+> **DO NOT run migrations 001–008 sequentially against the existing production database.**
 
-```text
-001_core_schema.sql
-002_schema_foundation.sql
-003_security_containment.sql
-004_auth_rbac_hardening.sql
-005_billing_authority.sql
-```
+The existing production Supabase database is authoritative. Its live schema and migration ledger already reflect the accepted historical work, so the repository migration files are not a replay script.
 
-Run `npm run check:migrations` before deployment. It rejects gaps, duplicate numbers, invalid filenames, empty SQL files and unresolved merge markers.
+- Migrations `001` through `006` are historical reconstruction/hardening records and must not be replayed against production.
+- Migration `007_fix_permissive_rls_policies.sql` is already represented in the live production migration history.
+- Migration `008_schema_authority.sql` is already represented in the live production migration history.
+- Migration `009_tenant_isolation_hardening.sql` is the first forward-only migration after the historical/reconciliation chain.
+- Before applying migration `009`, verify the production schema fingerprint and `supabase_migrations.schema_migrations`.
+- Only apply migration `009` if it is not already recorded as applied in production.
+- The next new migration must be numbered `010`.
+- Future migrations must be tested on a Supabase development branch cloned from the authoritative production state.
 
-Migration 005 removes browser write access to subscription state and changes any paid/trial row without a Stripe subscription ID to `incomplete`.
+Run `npm run check:migrations` before deployment. It validates migration files only and does not prove historical migrations are safe to replay.
 
 ## Build and start
 
