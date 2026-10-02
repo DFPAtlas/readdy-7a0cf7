@@ -12,6 +12,7 @@ import { useEntitlements } from "@/lib/useEntitlements";
 import { supabase } from "@/lib/supabaseClient";
 import { getPortalStatus, portalTypeConfig, portalDisclaimer, PortalIssue } from "@/lib/portalStatus";
 import { portalProperties, PortalProperty, statusBadge as oldStatusBadge, statusLabel as oldStatusLabel } from "./PortalSetupData";
+import { fetchInviteTargets, sendPortalInvite, InviteTargets } from "@/lib/portalInvites";
 
 interface FlatPortalUser {
   id: string
@@ -41,6 +42,7 @@ export default function PortalSetupPage() {
   const [disableConfirm, setDisableConfirm] = useState<FlatPortalUser | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [inviteTargets, setInviteTargets] = useState<InviteTargets>({ owners: [], tenants: [] });
   const { isReadOnly } = useEntitlements();
 
   const showToast = useCallback((msg: string) => {
@@ -64,6 +66,7 @@ export default function PortalSetupPage() {
       return;
     }
     fetchData();
+    loadInviteTargets();
   }, []);
 
   async function fetchData() {
@@ -130,6 +133,15 @@ export default function PortalSetupPage() {
       setError(e.message || "Failed to load portal data");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadInviteTargets() {
+    try {
+      const targets = await fetchInviteTargets(supabase);
+      setInviteTargets(targets);
+    } catch {
+      setInviteTargets({ owners: [], tenants: [] });
     }
   }
 
@@ -242,7 +254,7 @@ export default function PortalSetupPage() {
     }
   };
 
-  const handleInviteSend = (data: { portalType: string; recordId: string; email: string; message: string }) => {
+  const handleInviteSend = async (data: { portalType: string; recordId: string; email: string; message: string }) => {
     if (demoMode) {
       setSending(true);
       const propertyId = data.recordId;
@@ -267,9 +279,29 @@ export default function PortalSetupPage() {
       return;
     }
 
-    showToast("Live invitation sending requires Supabase Edge Function integration. Invitation queued for delivery.");
+    setSending(true);
+    const result = await sendPortalInvite(supabase, {
+      portalType: data.portalType,
+      propertyId: data.recordId,
+      email: data.email,
+      message: data.message,
+    });
     setSending(false);
-    setShowInviteWizard(false);
+
+    if (result.ok) {
+      showToast(result.message);
+      setShowInviteWizard(false);
+      if (result.link) {
+        try {
+          await navigator.clipboard.writeText(result.link);
+        } catch {
+          // Clipboard access is optional; the invitation email carries the link.
+        }
+      }
+      fetchData();
+    } else {
+      showToast(result.message);
+    }
   };
 
   const handleResendInvite = (user: FlatPortalUser) => {
@@ -590,8 +622,8 @@ export default function PortalSetupPage() {
           onClose={() => setShowInviteWizard(false)}
           onSend={handleInviteSend}
           sending={sending}
-          eligibleOwners={properties.filter((p) => p.ownerPortalStatus === "not_invited").map((p) => ({ id: p.id, name: p.ownerName, email: p.ownerEmail, relatedRecord: p.propertyName, recordLabel: "Property" }))}
-          eligibleTenants={properties.filter((p) => p.tenantPortalStatus === "not_invited").map((p) => ({ id: p.id, name: p.tenantName, email: p.tenantEmail, relatedRecord: p.propertyName, recordLabel: "Property" }))}
+          eligibleOwners={demoMode ? properties.filter((p) => p.ownerPortalStatus === "not_invited").map((p) => ({ id: p.id, name: p.ownerName, email: p.ownerEmail, relatedRecord: p.propertyName, recordLabel: "Property" })) : inviteTargets.owners}
+          eligibleTenants={demoMode ? properties.filter((p) => p.tenantPortalStatus === "not_invited").map((p) => ({ id: p.id, name: p.tenantName, email: p.tenantEmail, relatedRecord: p.propertyName, recordLabel: "Property" })) : inviteTargets.tenants}
           eligibleContractors={[]}
         />
       )}

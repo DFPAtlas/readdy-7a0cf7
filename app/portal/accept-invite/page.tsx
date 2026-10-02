@@ -2,12 +2,45 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+
+interface InviteDetails {
+  type: "owner" | "tenant";
+  emailHint: string | null;
+  date: string;
+}
+
+async function callInviteFunction(payload: Record<string, unknown>): Promise<{ ok: boolean; status: number; data: any }> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  const response = await fetch(`${base}/functions/v1/accept-portal-invite`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => null);
+  return { ok: response.ok, status: response.status, data };
+}
+
+function messageFor(data: any, fallback: string): string {
+  const code = data?.code;
+  if (code === "expired") return "This invitation has expired. Please contact your letting agent for a new one.";
+  if (code === "revoked") return "This invitation has been revoked. Please contact your letting agent.";
+  if (code === "already_used") return "This invitation has already been used. Please sign in to your portal.";
+  if (code === "not_found") return "Invitation not found. Please check your invite code and try again.";
+  if (code === "email_mismatch") return "This invitation was issued to a different email address.";
+  if (code === "invite_required") return "Contractor access needs a trusted invitation that is not available yet. Please contact your agency.";
+  return typeof data?.error === "string" && data.error ? data.error : fallback;
+}
 
 export default function AcceptInvitePage() {
   const [token, setToken] = useState("");
-  const [step, setStep] = useState<"input" | "details" | "register" | "accepted">("input");
-  const [inviteDetails, setInviteDetails] = useState<{ type: string; portalAccessId: string; email: string; date: string } | null>(null);
+  const [step, setStep] = useState<"input" | "register" | "accepted">("input");
+  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
+  const [acceptedRole, setAcceptedRole] = useState<string>("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,80 +52,38 @@ export default function AcceptInvitePage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get("token");
-      if (urlToken) {
-        setToken(urlToken);
-      }
+      if (urlToken) setToken(urlToken);
     }
   }, []);
 
   const handleManualLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (token.trim().length < 4) {
+    if (token.trim().length < 16) {
       setError("Please enter a valid invite code.");
       return;
     }
     setLoading(true);
-
-    const { data: invite, error: inviteError } = await supabase
-      .from("portal_invites")
-      .select("id, portal_access_id, status, expires_at, created_at")
-      .eq("token_hash", token.trim())
-      .maybeSingle();
-
-    if (inviteError) {
-      setLoading(false);
+    try {
+      const { ok, data } = await callInviteFunction({ mode: "verify", token: token.trim() });
+      if (!ok) {
+        setError(messageFor(data, "Unable to verify this invitation. Please try again."));
+        return;
+      }
+      setInviteDetails({
+        type: data.portal_type === "owner" ? "owner" : "tenant",
+        emailHint: data.email_hint || null,
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      });
+      if (data.email_hint && data.email_hint.includes("@")) {
+        setEmail("");
+      }
+      setStep("register");
+    } catch {
       setError("Unable to verify this invitation. Please try again.");
-      return;
-    }
-
-    if (!invite) {
+    } finally {
       setLoading(false);
-      setError("Invitation not found. Please check your invite code and try again.");
-      return;
     }
-
-    if (invite.status === "accepted") {
-      setLoading(false);
-      setError("This invitation has already been accepted. Please sign in to your portal.");
-      return;
-    }
-
-    if (invite.status === "revoked") {
-      setLoading(false);
-      setError("This invitation has been revoked. Please contact your letting agent.");
-      return;
-    }
-
-    if (new Date(invite.expires_at) < new Date()) {
-      setLoading(false);
-      setError("This invitation has expired. Please contact your letting agent for a new one.");
-      return;
-    }
-
-    const { data: portalAccess } = await supabase
-      .from("portal_access")
-      .select("id, user_type")
-      .eq("id", invite.portal_access_id)
-      .maybeSingle();
-
-    if (!portalAccess) {
-      setLoading(false);
-      setError("Unable to verify this invitation. Please contact your letting agent.");
-      return;
-    }
-
-    const inviteType = portalAccess.user_type === "owner" ? "owner" : "tenant";
-
-    setInviteDetails({
-      type: inviteType,
-      portalAccessId: invite.portal_access_id,
-      email: "",
-      date: new Date(invite.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    });
-
-    setStep("register");
-    setLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -106,54 +97,34 @@ export default function AcceptInvitePage() {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
     setLoading(true);
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: inviteDetails?.type === "owner" ? "landlord" : "tenant",
-        },
-      },
-    });
-
-    if (authError) {
-      setError(authError.message);
+    try {
+      const { ok, data } = await callInviteFunction({
+        mode: "accept",
+        token: token.trim(),
+        email: email.trim(),
+        password,
+        full_name: fullName.trim(),
+      });
+      if (!ok) {
+        setError(messageFor(data, "We could not accept this invitation."));
+        return;
+      }
+      setAcceptedRole(String(data.role || (inviteDetails?.type === "owner" ? "landlord" : "tenant")));
+      setStep("accepted");
+    } catch {
+      setError("We could not accept this invitation. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const userId = authData.user?.id;
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    if (inviteDetails?.type === "owner") {
-      await supabase.from("owner_portal_access").upsert({
-        profile_id: userId,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      }, { onConflict: "profile_id" });
-    } else {
-      await supabase.from("tenant_portal_access").upsert({
-        profile_id: userId,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      }, { onConflict: "profile_id" });
-    }
-
-    setStep("accepted");
-    setLoading(false);
   };
 
   if (step === "accepted") {
+    const isOwner = inviteDetails?.type === "owner" || acceptedRole === "landlord";
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
@@ -161,10 +132,10 @@ export default function AcceptInvitePage() {
             <i className="ri-check-line text-[#10B981] text-3xl"></i>
           </div>
           <h1 className="text-2xl font-bold text-[#3A3F3A] mb-2">Invite Accepted!</h1>
-          <p className="text-sm text-[#687068] mb-2">Your {inviteDetails?.type === "owner" ? "owner" : "tenant"} portal account is ready.</p>
+          <p className="text-sm text-[#687068] mb-2">Your {isOwner ? "owner" : "tenant"} portal account is ready.</p>
           <p className="text-sm text-[#687068] mb-8">You can now sign in to access your dashboard.</p>
           <Link
-            href={inviteDetails?.type === "owner" ? "/owner/login" : "/tenant/login"}
+            href={isOwner ? "/owner/login" : "/tenant/login"}
             className="inline-flex items-center gap-2 bg-[#C28A78] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap"
           >
             Go to Sign In
@@ -184,7 +155,7 @@ export default function AcceptInvitePage() {
               <span className="font-['Pacifico'] text-3xl text-[#C28A78]">LetHub</span>
             </Link>
             <h1 className="text-2xl font-bold text-[#3A3F3A] mt-4">Create Your Account</h1>
-            <p className="text-sm text-[#687068] mt-1">You have been invited as an {inviteDetails.type}</p>
+            <p className="text-sm text-[#687068] mt-1">You have been invited as a{inviteDetails.type === "owner" ? "n owner" : " tenant"}</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm">
@@ -225,9 +196,12 @@ export default function AcceptInvitePage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
+                  placeholder={inviteDetails.emailHint || "you@email.com"}
                   className="w-full px-3 py-2.5 border border-[#E2E8F0] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white"
                 />
+                {inviteDetails.emailHint && (
+                  <p className="text-xs text-[#94A3B8] mt-1.5">Use the email this invitation was sent to: {inviteDetails.emailHint}</p>
+                )}
               </div>
 
               <div>
@@ -236,7 +210,7 @@ export default function AcceptInvitePage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   className="w-full px-3 py-2.5 border border-[#E2E8F0] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] bg-white"
                 />
               </div>
@@ -262,7 +236,7 @@ export default function AcceptInvitePage() {
             </form>
 
             <div className="mt-4 text-center">
-              <button onClick={() => setStep("input")} className="text-xs text-[#687068] hover:text-[#3A3F3A] transition-colors">
+              <button onClick={() => { setStep("input"); setError(""); }} className="text-xs text-[#687068] hover:text-[#3A3F3A] transition-colors">
                 Use a different invite code
               </button>
             </div>

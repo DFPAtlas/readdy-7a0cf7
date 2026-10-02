@@ -42,11 +42,12 @@ reconstruction and hardening work; they must **not** be replayed against product
 | `007_fix_permissive_rls_policies.sql` | Re-scope permissive RLS policies | Already applied live (see below) |
 | `008_schema_authority.sql` | Authority ledger + fingerprint function | Already applied live (see below) |
 | `009_tenant_isolation_hardening.sql` | Revoke `TRUNCATE` from browser roles, stop future public tables granting `TRUNCATE` to `anon`/`authenticated`, drop cross-agency read policies on contractor tables | Forward-only — verify live status before applying |
+| `010_registration_invite_hardening.sql` | Restrict public self-registration to `estate_agent_admin`/`landlord`, least-privilege placeholder profile on signup, lock down portal invite/access browser access | Forward-only — verify live status before applying |
 
 `009_tenant_isolation_hardening.sql` is the first forward-only migration after the
 historical/reconciliation chain. Its live application status must be verified against the
 production Supabase migration ledger before deployment. The next new migration must be
-numbered `010`.
+numbered `011`.
 
 ### Forward-only migration record: `009_tenant_isolation_hardening.sql`
 
@@ -58,6 +59,19 @@ Purpose:
 - Prevent future public tables from inheriting `TRUNCATE` for `anon`/`authenticated`.
 - Remove the cross-agency read policy `cp_agency_read` from `contractor_profiles`.
 - Remove the cross-agency read policy `cp_perf_agency_read` from `contractor_performance`.
+
+### Forward-only migration record: `010_registration_invite_hardening.sql`
+
+Classification: **Forward-only security hardening migration — verify live migration status before applying.**
+
+Purpose:
+
+- Restrict public self-registration to `estate_agent_admin` and `landlord` by tightening `enforce_profile_role_integrity()`.
+- Assign new auth users a least-privilege placeholder profile (`client`) in `handle_new_user()` so tenant/contractor/platform admin roles can only come from trusted service-role flows.
+- Make `portal_invites` unreadable and unwritable from the browser; tokens are validated server-side only.
+- Prevent the browser from creating or amending `portal_access`, `owner_portal_access` and `tenant_portal_access` grants outside agency-managed scope.
+
+Invitation acceptance is performed by the trusted `accept-portal-invite` Edge Function (service role), and self-registration role assignment by `complete-registration`.
 
 ### Live Supabase migration history
 

@@ -4,9 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const selfRegistrationRoles = new Set([
   "estate_agent_admin",
   "landlord",
-  "tenant",
-  "contractor",
 ]);
+
+const placeholderRoles = new Set(["client"]);
 
 function allowedOrigins(): string[] {
   const configured = (Deno.env.get("APP_ORIGINS") || "")
@@ -60,7 +60,7 @@ serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const metadata = user.user_metadata || {};
-    const requestedRole = String(body.role || metadata.requested_role || metadata.role || "");
+    const requestedRole = String(body.role || "").trim();
     const fullName = String(body.full_name || metadata.full_name || "").trim().slice(0, 160);
 
     const { data: existing, error: existingError } = await admin
@@ -70,38 +70,52 @@ serve(async (req: Request) => {
       .maybeSingle();
     if (existingError) throw existingError;
 
-    if (existing) {
+    if (!selfRegistrationRoles.has(requestedRole)) {
+      return reply(req, {
+        error: "This account type is not available for public self-registration. Tenant and contractor accounts are created through a secure invitation.",
+        code: "role_not_permitted",
+      }, 400);
+    }
+
+    const existingRole = existing?.role ? String(existing.role) : "";
+
+    // A profile that already holds a real (non-placeholder) role must never be
+    // changed here. This blocks escalation of an invited tenant, contractor,
+    // agency member or platform admin through public self-registration.
+    if (existing && !placeholderRoles.has(existingRole)) {
       const updatePayload: Record<string, unknown> = { email: user.email || null };
       if (fullName) updatePayload.full_name = fullName;
       const { error } = await admin.from("profiles").update(updatePayload).eq("id", user.id);
       if (error) throw error;
-      return reply(req, { profile_ready: true, role: existing.role, created: false });
+      return reply(req, {
+        profile_ready: true,
+        role: existingRole,
+        created: false,
+        role_applied: false,
+      });
     }
 
-    if (!selfRegistrationRoles.has(requestedRole)) {
-      return reply(req, { error: "The requested account role is not available for self-registration" }, 400);
-    }
+    const accountType = requestedRole === "estate_agent_admin" ? "agency" : "owner";
 
-    const accountType = requestedRole === "estate_agent_admin"
-      ? "agency"
-      : requestedRole === "landlord"
-      ? "owner"
-      : requestedRole;
-
-    const { data: profile, error: insertError } = await admin
+    const { data: profile, error: upsertError } = await admin
       .from("profiles")
-      .insert({
+      .upsert({
         id: user.id,
         email: user.email || null,
         full_name: fullName || user.email || "New user",
         role: requestedRole,
         account_type: accountType,
-      })
+      }, { onConflict: "id" })
       .select("id, role, account_type")
       .single();
-    if (insertError) throw insertError;
+    if (upsertError) throw upsertError;
 
-    return reply(req, { profile_ready: true, role: profile.role, created: true }, 201);
+    return reply(req, {
+      profile_ready: true,
+      role: profile.role,
+      created: !existing,
+      role_applied: true,
+    }, existing ? 200 : 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration setup failed";
     return reply(req, { error: message }, 400);
