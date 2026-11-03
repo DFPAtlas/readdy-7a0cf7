@@ -24,7 +24,9 @@ import {
   PreviewProperty,
 } from "./ImportData";
 
-const nationValues: Record<string, string> = {
+type Nation = "england" | "wales" | "scotland" | "northern_ireland";
+
+const nationValues: Record<string, Nation> = {
   england: "england",
   wales: "wales",
   scotland: "scotland",
@@ -32,7 +34,7 @@ const nationValues: Record<string, string> = {
   "northern_ireland": "northern_ireland",
 };
 
-function normalizeNation(value?: string): string {
+function normalizeNation(value?: string): Nation {
   const key = (value || "").trim().toLowerCase();
   if (!key) return "england";
   return nationValues[key] || "england";

@@ -11,6 +11,7 @@ export const arrearsData: Array<{
   totalArrears: number;
   riskRating: "Low" | "Medium" | "High";
   lastContact: string;
+  lastReminderSent: string;
   contactMethod: string;
   tenantPhone: string;
   tenantEmail: string;
@@ -31,6 +32,7 @@ export const arrearsData: Array<{
     totalArrears: 1850,
     riskRating: "Low",
     lastContact: "5 Jun 2026",
+    lastReminderSent: "1 Jun 2026",
     contactMethod: "Email Reminder",
     tenantPhone: "+44 7700 900123",
     tenantEmail: "john.miller@email.com",
@@ -57,6 +59,7 @@ export const arrearsData: Array<{
     totalArrears: 1650,
     riskRating: "Medium",
     lastContact: "4 Jun 2026",
+    lastReminderSent: "1 Jun 2026",
     contactMethod: "SMS Reminder",
     tenantPhone: "+44 7700 900456",
     tenantEmail: "michael.brown@email.com",
@@ -84,6 +87,7 @@ export const arrearsData: Array<{
     totalArrears: 3600,
     riskRating: "High",
     lastContact: "3 Jun 2026",
+    lastReminderSent: "28 May 2026",
     contactMethod: "Formal Warning Letter",
     tenantPhone: "+44 7700 900789",
     tenantEmail: "lisa.chen@email.com",
@@ -115,6 +119,7 @@ export const arrearsData: Array<{
     totalArrears: 950,
     riskRating: "Low",
     lastContact: "6 Jun 2026",
+    lastReminderSent: "1 Jun 2026",
     contactMethod: "Email Reminder",
     tenantPhone: "+44 7700 900321",
     tenantEmail: "sarah.jenkins@email.com",
@@ -140,6 +145,7 @@ export const arrearsData: Array<{
     totalArrears: 2100,
     riskRating: "Medium",
     lastContact: "5 Jun 2026",
+    lastReminderSent: "1 Jun 2026",
     contactMethod: "Phone Call",
     tenantPhone: "+44 7700 900654",
     tenantEmail: "emily.carter@email.com",
@@ -167,6 +173,7 @@ export const arrearsData: Array<{
     totalArrears: 4200,
     riskRating: "High",
     lastContact: "2 Jun 2026",
+    lastReminderSent: "28 May 2026",
     contactMethod: "Formal Warning Letter",
     tenantPhone: "+44 7700 900987",
     tenantEmail: "emma.wilson@email.com",
@@ -195,6 +202,7 @@ export const arrearsData: Array<{
     totalArrears: 800,
     riskRating: "Low",
     lastContact: "6 Jun 2026",
+    lastReminderSent: "1 Jun 2026",
     contactMethod: "Email Reminder",
     tenantPhone: "+44 7700 900147",
     tenantEmail: "robert.green@email.com",
@@ -220,6 +228,7 @@ export const arrearsData: Array<{
     totalArrears: 4800,
     riskRating: "High",
     lastContact: "3 Jun 2026",
+    lastReminderSent: "28 May 2026",
     contactMethod: "Formal Warning Letter",
     tenantPhone: "+44 7700 900258",
     tenantEmail: "david.thompson@email.com",

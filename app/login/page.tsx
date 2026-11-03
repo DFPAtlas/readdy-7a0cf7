@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { activateDemoSession, deactivateDemoSession } from "@/lib/demoMode";
 import { getRoleHome, normaliseRole } from "@/lib/rbac";
 import EmailOtpLogin from "@/components/auth/EmailOtpLogin";
+import { logSecurityEvent } from "@/lib/securityEvents";
 
 export default function LoginPage() {
   const router = useRouter();
