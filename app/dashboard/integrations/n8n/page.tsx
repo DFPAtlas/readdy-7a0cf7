@@ -67,7 +67,7 @@ export default function N8NIntegrationPage() {
   const filteredAgents = useMemo(() => {
     return agents.filter((a) => {
       if (filterGroup !== "all" && a.agent_group !== filterGroup) return false;
-      if (searchQuery && !a.agent_name.toLowerCase().includes(searchQuery.toLowerCase()) && !a.description.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (searchQuery && !a.agent_name.toLowerCase().includes(searchQuery.toLowerCase()) && !(a.description ?? "").toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
   }, [agents, filterGroup, searchQuery]);
@@ -247,8 +247,8 @@ export default function N8NIntegrationPage() {
                 const meta = getAgentGroupMeta(agent.agent_group);
                 const st = statusConfig[agent.status] || statusConfig.idle;
                 const isExpanded = expandedAgent === agent.id;
-                const lastRunDate = agent.last_run_at ? new Date(agent.last_run_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "Never";
-                const nextRunDate = agent.next_run_at ? new Date(agent.next_run_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "N/A";
+                const lastRunDate = agent.last_run_at ? new Date(agent.last_run_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+                const nextRunDate = agent.next_run_at ? new Date(agent.next_run_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
 
                 return (
                   <div key={agent.id} className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden hover:shadow-sm transition-shadow">
@@ -272,7 +272,7 @@ export default function N8NIntegrationPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-[#94A3B8]">
-                          <span className="font-mono text-[10px]">{agent.n8n_workflow_id}</span>
+                          <span className="font-mono text-[10px]">{agent.n8n_workflow_id || "—"}</span>
                           <span>·</span>
                           <span className="flex items-center gap-1">
                             <div className="w-3 h-3 flex items-center justify-center">
@@ -323,11 +323,11 @@ export default function N8NIntegrationPage() {
                     {/* Expanded Detail */}
                     {isExpanded && (
                       <div className="px-4 pb-4 border-t border-[#F1F5F9] pt-4">
-                        <p className="text-sm text-[#687068] mb-4">{agent.description}</p>
+                        <p className="text-sm text-[#687068] mb-4">{agent.description || "—"}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Workflow ID</p>
-                            <p className="text-xs text-[#3A3F3A] font-mono">{agent.n8n_workflow_id}</p>
+                            <p className="text-xs text-[#3A3F3A] font-mono">{agent.n8n_workflow_id || "—"}</p>
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Last Run</p>
@@ -339,7 +339,7 @@ export default function N8NIntegrationPage() {
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Avg Run Time</p>
-                            <p className="text-xs text-[#3A3F3A]">{Number(agent.average_run_seconds).toFixed(1)}s</p>
+                            <p className="text-xs text-[#3A3F3A]">{formatDuration(agent.average_run_seconds)}</p>
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Records Processed</p>
@@ -347,7 +347,7 @@ export default function N8NIntegrationPage() {
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Webhook URL</p>
-                            <p className="text-xs text-[#94A3B8] font-mono truncate">{agent.n8n_webhook_url || `https://n8n.lethub.co/webhook/${agent.agent_key}`}</p>
+                            <p className="text-xs text-[#94A3B8] font-mono truncate">{agent.n8n_webhook_url || "—"}</p>
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Group</p>
@@ -355,7 +355,7 @@ export default function N8NIntegrationPage() {
                           </div>
                           <div className="bg-[#F8FAFC] rounded-lg p-3">
                             <p className="text-[10px] text-[#94A3B8] mb-0.5">Error</p>
-                            <p className="text-xs text-[#EF4444]">{agent.last_error_message || "None"}</p>
+                            <p className="text-xs text-[#EF4444]">{agent.last_error_message || "—"}</p>
                           </div>
                         </div>
                       </div>
@@ -578,7 +578,8 @@ export default function N8NIntegrationPage() {
                     </div>
                     <input
                       type="text"
-                      defaultValue={agent.n8n_workflow_id}
+                      defaultValue={agent.n8n_workflow_id ?? ""}
+                      placeholder="—"
                       className="flex-1 px-3 py-1.5 text-xs bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[#3A3F3A] font-mono focus:outline-none focus:border-[#C28A78]"
                     />
                     <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusConfig[agent.status]?.text === "text-[#10B981]" ? "bg-[#10B981]/10" : "bg-[#F1F5F9]"}`}>

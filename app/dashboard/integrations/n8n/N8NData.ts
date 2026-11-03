@@ -9,17 +9,19 @@ export interface N8NAgent {
   agent_key: string;
   agent_name: string;
   agent_group: string;
-  description: string;
-  n8n_workflow_id: string;
+  description: string | null;
+  n8n_workflow_id: string | null;
   n8n_webhook_url: string | null;
   status: string;
   enabled: boolean;
+  agency_id: string | null;
   last_run_at: string | null;
+  last_success_at: string | null;
   next_run_at: string | null;
   last_error_at: string | null;
   last_error_message: string | null;
   records_processed: number;
-  average_run_seconds: number;
+  average_run_seconds: number | null;
 }
 
 export interface N8NAgentRun {

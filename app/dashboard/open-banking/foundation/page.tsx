@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import type { Json } from "@/lib/database.types";
 
 interface BankConnection {
   id: string;
@@ -15,10 +16,12 @@ interface BankConnection {
   bank_name: string | null;
   sync_status: string;
   last_sync: string | null;
-  connection_metadata: Record<string, any> | null;
+  connection_metadata: Json | null;
   api_connected: boolean | null;
   error_message: string | null;
   created_at: string | null;
+  agency_id: string | null;
+  updated_at: string | null;
 }
 
 interface BankTransaction {
@@ -32,7 +35,7 @@ interface BankTransaction {
   matched_rent_payment_id: string | null;
   matched_status: string | null;
   category: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Json | null;
 }
 
 export default function OpenBankingFoundationPage() {
