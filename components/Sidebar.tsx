@@ -122,6 +122,24 @@ const agencyGroups: NavGroup[] = [
     ],
   },
   {
+    id: "enterprise",
+    label: "Enterprise",
+    items: [
+      { icon: "ri-building-4-line", label: "Enterprise Ops", href: "/dashboard/enterprise-ops" },
+      { icon: "ri-lock-2-line", label: "Permissions", href: "/dashboard/enterprise-permissions" },
+      { icon: "ri-pie-chart-2-line", label: "Executive Centre", href: "/dashboard/executive-centre" },
+      { icon: "ri-briefcase-4-line", label: "Operations Director", href: "/dashboard/operations-director" },
+      { icon: "ri-store-line", label: "Offices", href: "/dashboard/offices" },
+      { icon: "ri-map-2-line", label: "Regions", href: "/dashboard/regional-management" },
+      { icon: "ri-node-tree", label: "Franchise", href: "/dashboard/franchise" },
+      { icon: "ri-money-pound-circle-line", label: "Marketplace Revenue", href: "/dashboard/marketplace-revenue" },
+      { icon: "ri-hand-coin-line", label: "Monetisation", href: "/dashboard/marketplace-monetisation" },
+      { icon: "ri-git-branch-line", label: "Quote Workflow", href: "/dashboard/quote-workflow" },
+      { icon: "ri-cpu-line", label: "Agent Control Centre", href: "/dashboard/agent-control-centre" },
+      { icon: "ri-code-s-slash-line", label: "API & Webhooks", href: "/dashboard/api" },
+    ],
+  },
+  {
     id: "tools",
     label: "More Tools",
     items: [
@@ -339,10 +357,9 @@ export default function Sidebar({
         <div className="flex h-16 items-center justify-between border-b border-[#EBE5DA] px-4">
           <Link href={home} className={collapsed ? "hidden" : "flex items-center gap-2.5"}>
             <img src="https://readdy.ai/api/search-image?query=A%20sleek%20modern%20minimalist%20logo%20icon%20for%20a%20property%20management%20SaaS%20platform%20featuring%20an%20abstract%20interlocking%20geometric%20building%20shape%20combined%20with%20a%20key%20silhouette%20in%20a%20sophisticated%20dark%20charcoal%20color%20on%20a%20clean%20warm%20off-white%20cream%20background%20professional%20corporate%20identity%20design%20flat%20vector%20style%20no%20text%20no%20letters%20just%20the%20symbol%20icon%20mark&width=96&height=36&seq=1&orientation=landscape" alt="logo" className="h-8 w-auto object-contain" />
-            <span className="font-['Pacifico'] text-xl text-[#3A3F3A]">logo</span>
           </Link>
-          <Link href={home} className={`flex h-8 w-8 items-center justify-center ${collapsed ? "block" : "hidden"}`}>
-            <span className="font-['Pacifico'] text-xl text-[#3A3F3A]">logo</span>
+          <Link href={home} className={`h-8 w-8 items-center justify-center ${collapsed ? "flex" : "hidden"}`}>
+            <img src="https://readdy.ai/api/search-image?query=A%20sleek%20modern%20minimalist%20logo%20icon%20for%20a%20property%20management%20SaaS%20platform%20featuring%20an%20abstract%20interlocking%20geometric%20building%20shape%20combined%20with%20a%20key%20silhouette%20in%20a%20sophisticated%20dark%20charcoal%20color%20on%20a%20clean%20warm%20off-white%20cream%20background%20professional%20corporate%20identity%20design%20flat%20vector%20style%20no%20text%20no%20letters%20just%20the%20symbol%20icon%20mark&width=96&height=36&seq=1&orientation=landscape" alt="logo" className="h-7 w-7 object-contain" />
           </Link>
           <button onClick={() => setCollapsed(!collapsed)} className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#EBE5DA] ${collapsed ? "mx-auto" : ""}`} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>
             <i className={collapsed ? "ri-arrow-right-s-line" : "ri-arrow-left-s-line"}></i>

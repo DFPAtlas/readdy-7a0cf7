@@ -7,6 +7,7 @@ import { normaliseRole, type AppRole } from "@/lib/rbac";
 import { isDemoAccount } from "@/lib/demoMode";
 import { LOGIN_PATH, UNAUTHORISED_PATH, SUSPENDED_PATH } from "@/lib/auth";
 import { getImpersonation } from "@/lib/impersonation";
+import { afterMount } from "@/lib/safeNavigate";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -28,11 +29,14 @@ export default function AuthGuard({
   useEffect(() => {
     let active = true;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const pendingRedirects: Array<() => void> = [];
 
     const redirect = (path: string) => {
-      setTimeout(() => {
-        if (active) router.replace(path);
-      }, 0);
+      pendingRedirects.push(
+        afterMount(() => {
+          if (active) router.replace(path);
+        })
+      );
     };
 
     const check = async () => {
@@ -109,6 +113,7 @@ export default function AuthGuard({
 
     return () => {
       active = false;
+      pendingRedirects.forEach((cancel) => cancel());
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [router, allowedRoles, allowDemo]);

@@ -23,7 +23,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     id: 'agency-profile',
     label: 'Agency Profile',
     icon: 'ri-building-line',
-    description: 'Agency name, business details, contact information, and operational region',
+    description: 'Agency name, workspace role, and the account details your team signs in with',
     level: 'agency',
     requiresAdmin: true,
   },

@@ -6,8 +6,11 @@ import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import EnsureLandlordRecord from "@/components/EnsureLandlordRecord";
 import RoleAccessDenied from "@/components/RoleAccessDenied";
+import NewDeviceSignInBanner from "@/components/dashboard/NewDeviceSignInBanner";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
+import { logSecurityEvent } from "@/lib/securityEvents";
+import { afterMount } from "@/lib/safeNavigate";
 import {
   AppRole,
   canAccessDashboardPath,
@@ -76,6 +79,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           return;
         }
 
+        const marker = `lethub_seclog_${user.id}_${user.last_sign_in_at || "session"}`;
+        if (!localStorage.getItem(marker)) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const provider = sessionData.session?.user.app_metadata?.provider;
+          const method=
+            provider && provider !== "email"
+              ? `Signed in with ${provider.charAt(0).toUpperCase()}${provider.slice(1)}`
+              : "Signed in with email credentials";
+          await logSecurityEvent("sign_in", method);
+          localStorage.setItem(marker, "1");
+        }
+
         const trustedRole = normaliseRole(profile.role);
         if (!active) return;
         if (!trustedRole || trustedRole === "suspended") {
@@ -113,10 +128,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   useEffect(() => {
     if (!ready || !role || accessError) return;
     const usesDedicatedPortalHome = role === "landlord" || role === "tenant" || role === "contractor";
-    if (usesDedicatedPortalHome && pathname === "/dashboard") {
-      router.replace(getRoleHome(role));
-    }
-  }, [accessError, pathname, ready, role]);
+    if (!usesDedicatedPortalHome || pathname !== "/dashboard") return;
+    return afterMount(() => router.replace(getRoleHome(role)));
+  }, [accessError, pathname, ready, role, router]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -130,6 +144,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
+
+  useEffect(() => {
+    const onProfileUpdate = (event: Event) => {
+      const nextName = (event as CustomEvent<string>).detail;
+      if (typeof nextName === "string" && nextName.trim()) setUserName(nextName.trim());
+    };
+    window.addEventListener("account-profile-updated", onProfileUpdate);
+    return () => window.removeEventListener("account-profile-updated", onProfileUpdate);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -357,6 +380,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </header>
 
         <main className="flex-1 p-4 lg:p-6">
+          <NewDeviceSignInBanner />
           {routeAllowed ? children : <RoleAccessDenied role={role} />}
         </main>
       </div>

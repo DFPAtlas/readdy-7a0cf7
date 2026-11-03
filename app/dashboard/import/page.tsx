@@ -24,6 +24,20 @@ import {
   PreviewProperty,
 } from "./ImportData";
 
+const nationValues: Record<string, string> = {
+  england: "england",
+  wales: "wales",
+  scotland: "scotland",
+  "northern ireland": "northern_ireland",
+  "northern_ireland": "northern_ireland",
+};
+
+function normalizeNation(value?: string): string {
+  const key = (value || "").trim().toLowerCase();
+  if (!key) return "england";
+  return nationValues[key] || "england";
+}
+
 export default function ImportPage() {
   const [currentStep, setCurrentStep] = useState<ImportStep>("type");
   const [selectedType, setSelectedType] = useState<ImportType | null>(null);
@@ -71,12 +85,12 @@ export default function ImportPage() {
       size: file.size,
       type: ext,
       rows: ext === "xlsx" ? 45 : 12,
-      columns: 8,
-      headers: ["address", "city", "postcode", "type", "landlord_name", "landlord_email", "monthly_rent", "status"],
+      columns: 9,
+      headers: ["address", "city", "postcode", "nation", "type", "landlord_name", "landlord_email", "monthly_rent", "status"],
       sampleRows: [
-        ["14 Rosebery Avenue", "London", "N10 2XX", "Flat", "James Thompson", "j.thompson@email.com", "1850", "Occupied"],
-        ["22 Baker Street", "London", "NW1 6XE", "House", "Susan Wright", "s.wright@email.com", "2100", "Occupied"],
-        ["8 Park Crescent", "Manchester", "M3 4JA", "Flat", "David Chen", "d.chen@email.com", "1200", "Available"],
+        ["14 Rosebery Avenue", "London", "N10 2XX", "England", "Flat", "James Thompson", "j.thompson@email.com", "1850", "Occupied"],
+        ["22 Baker Street", "London", "NW1 6XE", "England", "House", "Susan Wright", "s.wright@email.com", "2100", "Occupied"],
+        ["8 Park Crescent", "Manchester", "M3 4JA", "England", "Flat", "David Chen", "d.chen@email.com", "1200", "Available"],
       ],
     };
     setFileState(state);
@@ -111,30 +125,42 @@ export default function ImportPage() {
     if (dbOk) {
       let imported = 0;
       const failed: ImportFailedRow[] = [];
-      for (const p of valid) {
+      for (let i = 0; i < valid.length; i++) {
+        const p = valid[i];
         try {
-          const { data: landlord } = await supabase
+          const { data: landlord, error: landlordError } = await supabase
             .from("landlords")
             .upsert({ display_name: p.landlord, email: p.landlordEmail, phone: p.landlordPhone, is_company: false }, { onConflict: "email" })
             .select("id")
             .maybeSingle();
           const landlordId = landlord?.id;
-          await supabase
+          if (landlordError || !landlordId) {
+            failed.push({ row: i + 1, address: p.address || "Unknown", reason: "Landlord could not be created" });
+            continue;
+          }
+          const payload = {
+            line1: p.address, city: p.city, postcode: p.postcode, type: p.propertyType,
+            bedrooms: p.bedrooms, bathrooms: p.bathrooms, landlord_id: landlordId,
+            rent_pcm: p.rent, deposit_amount: p.deposit, status: p.status,
+            nation: normalizeNation(p.nation), is_hmo: false, is_furnished: false,
+          };
+          const { data: existing } = await supabase
             .from("properties")
-            .upsert({
-              line1: p.address, city: p.city, postcode: p.postcode, type: p.propertyType,
-              bedrooms: p.bedrooms, bathrooms: p.bathrooms, landlord_id: landlordId,
-              rent_pcm: p.rent, deposit_amount: p.deposit, status: p.status,
-              nation: "england", is_hmo: false, is_furnished: false,
-            }, { onConflict: "line1" })
             .select("id")
+            .eq("line1", p.address)
+            .eq("postcode", p.postcode)
             .maybeSingle();
+          if (existing?.id) {
+            await supabase.from("properties").update(payload).eq("id", existing.id);
+          } else {
+            await supabase.from("properties").insert(payload);
+          }
           imported++;
         } catch (err: any) {
           if (!showRlsError(err, "properties")) {
-            failed.push({ row: imported + 1, address: p.address || "Unknown", reason: "Database write failed" });
+            failed.push({ row: i + 1, address: p.address || "Unknown", reason: "Database write failed" });
           } else {
-            failed.push({ row: imported + 1, address: p.address || "Unknown", reason: "Plan limit reached — upgrade required" });
+            failed.push({ row: i + 1, address: p.address || "Unknown", reason: "Plan limit reached — upgrade required" });
           }
         }
       }

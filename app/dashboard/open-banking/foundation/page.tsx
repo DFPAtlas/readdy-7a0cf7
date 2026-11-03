@@ -15,24 +15,24 @@ interface BankConnection {
   bank_name: string | null;
   sync_status: string;
   last_sync: string | null;
-  connection_metadata: any;
-  api_connected: boolean;
+  connection_metadata: Record<string, any> | null;
+  api_connected: boolean | null;
   error_message: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 interface BankTransaction {
   id: string;
-  connection_id: string;
+  connection_id: string | null;
   transaction_ref: string | null;
   amount: number;
-  currency: string;
+  currency: string | null;
   description: string | null;
   transaction_date: string;
   matched_rent_payment_id: string | null;
-  matched_status: string;
+  matched_status: string | null;
   category: string | null;
-  metadata: any;
+  metadata: Record<string, any> | null;
 }
 
 export default function OpenBankingFoundationPage() {
@@ -321,7 +321,7 @@ export default function OpenBankingFoundationPage() {
                                 tx.matched_status === "matched" ? "bg-[#3B82F6]/10 text-[#3B82F6]" :
                                 "bg-[#EF4444]/10 text-[#EF4444]"
                               }`}>
-                                {tx.matched_status}
+                                {tx.matched_status || "unmatched"}
                               </span>
                             </td>
                           </tr>
@@ -414,7 +414,7 @@ export default function OpenBankingFoundationPage() {
                           tx.matched_status === "matched" ? "bg-[#3B82F6]/10 text-[#3B82F6]" :
                           "bg-[#EF4444]/10 text-[#EF4444]"
                         }`}>
-                          {tx.matched_status}
+                          {tx.matched_status || "unmatched"}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-[#94A3B8]">

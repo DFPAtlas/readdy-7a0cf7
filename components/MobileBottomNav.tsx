@@ -92,36 +92,20 @@ export default function MobileBottomNav() {
 }
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [showInstall, setShowInstall] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [showOffline, setShowOffline] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const standalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
-      setIsStandalone(standalone);
-      if (!standalone && !localStorage.getItem("lethub_pwa_dismissed")) {
-        setShowInstall(true);
-      }
-
       const handleOnline = () => {
         setIsOnline(true);
-        setShowOffline(false);
       };
       const handleOffline = () => {
         setIsOnline(false);
-        setShowOffline(true);
       };
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
       setIsOnline(navigator.onLine);
-      if (!navigator.onLine) setShowOffline(true);
-
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").catch(() => {});
-      }
 
       const biometricEnabled = localStorage.getItem("lethub_biometric_enabled") === "true";
       const biometricPrompted = localStorage.getItem("lethub_biometric_prompted");
@@ -140,15 +124,11 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#F8FAFC] max-w-lg mx-auto relative shadow-2xl">
       <div className="h-1 bg-[#C28A78]"></div>
 
-      {showOffline && (
+      {!isOnline && (
         <div className="bg-[#F59E0B] text-white px-4 py-2 flex items-center justify-center gap-2">
           <i className="ri-wifi-off-line text-sm"></i>
           <p className="text-xs font-medium">You are offline. Some features may be limited.</p>
         </div>
-      )}
-
-      {isOnline && !showOffline && typeof window !== "undefined" && !localStorage.getItem("lethub_offline_was") && (
-        <div className="hidden"></div>
       )}
 
       {showBiometric && (
@@ -179,34 +159,6 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
                 Enable
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showInstall && !isStandalone && (
-        <div className="bg-[#C28A78] text-white px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-              <i className="ri-home-smile-line text-white"></i>
-            </div>
-            <div>
-              <p className="text-xs font-medium">Install LetHub App</p>
-              <p className="text-[10px] text-white/70">Add to home screen for quick access</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setShowInstall(false);
-                localStorage.setItem("lethub_pwa_dismissed", "true");
-              }}
-              className="text-[10px] text-white/70 px-2 py-1"
-            >
-              Dismiss
-            </button>
-            <button className="text-xs font-medium bg-white text-[#C28A78] px-3 py-1.5 rounded-lg whitespace-nowrap">
-              Install
-            </button>
           </div>
         </div>
       )}

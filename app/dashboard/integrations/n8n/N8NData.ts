@@ -24,18 +24,18 @@ export interface N8NAgent {
 
 export interface N8NAgentRun {
   id: string;
-  agent_id: string;
+  agent_id: string | null;
   agent_key: string;
   agent_name: string;
   agent_group: string;
   run_status: string;
   started_at: string;
   finished_at: string | null;
-  duration_seconds: number;
-  records_found: number;
-  records_processed: number;
-  records_created: number;
-  records_updated: number;
+  duration_seconds: number | null;
+  records_found: number | null;
+  records_processed: number | null;
+  records_created: number | null;
+  records_updated: number | null;
   error_message: string | null;
   output_summary: string | null;
 }

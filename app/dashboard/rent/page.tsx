@@ -346,7 +346,7 @@ export default function RentSchedulePage() {
                 {filtered.map((s) => (
                   <tr key={s.id} className="hover:bg-[#FBF9F4] transition-colors">
                     <td className="px-5 py-4">
-                      <Link href={`/dashboard/property/${s.propertyId}`} className="text-sm font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">
+                      <Link href={`/dashboard/portfolio/${s.propertyId}`} className="text-sm font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">
                         {s.propertyName}
                       </Link>
                       <p className="text-xs text-[#94A3B8]">{s.tenancyRef}</p>

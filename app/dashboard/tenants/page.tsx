@@ -9,6 +9,8 @@ import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import TenantCard from "@/components/dashboard/TenantCard";
 import TenantQuickView from "@/components/dashboard/TenantQuickView";
 import { tenants as mockTenants, portalStatusBadge, portalStatusLabel, TenantRecord } from "./TenantsData";
+import { createTenant } from "@/lib/tenancyFlow";
+import { sendPortalInvite } from "@/lib/portalInvites";
 
 export default function TenantsPage() {
   const [search, setSearch] = useState("");
@@ -69,15 +71,20 @@ export default function TenantsPage() {
       setLoading(true);
       const { data: supabaseTenants, error: tenantsError } = await supabase
         .from("tenants")
-        .select("id, full_name, email, phone, created_at");
+        .select("id, full_name, email, phone, created_at, emergency_contact_name, emergency_contact_phone, notes");
 
-      if (tenantsError || !supabaseTenants || supabaseTenants.length === 0) {
+      if (tenantsError) {
         if (!active) return;
-        setTenantList(mockTenants);
+        setTenantList([]);
         setLoading(false);
         return;
       }
       if (!active) return;
+      if (!supabaseTenants || supabaseTenants.length === 0) {
+        setTenantList([]);
+        setLoading(false);
+        return;
+      }
 
       const tenantIds = supabaseTenants.map((t) => t.id);
 
@@ -133,6 +140,9 @@ export default function TenantsPage() {
           tenancyId: tenancy?.id,
           tenancyRef: tenancy?.id ? `TNCY-${tenancy.id.slice(0, 8)}` : undefined,
           tenancyStatus: tenancy?.status || undefined,
+          emergencyContactName: t.emergency_contact_name || undefined,
+          emergencyContactPhone: t.emergency_contact_phone || undefined,
+          notes: t.notes || undefined,
           portalStatus,
           dateAdded: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
         };
@@ -154,15 +164,20 @@ export default function TenantsPage() {
     setLoading(true);
     const { data: supabaseTenants, error: tenantsError } = await supabase
       .from("tenants")
-      .select("id, full_name, email, phone, created_at");
+      .select("id, full_name, email, phone, created_at, emergency_contact_name, emergency_contact_phone");
 
-    if (tenantsError || !supabaseTenants || supabaseTenants.length === 0) {
+    if (tenantsError) {
       if (!mountedRef.current) return;
-      setTenantList(mockTenants);
+      setTenantList([]);
       setLoading(false);
       return;
     }
     if (!mountedRef.current) return;
+    if (!supabaseTenants || supabaseTenants.length === 0) {
+      setTenantList([]);
+      setLoading(false);
+      return;
+    }
 
     const tenantIds = supabaseTenants.map((t) => t.id);
 
@@ -218,6 +233,7 @@ export default function TenantsPage() {
         tenancyId: tenancy?.id,
         tenancyRef: tenancy?.id ? `TNCY-${tenancy.id.slice(0, 8)}` : undefined,
         tenancyStatus: tenancy?.status || undefined,
+        notes: t.notes || undefined,
         portalStatus,
         dateAdded: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
       };
@@ -271,29 +287,32 @@ export default function TenantsPage() {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone || "-",
-        currentPropertyName: formData.currentPropertyName || undefined,
         emergencyContactName: formData.emergencyContactName || undefined,
         emergencyContactPhone: formData.emergencyContactPhone || undefined,
-        notes: formData.notes || undefined,
         portalStatus: "not_invited",
         dateAdded: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       };
       setTenantList((prev) => [newTenant, ...prev]);
-    } else {
-      const { error } = await supabase.from("tenants").insert({
-        full_name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone || null,
-      });
-      if (error) {
-        showToast("Failed to add tenant: " + error.message);
-      } else {
-        showToast("Tenant added successfully");
-        fetchTenants();
-      }
+      setAddModalOpen(false);
+      setFormData({ fullName: "", email: "", phone: "", currentPropertyName: "", emergencyContactName: "", emergencyContactPhone: "", notes: "" });
+      return;
+    }
+    const result = await createTenant(supabase, {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone || "",
+      emergencyContactName: formData.emergencyContactName || "",
+      emergencyContactPhone: formData.emergencyContactPhone || "",
+      notes: formData.notes || "",
+    });
+    if (!result.ok) {
+      showToast(result.message);
+      return;
     }
     setAddModalOpen(false);
     setFormData({ fullName: "", email: "", phone: "", currentPropertyName: "", emergencyContactName: "", emergencyContactPhone: "", notes: "" });
+    showToast(result.message);
+    fetchTenants();
   };
 
   const handleEditTenant = async () => {
@@ -311,6 +330,9 @@ export default function TenantsPage() {
         full_name: formData.fullName,
         email: formData.email,
         phone: formData.phone || null,
+        emergency_contact_name: formData.emergencyContactName || null,
+        emergency_contact_phone: formData.emergencyContactPhone || null,
+        notes: formData.notes || null,
       }).eq("id", editModalOpen.id);
       if (error) {
         showToast("Failed to update tenant: " + error.message);
@@ -323,13 +345,17 @@ export default function TenantsPage() {
   };
 
   const handleInviteTenant = (tenant: TenantRecord) => {
+    if (!tenant.currentPropertyId) {
+      showToast("Link this tenant to a tenancy before inviting them to the portal.");
+      return;
+    }
     setInviteModalOpen(tenant);
     setInviteEmail(tenant.email);
     setInviteMessage("");
   };
 
   const handleSendInvite = async () => {
-    if (!inviteEmail || !inviteModalOpen) return;
+    if (!inviteModalOpen) return;
     setSending(true);
 
     if (isDemoAccount()) {
@@ -341,23 +367,35 @@ export default function TenantsPage() {
             : t
         )
       );
-    } else {
-      const { error } = await supabase
-        .from("tenant_portal_access")
-        .insert({ tenant_id: inviteModalOpen.id, is_active: false })
-        .select("id")
-        .single();
-
-      if (error) {
-        showToast("Failed to create portal access: " + error.message);
-      } else {
-        showToast(`Invite sent to ${inviteEmail}`);
-        fetchTenants();
-      }
+      setInviteModalOpen(null);
+      setSending(false);
+      return;
     }
 
+    if (!inviteModalOpen.currentPropertyId) {
+      showToast("Link this tenant to a tenancy before inviting them to the portal.");
+      setSending(false);
+      return;
+    }
+
+    const result = await sendPortalInvite(supabase, {
+      portalType: "tenant",
+      propertyId: inviteModalOpen.currentPropertyId,
+      tenantId: inviteModalOpen.id,
+      email: inviteModalOpen.email,
+      message: inviteMessage,
+    });
+
+    if (!result.ok) {
+      showToast(result.message);
+      setSending(false);
+      return;
+    }
+
+    showToast(result.message);
     setInviteModalOpen(null);
     setSending(false);
+    fetchTenants();
   };
 
   const handleDisablePortal = async (tenant: TenantRecord) => {
@@ -635,14 +673,14 @@ export default function TenantsPage() {
                         </button>
                         {t.currentPropertyId && (
                           <Link
-                            href={`/dashboard/property/${t.currentPropertyId}`}
+                            href={`/dashboard/portfolio/${t.currentPropertyId}`}
                             className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#F1F5F9] transition-colors"
                             title="View Property"
                           >
                             <i className="ri-building-4-line text-[#687068] text-xs"></i>
                           </Link>
                         )}
-                        {t.portalStatus === "not_invited" && t.email && (
+                        {t.portalStatus === "not_invited" && t.email && t.currentPropertyId && (
                           <button
                             onClick={() => handleInviteTenant(t)}
                             className="px-2.5 py-1 text-xs font-medium text-[#3B82F6] bg-[#3B82F6]/5 rounded-lg hover:bg-[#3B82F6]/10 transition-colors whitespace-nowrap"
@@ -706,15 +744,9 @@ export default function TenantsPage() {
                   <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="tenant@email.com" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Phone</label>
-                  <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+44 7700 900000" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Property</label>
-                  <input type="text" value={formData.currentPropertyName} onChange={(e) => setFormData({ ...formData, currentPropertyName: e.target.value })} placeholder="e.g. Rose Court Flat 2A" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Phone</label>
+                <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+44 7700 900000" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -728,7 +760,7 @@ export default function TenantsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Any special instructions..." rows={2} maxLength={500} className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white resize-none"></textarea>
+                <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Internal notes about this tenant..." rows={3} maxLength={500} className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white resize-none"></textarea>
               </div>
               <div className="flex items-center gap-3 pt-2">
                 <button onClick={addModalOpen ? handleAddTenant : handleEditTenant} className="flex-1 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
@@ -761,7 +793,8 @@ export default function TenantsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Email Address</label>
-                <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
+                <input type="email" value={inviteEmail} readOnly className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-[#FBF9F4]" />
+                <p className="text-xs text-[#94A3B8] mt-1">Invitations are sent to the email stored on the tenant record.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Personal Message (optional)</label>

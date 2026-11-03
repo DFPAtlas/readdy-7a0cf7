@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import type { Database } from "@/lib/database.types";
+
+type AgencyUpdate = Database["public"]["Tables"]["agencies"]["Update"];
 
 export interface AgencyBranding {
   logoUrl: string | null;
@@ -110,10 +113,14 @@ export async function fetchAgencyBranding(agencyId: string): Promise<AgencyBrand
 }
 
 export async function updateAgencyBranding(
-  agencyId: string,
+  agencyId: string | null,
   branding: Partial<Pick<AgencyBranding, "logoUrl" | "faviconUrl" | "primaryColour" | "secondaryColour" | "customDomain">>
 ): Promise<{ success: boolean; error?: string }> {
-  const updates: Record<string, string | null> = {};
+  if (!agencyId) {
+    return { success: false, error: "No agency selected" };
+  }
+
+  const updates: AgencyUpdate = {};
 
   if (branding.logoUrl !== undefined) updates.logo_url = branding.logoUrl;
   if (branding.faviconUrl !== undefined) updates.favicon_url = branding.faviconUrl;

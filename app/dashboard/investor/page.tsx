@@ -403,7 +403,7 @@ export default function InvestorDashboardPage() {
                   return (
                     <tr key={p.id} className="hover:bg-[#F8FAFC] transition-colors">
                       <td className="px-5 py-3.5">
-                        <Link href={`/dashboard/property/${p.id}`} className="group">
+                        <Link href={`/dashboard/portfolio/${p.id}`} className="group">
                           <p className="font-medium text-[#3A3F3A] group-hover:text-[#C28A78] transition-colors">{p.address}</p>
                           <p className="text-xs text-[#94A3B8]">{p.city}, {p.postcode} · {p.bedrooms} bed</p>
                         </Link>

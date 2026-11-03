@@ -43,11 +43,13 @@ reconstruction and hardening work; they must **not** be replayed against product
 | `008_schema_authority.sql` | Authority ledger + fingerprint function | Already applied live (see below) |
 | `009_tenant_isolation_hardening.sql` | Revoke `TRUNCATE` from browser roles, stop future public tables granting `TRUNCATE` to `anon`/`authenticated`, drop cross-agency read policies on contractor tables | Forward-only — verify live status before applying |
 | `010_registration_invite_hardening.sql` | Restrict public self-registration to `estate_agent_admin`/`landlord`, least-privilege placeholder profile on signup, lock down portal invite/access browser access | Forward-only — verify live status before applying |
+| `011_tenancy_relationship_flow.sql` | Tenant ownership scope + scoped tenant RLS, browser tenant-insert lockdown, tenant scope-change guard | Applied live (see below) |
+| `012_tenant_notes.sql` | Add `tenants.notes` free-text column (not a scope field) | Applied live (see below) |
 
 `009_tenant_isolation_hardening.sql` is the first forward-only migration after the
 historical/reconciliation chain. Its live application status must be verified against the
 production Supabase migration ledger before deployment. The next new migration must be
-numbered `011`.
+numbered `012`.
 
 ### Forward-only migration record: `009_tenant_isolation_hardening.sql`
 
@@ -72,6 +74,35 @@ Purpose:
 - Prevent the browser from creating or amending `portal_access`, `owner_portal_access` and `tenant_portal_access` grants outside agency-managed scope.
 
 Invitation acceptance is performed by the trusted `accept-portal-invite` Edge Function (service role), and self-registration role assignment by `complete-registration`.
+
+### Forward-only migration record: `011_tenancy_relationship_flow.sql`
+
+Classification: **Forward-only migration — applied live.**
+
+Purpose:
+
+- Add trusted ownership scope to `tenants` (`managing_agency_id`, `landlord_id`, `created_by_profile_id`) so tenants can exist independently of a property until linked through `tenancy_parties`.
+- Add `can_manage_tenant(uuid)` and scoped `tenants_scope_read` / `tenants_scope_update` policies.
+- Block browser tenant creation (insert policies now require `is_platform_admin`) and guard tenant scope changes via `prevent_tenant_scope_change`.
+
+Tenant creation runs through the trusted `create-tenant` Edge Function and tenancy creation
+through `create-tenancy`, which verifies property and tenant scope, rejects duplicate active
+tenancies for a property, writes the `tenancies` row and its lead `tenancy_parties` row, and
+rolls back the tenancy if the party link cannot be written. Both run with the service role; the
+browser cannot create tenants or tenancies against an arbitrary property outside its scope.
+
+### Forward-only migration record: `012_tenant_notes.sql`
+
+Classification: **Forward-only migration — applied live.**
+
+Purpose:
+
+- Add a free-text `notes` column to `public.tenants` so tenant notes persist instead of
+  being discarded by the UI. `notes` is operational metadata and is intentionally **not** a
+  scope field, so it is editable under the existing `tenants_scope_update` policy.
+
+Tenant notes are written by the trusted `create-tenant` Edge Function on creation and by the
+scoped `tenants_scope_update` policy on edit.
 
 ### Live Supabase migration history
 

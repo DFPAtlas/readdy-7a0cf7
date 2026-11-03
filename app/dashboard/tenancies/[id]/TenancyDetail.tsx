@@ -287,7 +287,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
             </div>
             <div className="mt-4 flex gap-3">
               <Link
-                href={`/dashboard/property/${tenancy.propertyId}`}
+                href={`/dashboard/portfolio/${tenancy.propertyId}`}
                 className="px-4 py-2 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap"
               >
                 View Full Property Details

@@ -1,9 +1,33 @@
 import type { Metadata, Viewport } from "next";
+import { Manrope, Inter, Pacifico } from "next/font/google";
 import "./globals.css";
 import "./lethub-theme.css";
+import "./fonts.css";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import PWAUpdateNotice from "@/components/PWAUpdateNotice";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const pacifico = Pacifico({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-pacifico",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -19,7 +43,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "LetHub",
   },
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "https://readdy.ai/api/search-image?query=A%20simple%20elegant%20square%20app%20icon%20with%20the%20letter%20L%20in%20white%20on%20a%20dark%20forest%20green%20background%20minimal%20modern%20design%20suitable%20for%20a%20property%20management%20app%20icon%20no%20text%20just%20the%20letter%20mark&width=180&height=180&seq=lethub-apple-touch-icon&orientation=squarish",
+  },
   applicationName: "LetHub",
   formatDetection: {
     telephone: false,
@@ -61,10 +89,11 @@ export default function RootLayout({
           }
         `}</style>
       </head>
-      <body className="antialiased">
+      <body className={`${inter.variable} ${manrope.variable} ${pacifico.variable} antialiased`}>
         {children}
         <CookieConsentBanner />
         <ServiceWorkerRegistration />
+        <PWAUpdateNotice />
         <PWAInstallPrompt />
       </body>
     </html>

@@ -34,6 +34,7 @@ export interface PreviewProperty {
   address: string;
   city: string;
   postcode: string;
+  nation?: string;
   propertyType: string;
   bedrooms: number;
   bathrooms: number;
@@ -182,6 +183,7 @@ export const fieldMappings: FieldMapping[] = [
   { sourceField: "address", targetField: "Property Address", confidence: 98, autoMapped: true, required: true },
   { sourceField: "city", targetField: "City", confidence: 96, autoMapped: true, required: true },
   { sourceField: "postcode", targetField: "Postcode", confidence: 99, autoMapped: true, required: true },
+  { sourceField: "nation", targetField: "Nation", confidence: 90, autoMapped: true, required: false },
   { sourceField: "type", targetField: "Property Type", confidence: 92, autoMapped: true, required: false },
   { sourceField: "bedrooms", targetField: "Bedrooms", confidence: 95, autoMapped: true, required: false },
   { sourceField: "bathrooms", targetField: "Bathrooms", confidence: 95, autoMapped: true, required: false },
@@ -263,6 +265,7 @@ export const previewProperties: PreviewProperty[] = [
     address: "8 Park Crescent",
     city: "Manchester",
     postcode: "M3 4JA",
+    nation: "England",
     propertyType: "Flat",
     bedrooms: 1,
     bathrooms: 1,
@@ -289,6 +292,7 @@ export const previewProperties: PreviewProperty[] = [
     address: "45 Oak Lane",
     city: "Bristol",
     postcode: "BS1 3AA",
+    nation: "Wales",
     propertyType: "Terraced",
     bedrooms: 2,
     bathrooms: 1,
@@ -420,6 +424,7 @@ export const previewProperties: PreviewProperty[] = [
     address: "67 Victoria Road",
     city: "Edinburgh",
     postcode: "EH4 3JN",
+    nation: "Scotland",
     propertyType: "House",
     bedrooms: 4,
     bathrooms: 2,
@@ -638,6 +643,7 @@ export const availableFields = [
   "Property Address",
   "City",
   "Postcode",
+  "Nation",
   "Property Type",
   "Bedrooms",
   "Bathrooms",
@@ -678,6 +684,8 @@ export const sourceFields = [
   "town",
   "postcode",
   "zip",
+  "nation",
+  "country",
   "type",
   "property_type",
   "category",

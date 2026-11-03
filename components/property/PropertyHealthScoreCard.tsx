@@ -123,7 +123,7 @@ export default function PropertyHealthScoreCard({
 
       {showLink && (
         <Link
-          href={`/dashboard/property/${propertyId}`}
+          href={`/dashboard/portfolio/${propertyId}`}
           className="block text-center text-xs font-medium text-[#C28A78] hover:text-[#B07A69] py-2 rounded-lg hover:bg-[#EBE5DA] transition-colors border-t border-[#D5D9D5] pt-3"
         >
           View Property Details

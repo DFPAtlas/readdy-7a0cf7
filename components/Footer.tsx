@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
           <div className="lg:col-span-1">
-            <Link href="/" className="font-['Pacifico'] text-2xl text-white inline-block mb-4">
+            <Link href="/" className="brand-wordmark text-2xl text-white inline-block mb-4">
               LetHub
             </Link>
             <p className="text-sm text-white/60 leading-relaxed mb-4">

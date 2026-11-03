@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import type { Json } from "@/lib/database.types";
 
 export interface AuditEntry {
   action: string;
@@ -17,7 +18,7 @@ export async function logPlatformAdminAction(entry: AuditEntry): Promise<boolean
       action: entry.action,
       target_table: entry.targetTable || null,
       target_id: entry.targetId || null,
-      details: entry.metadata ? entry.metadata : null,
+      details: entry.metadata ? (entry.metadata as unknown as Json) : null,
     });
 
     if (error) {

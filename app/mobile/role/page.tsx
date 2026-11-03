@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { triggerInstallPrompt, onInstallReady } from "@/components/PWAInstallPrompt";
+import { triggerInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const roles = [
   { id: "agent", label: "Agent", icon: "ri-briefcase-line", color: "bg-[#C28A78]", desc: "Manage properties & tenants" },
@@ -14,19 +14,12 @@ const roles = [
 
 export default function MobileRolePage() {
   const [isStandalone, setIsStandalone] = useState(false);
-  const [installReady, setInstallReady] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const standalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
       setIsStandalone(standalone);
     }
-
-    const unsub = onInstallReady((show) => {
-      setInstallReady(show);
-    });
-
-    return () => unsub();
   }, []);
 
   return (
@@ -34,7 +27,7 @@ export default function MobileRolePage() {
       <div className="h-8"></div>
 
       <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-        <span className="text-2xl font-bold text-[#C28A78]" style={{ fontFamily: "Pacifico, serif" }}>
+        <span className="brand-wordmark text-2xl text-[#C28A78]">
           logo
         </span>
       </div>
@@ -75,9 +68,7 @@ export default function MobileRolePage() {
           <button
             className="px-4 py-2 bg-white text-[#C28A78] rounded-lg text-xs font-medium whitespace-nowrap cursor-pointer flex items-center gap-1.5"
             onClick={() => {
-              if (installReady) {
-                triggerInstallPrompt();
-              }
+              triggerInstallPrompt();
             }}
           >
             <i className="ri-download-line"></i>

@@ -1,16 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, startTransition } from 'react';
+import { useEffect } from 'react';
+import { afterMount } from '@/lib/safeNavigate';
 
 export default function LegacyPropertyRedirect({ productId }: { productId: string }) {
   const router = useRouter();
 
   useEffect(() => {
-    startTransition(() => {
+    const cancel = afterMount(() => {
       router.replace(`/dashboard/portfolio/${encodeURIComponent(productId)}`);
     });
-  }, [productId]);
+    return cancel;
+  }, [productId, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">

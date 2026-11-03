@@ -1,13 +1,10 @@
 import LegacyPropertyRedirect from './LegacyPropertyRedirect';
 
-export async function generateStaticParams() {
-  return [
-    { id: '1' },
-    { id: '2' },
-    { id: '3' },
-  ];
-}
-
-export default function LegacyPropertyPage({ params }: { params: { id: string } }) {
-  return <LegacyPropertyRedirect productId={params.id} />;
+export default async function LegacyPropertyPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <LegacyPropertyRedirect productId={id} />;
 }

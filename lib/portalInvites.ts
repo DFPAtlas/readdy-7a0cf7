@@ -111,6 +111,7 @@ export interface SendInviteParams {
   propertyId: string;
   email: string;
   message: string;
+  tenantId?: string;
 }
 
 export interface SendInviteResult {
@@ -131,6 +132,7 @@ export async function sendPortalInvite(
         property_id: params.propertyId,
         email: params.email,
         message: params.message || "",
+        tenant_id: params.tenantId || undefined,
       },
     });
 

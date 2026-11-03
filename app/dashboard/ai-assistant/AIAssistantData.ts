@@ -70,8 +70,8 @@ async function formatTenantName(id: string): Promise<string> {
 }
 
 async function formatLandlordName(id: string): Promise<string> {
-  const { data } = await supabase.from("landlords").select("full_name").eq("id", id).maybeSingle();
-  return data?.full_name || "Unknown Landlord";
+  const { data } = await supabase.from("landlords").select("display_name").eq("id", id).maybeSingle();
+  return data?.display_name || "Unknown Landlord";
 }
 
 export async function getAIResponse(query: string): Promise<string> {
@@ -120,7 +120,7 @@ async function handlePropertiesNeedingAttention(): Promise<string> {
     supabase.from("property_compliance_items").select("property_id, obligation_code, next_due").lt("next_due", now).eq("status", "compliant").limit(20),
     supabase.from("property_compliance_items").select("property_id, obligation_code, next_due").gte("next_due", now).lte("next_due", thirtyDaysFromNow).eq("status", "compliant").limit(20),
     supabase.from("maintenance_jobs").select("property_id, title, status").neq("status", "completed").neq("status", "cancelled").limit(20),
-    supabase.from("arrears_cases").select("property_id, total_owed").neq("status", "resolved").neq("status", "cancelled").limit(20),
+    supabase.from("arrears_cases").select("property_id, total_owed").neq("status", "resolved").limit(20),
   ]);
 
   const propertyIssues: Record<string, { expired: number; expiring: number; maintenance: number; arrears: number }> = {};
@@ -195,6 +195,7 @@ async function handleCertificatesExpiring(q: string): Promise<string> {
   if (expired && expired.length > 0) {
     response += `**IMMEDIATE ACTION — ${expired.length} Expired:**\n\n`;
     expired.forEach(e => {
+      if (!e.next_due) return;
       response += `**${addressMap[e.property_id]}** — ${e.obligation_code} expired ${new Date(e.next_due).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}\n`;
     });
     response += "\n";
@@ -203,6 +204,7 @@ async function handleCertificatesExpiring(q: string): Promise<string> {
   if (items && items.length > 0) {
     response += `**Expiring Within ${Math.round((new Date(endDate).getTime() - Date.now()) / 86400000)} Days — ${items.length} items:**\n\n`;
     items.forEach(e => {
+      if (!e.next_due) return;
       const dueDate = new Date(e.next_due);
       const daysLeft = Math.ceil((dueDate.getTime() - Date.now()) / 86400000);
       response += `**${addressMap[e.property_id]}** — ${e.obligation_code} expires ${dueDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} (${daysLeft} days)\n`;
@@ -217,7 +219,7 @@ async function handleCertificatesExpiring(q: string): Promise<string> {
 }
 
 async function handleTenantsInArrears(): Promise<string> {
-  const { data: cases } = await supabase.from("arrears_cases").select("tenancy_id, tenant_id, property_id, total_owed, status, payment_plan_amount").neq("status", "resolved").neq("status", "cancelled").order("total_owed", { ascending: false }).limit(20);
+  const { data: cases } = await supabase.from("arrears_cases").select("tenancy_id, tenant_id, property_id, total_owed, status, payment_plan_amount").neq("status", "resolved").order("total_owed", { ascending: false }).limit(20);
 
   if (!cases || cases.length === 0) return "**Arrears Report**\n\nNo tenants are currently in arrears. All rent is up to date.";
 
@@ -282,7 +284,7 @@ async function handleLandlordUpdates(): Promise<string> {
 
   const [{ data: maintenance }, { data: arrears }, { data: compliance }] = await Promise.all([
     supabase.from("maintenance_jobs").select("property_id").neq("status", "completed").neq("status", "cancelled").in("property_id", propertyIds),
-    supabase.from("arrears_cases").select("property_id").neq("status", "resolved").neq("status", "cancelled").in("property_id", propertyIds),
+    supabase.from("arrears_cases").select("property_id").neq("status", "resolved").in("property_id", propertyIds),
     supabase.from("property_compliance_items").select("property_id, next_due").lt("next_due", now).in("property_id", propertyIds),
   ]);
 
@@ -388,7 +390,7 @@ async function handleComplianceOverview(): Promise<string> {
   const expired = items.filter(i => i.next_due && i.next_due < now && i.status === "compliant");
   const compliant = items.filter(i => i.next_due && i.next_due >= now && i.status === "compliant");
   const exempt = items.filter(i => i.status === "exempt");
-  const missing = items.filter(i => !i.next_due || i.status === "not_compliant");
+  const missing = items.filter(i => !i.next_due || i.status === "missing");
 
   const addresses = await Promise.all([...new Set(items.map(i => i.property_id))].map(formatPropertyAddress));
   const addressMap: Record<string, string> = {};
@@ -406,7 +408,8 @@ async function handleComplianceOverview(): Promise<string> {
   if (expired.length > 0) {
     response += `**Expired Items:**\n`;
     expired.forEach(e => {
-      response += `• ${addressMap[e.property_id] || "Unknown"} — ${e.obligation_code} expired ${new Date(e.next_due!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}\n`;
+      if (!e.next_due) return;
+      response += `• ${addressMap[e.property_id] || "Unknown"} — ${e.obligation_code} expired ${new Date(e.next_due).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}\n`;
     });
     response += "\n";
   }
@@ -498,7 +501,7 @@ async function handleGeneralQuery(query: string): Promise<string> {
     supabase.from("v_dashboard_kpi").select("*").maybeSingle(),
     supabase.from("property_compliance_items").select("id").lt("next_due", new Date().toISOString().split("T")[0]).eq("status", "compliant").limit(5),
     supabase.from("maintenance_jobs").select("id").neq("status", "completed").neq("status", "cancelled").limit(5),
-    supabase.from("arrears_cases").select("id").neq("status", "resolved").neq("status", "cancelled").limit(5),
+    supabase.from("arrears_cases").select("id").neq("status", "resolved").limit(5),
   ]);
 
   let response = "I can help you with your property portfolio. Here's a quick snapshot and some things you can ask me:\n\n";

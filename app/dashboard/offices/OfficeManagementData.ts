@@ -88,9 +88,9 @@ async function getRentMetricsByOffice(officeId: string): Promise<{ collected: nu
 async function getComplianceRateByOffice(officeId: string): Promise<number> {
   const propertyIds = await getOfficePropertyIds(officeId)
   if (!propertyIds.length) return 0
-  const { data: scores } = await supabase.from("property_health_scores").select("score").in("property_id", propertyIds)
+  const { data: scores } = await supabase.from("property_health_scores").select("overall_score").in("property_id", propertyIds)
   if (!scores || !scores.length) return 0
-  const avg = (scores as { score: number }[]).reduce((s, r) => s + r.score, 0) / scores.length
+  const avg = (scores as { overall_score: number }[]).reduce((s, r) => s + r.overall_score, 0) / scores.length
   return Math.round(avg)
 }
 

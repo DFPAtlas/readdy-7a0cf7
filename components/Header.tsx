@@ -95,11 +95,7 @@ export default function Header() {
       <div className="w-full px-6 lg:px-12">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="block flex-shrink-0">
-            <img
-              src="https://public.readdy.ai/ai/img_res/7ce16202-554e-416f-9b5b-269607f415ce.png"
-              alt="LetHub"
-              className="h-9 w-auto object-contain"
-            />
+            <span className="brand-wordmark text-2xl leading-none text-[#3A3F3A]">LetHub</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1" ref={dropdownRef}>

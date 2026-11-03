@@ -184,10 +184,10 @@ export default function TenantDashboardPage() {
 
       const tenantId = (access as any).tenant_id;
 
-      const { data: tenant } = await supabase.from("tenants").select("id, name, email, phone, emergency_contact_name, emergency_contact_phone, emergency_contact_relation").eq("id", tenantId).maybeSingle();
+      const { data: tenant } = await supabase.from("tenants").select("id, full_name, email, phone, emergency_contact_name, emergency_contact_phone, emergency_contact_relation").eq("id", tenantId).maybeSingle();
       if (tenant) {
         const t = tenant as any;
-        setTenantName(t.name || "");
+        setTenantName(t.full_name || "");
         setTenantEmail(t.email || "");
         setTenantId(t.id);
         setProfileForm({
@@ -198,12 +198,27 @@ export default function TenantDashboardPage() {
         });
       }
 
-      const { data: ten } = await supabase.from("tenancies").select("id, property_id, rent_amount, rent_period, deposit_amount, deposit_scheme, start_date, end_date, status, ref").eq("tenant_id", tenantId).maybeSingle();
+      const { data: parties } = await supabase
+        .from("tenancy_parties")
+        .select("tenancy_id, tenant_id, is_lead")
+        .eq("tenant_id", tenantId);
+
+      const partyTenancyIds = (parties || []).map((p: any) => p.tenancy_id).filter(Boolean);
+
+      let ten: any = null;
+      if (partyTenancyIds.length > 0) {
+        const { data: tenancyRows } = await supabase
+          .from("tenancies")
+          .select("id, property_id, rent_amount, rent_period, deposit_amount, deposit_scheme, start_date, end_date, status, regime, term_type, is_periodic, assured_type, last_rent_increase_date")
+          .in("id", partyTenancyIds);
+        const rows = (tenancyRows || []) as any[];
+        ten = rows.find((row) => row.status === "active") || rows[0] || null;
+      }
 
       if (ten) {
         const tn = ten as any;
         setTenancy({
-          ref: tn.ref || "—",
+          ref: tn.id ? String(tn.id).slice(0, 8).toUpperCase() : "—",
           startDate: tn.start_date ? new Date(tn.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
           endDate: tn.end_date ? new Date(tn.end_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
           rentAmount: tn.rent_amount ? `£${Number(tn.rent_amount).toLocaleString()}` : "—",

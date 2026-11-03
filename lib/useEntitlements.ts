@@ -19,6 +19,7 @@ export function useEntitlements() {
           plan: {
             id: "demo", slug: "business", name: "Business (Demo)",
             monthly_price: 199, annual_price: 166, trial_days: 999,
+            stripe_monthly_price_id: null, stripe_annual_price_id: null,
             max_properties: null, max_team_members: null, storage_gb: null,
             has_basic_compliance: true, has_full_compliance: true,
             has_ai_assistant: true, has_quote_workflow: true,

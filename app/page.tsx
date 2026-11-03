@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import HowItWorks from "@/components/HowItWorks";
 import ProductFeatures from "@/components/ProductFeatures";
-import Testimonials from "@/components/Testimonials";
+import FoundingAgencyProgramme from "@/components/FoundingAgencyProgramme";
 import PricingSection from "@/components/PricingSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
@@ -21,7 +21,7 @@ export default function Home() {
       <HeroSection />
       <HowItWorks />
       <ProductFeatures />
-      <Testimonials />
+      <FoundingAgencyProgramme />
       <PricingSection />
       <CTASection />
       <section className="px-6 lg:px-12 py-20 bg-white">

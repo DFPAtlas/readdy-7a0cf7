@@ -58,7 +58,7 @@ export default function ExecutiveCentrePage() {
     id: `hr-${i}`, priority: p.healthLevel === "critical" ? "critical" as const : p.healthLevel === "high_risk" ? "high" as const : "medium" as const,
     regionOrOffice: `${p.city} ${p.postcode}`, issue: `${p.address} — Health Score ${p.overallScore} (${HEALTH_LEVEL_LABELS[p.healthLevel] || p.healthLevel})`,
     impact: `Compliance: ${p.complianceScore}% · Maintenance: ${p.maintenanceScore}% · Rent: ${p.rentScore}%`, owner: "Property Manager", dueDate: "Review now",
-    actionLabel: "View Property", actionHref: `/dashboard/property/${p.id}`, category: "risk"
+    actionLabel: "View Property", actionHref: `/dashboard/portfolio/${p.id}`, category: "risk"
   }))
 
   const kpis = report ? [
@@ -157,7 +157,7 @@ export default function ExecutiveCentrePage() {
                           <tr><td colSpan={4} className="px-5 py-12 text-center text-sm text-[#94A3B8]"><i className="ri-check-line text-[#10B981] text-xl block mb-2"></i>No high-risk properties</td></tr>
                         ) : highRisk.map(p => (
                           <tr key={p.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                            <td className="px-5 py-3.5"><Link href={`/dashboard/property/${p.id}`} className="font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">{p.address}</Link><p className="text-xs text-[#94A3B8]">{p.city} {p.postcode}</p></td>
+                            <td className="px-5 py-3.5"><Link href={`/dashboard/portfolio/${p.id}`} className="font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">{p.address}</Link><p className="text-xs text-[#94A3B8]">{p.city} {p.postcode}</p></td>
                             <td className="px-5 py-3.5 text-center"><span className="font-bold text-sm" style={{ color: HEALTH_LEVEL_COLORS[p.healthLevel] || "#687068" }}>{p.overallScore}</span></td>
                             <td className="px-5 py-3.5 text-center"><span className="text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: (HEALTH_LEVEL_COLORS[p.healthLevel] || "#687068") + "15", color: HEALTH_LEVEL_COLORS[p.healthLevel] || "#687068" }}>{HEALTH_LEVEL_LABELS[p.healthLevel] || p.healthLevel}</span></td>
                             <td className="px-5 py-3.5 text-center"><span className={p.complianceScore >= 70 ? "text-[#10B981]" : p.complianceScore >= 40 ? "text-[#F59E0B]" : "text-[#EF4444]"}>{p.complianceScore}%</span></td>

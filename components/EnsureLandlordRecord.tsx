@@ -24,10 +24,14 @@ export default function EnsureLandlordRecord() {
         .maybeSingle();
 
       if (!existing) {
-        await supabase.from("landlords").insert({
+        const { error } = await supabase.from("landlords").insert({
           display_name: profile.full_name || session.user.email || "Landlord",
           owner_profile_id: session.user.id,
+          is_company: false,
         });
+        if (error) {
+          console.error("Failed to create landlord record:", error);
+        }
       }
     };
 

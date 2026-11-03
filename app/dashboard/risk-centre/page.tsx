@@ -239,7 +239,7 @@ export default function RiskCentrePage() {
                   </div>
                 </div>
                 <Link
-                  href={`/dashboard/property/${selectedProperty.id}`}
+                  href={`/dashboard/portfolio/${selectedProperty.id}`}
                   className="block w-full text-center text-xs font-medium text-white bg-[#C28A78] rounded-lg py-2.5 hover:bg-[#143828] transition-colors"
                 >
                   View Property Details

@@ -101,7 +101,7 @@ export default function ExecutiveDashboardPage() {
                   const barColor = prop.level === "green" ? "bg-[#10B981]" : prop.level === "amber" ? "bg-[#F59E0B]" : "bg-[#EF4444]"
                   const textColor = prop.level === "green" ? "text-[#10B981]" : prop.level === "amber" ? "text-[#F59E0B]" : "text-[#EF4444]"
                   return (
-                    <Link key={prop.id} href={`/dashboard/property/${prop.id}`} className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E2E8F0] hover:border-[#C28A78]/30 transition-colors">
+                    <Link key={prop.id} href={`/dashboard/portfolio/${prop.id}`} className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E2E8F0] hover:border-[#C28A78]/30 transition-colors">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-medium text-[#3A3F3A]">{prop.name}</h4>
                         <span className={`text-xs font-bold ${textColor}`}>{prop.health}%</span>

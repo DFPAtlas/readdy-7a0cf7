@@ -222,14 +222,14 @@ export async function fetchAgencyRoles(): Promise<AgencyRoleCount[]> {
 }
 
 export async function fetchRegionalManagers(): Promise<RegionalManagerRecord[]> {
-  const { data: members } = await supabase.from("agency_members").select("id, role, profile_id").eq("role", "regional_manager")
+  const { data: members } = await supabase.from("agency_members").select("role, profile_id").eq("role", "regional_manager")
   if (!members) return []
-  const profileIds = (members as { id: string; role: string; profile_id: string }[]).map(m => m.profile_id)
+  const profileIds = (members as { role: string; profile_id: string }[]).map(m => m.profile_id)
   const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", profileIds)
   const profileMap = new Map<string, { full_name: string | null; email: string | null }>()
   ;(profiles || []).forEach((p: { id: string; full_name: string | null; email: string | null }) => profileMap.set(p.id, p))
-  return (members as { id: string; role: string; profile_id: string }[]).map((m) => ({
-    id: m.id,
+  return (members as { role: string; profile_id: string }[]).map((m) => ({
+    id: m.profile_id,
     role: m.role,
     profile_name: profileMap.get(m.profile_id)?.full_name || null,
     profile_email: profileMap.get(m.profile_id)?.email || null,

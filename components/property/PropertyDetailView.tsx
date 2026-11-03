@@ -500,7 +500,7 @@ export default function PropertyDetailView({
         <div className="bg-white rounded-xl border border-[#D5D9D5] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-[#3A3F3A]">Upcoming Activity</h2>
-            <Link href={`/dashboard/property/${property.id}`} className="text-xs font-medium text-[#C28A78] hover:text-[#143828] transition-colors whitespace-nowrap">
+            <Link href={`/dashboard/portfolio/${property.id}`} className="text-xs font-medium text-[#C28A78] hover:text-[#143828] transition-colors whitespace-nowrap">
               View full timeline →
             </Link>
           </div>

@@ -175,7 +175,7 @@ export default function RentCollectionPage() {
       }
       const propertyIds = [...new Set(tenancies.map((t: any) => t.property_id))];
       const { data: properties } = await supabase.from("properties").select("id, line1, city").in("id", propertyIds);
-      const { data: tenancyParties } = await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_primary").in("tenancy_id", tenancies.map((t: any) => t.id));
+      const { data: tenancyParties } = await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_lead").in("tenancy_id", tenancies.map((t: any) => t.id));
       const tenantIds = tenancyParties ? [...new Set(tenancyParties.map((tp: any) => tp.tenant_id))] : [];
       const { data: tenants } = tenantIds.length > 0 ? await supabase.from("tenants").select("id, full_name, email").in("id", tenantIds) : { data: [] };
 
@@ -185,7 +185,7 @@ export default function RentCollectionPage() {
       (tenants || []).forEach((t: any) => tenantMap.set(t.id, t));
 
       const options = tenancies.map((tncy: any) => {
-        const party = (tenancyParties || []).find((tp: any) => tp.tenancy_id === tncy.id && tp.is_primary);
+        const party = (tenancyParties || []).find((tp: any) => tp.tenancy_id === tncy.id && tp.is_lead);
         const tenant = party ? tenantMap.get(party.tenant_id) : null;
         const prop = propMap.get(tncy.property_id);
         return {
@@ -323,7 +323,7 @@ export default function RentCollectionPage() {
 
         const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
         const { data: tenancies } = tenancyIds.length > 0 ? await supabase.from("tenancies").select("id, property_id, status").in("id", tenancyIds) : { data: [] };
-        const { data: tenancyParties } = tenancyIds.length > 0 ? await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_primary").in("tenancy_id", tenancyIds) : { data: [] };
+        const { data: tenancyParties } = tenancyIds.length > 0 ? await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_lead").in("tenancy_id", tenancyIds) : { data: [] };
 
         const tenantIds = tenancyParties ? [...new Set(tenancyParties.map((tp: any) => tp.tenant_id))] : [];
         const { data: tenants } = tenantIds.length > 0 ? await supabase.from("tenants").select("id, full_name").in("id", tenantIds) : { data: [] };
@@ -334,7 +334,7 @@ export default function RentCollectionPage() {
         const tenantByProperty = new Map<string, string>();
         (tenancyParties || []).forEach((tp: any) => {
           const tncy = tenancies?.find((t: any) => t.id === tp.tenancy_id);
-          if (tncy && tp.is_primary) tenantByProperty.set(tncy.property_id, tp.tenant_id);
+          if (tncy && tp.is_lead) tenantByProperty.set(tncy.property_id, tp.tenant_id);
         });
 
         const tenantMap = new Map<string, string>();

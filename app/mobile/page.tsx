@@ -1,23 +1,18 @@
 "use client";
 
-import { useEffect, startTransition } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { afterMount } from "@/lib/safeNavigate";
 
 export default function MobilePage() {
   const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem("lethub_mobile_role");
-    if (stored) {
-      startTransition(() => {
-        router.push(`/mobile/${stored}`);
-      });
-    } else {
-      startTransition(() => {
-        router.push("/mobile/role");
-      });
-    }
-  }, []);
+    const target = stored ? `/mobile/${stored}` : "/mobile/role";
+    const cancel = afterMount(() => router.push(target));
+    return cancel;
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">

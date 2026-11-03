@@ -288,7 +288,7 @@ export default function PropertiesPage() {
                 </div>
 
                 <div className="p-4">
-                  <Link href={`/dashboard/property/${p.id}`} className="block group">
+                  <Link href={`/dashboard/portfolio/${p.id}`} className="block group">
                     <h3 className="font-semibold text-[#3A3F3A] text-sm truncate group-hover:text-[#C28A78] transition-colors">{p.name}</h3>
                   </Link>
                   <p className="text-xs text-[#687068] mt-0.5 truncate">{p.address}</p>
@@ -342,7 +342,7 @@ export default function PropertiesPage() {
 
                   <div className="mt-3 pt-3 border-t border-[#D5D9D5]">
                     <Link
-                      href={`/dashboard/property/${p.id}`}
+                      href={`/dashboard/portfolio/${p.id}`}
                       className="block text-center text-xs font-medium text-[#C28A78] hover:text-[#143828] py-2 rounded-lg hover:bg-[#F1F5F9] transition-colors"
                     >
                       View Details

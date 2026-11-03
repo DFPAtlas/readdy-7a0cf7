@@ -10,6 +10,7 @@ interface AvatarUploaderProps {
   role: string;
   onAvatarUpdate: (url: string) => void;
   collapsed?: boolean;
+  size?: "sm" | "lg";
 }
 
 export default function AvatarUploader({
@@ -18,7 +19,7 @@ export default function AvatarUploader({
   userName,
   role,
   onAvatarUpdate,
-  collapsed,
+  size = "sm",
 }: AvatarUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -100,7 +101,7 @@ export default function AvatarUploader({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={`relative flex items-center justify-center rounded-full flex-shrink-0 transition-all cursor-pointer ${
-          collapsed ? "h-8 w-8" : "h-8 w-8"
+          size === "lg" ? "h-16 w-16" : "h-8 w-8"
         } ${showImage ? "" : roleColours[role] || "bg-gray-500"}`}
         title="Change photo"
       >
@@ -113,7 +114,7 @@ export default function AvatarUploader({
         ) : uploading ? (
           <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
         ) : (
-          <span className="text-sm font-bold text-white">{initial}</span>
+          <span className={`font-bold text-white ${size === "lg" ? "text-xl" : "text-sm"}`}>{initial}</span>
         )}
 
         {hovered && !uploading && (

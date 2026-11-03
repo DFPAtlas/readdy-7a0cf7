@@ -239,7 +239,7 @@ export const top10Recommendations: Recommendation[] = [
     category: "Vacancy",
     metric: "£2,800/month revenue lost",
     action: "Arrange EPC + Market",
-    actionHref: "/dashboard/property/d0000000-0000-0000-0000-000000000004",
+    actionHref: "/dashboard/portfolio/d0000000-0000-0000-0000-000000000004",
     estimatedValue: "Recovers £2,800/month",
   },
   {

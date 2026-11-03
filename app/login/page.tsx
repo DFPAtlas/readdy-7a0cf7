@@ -97,6 +97,9 @@ export default function LoginPage() {
       return homeError;
     }
 
+    await logSecurityEvent("sign_in", "Signed in with a one-time email code");
+
+
     startTransition(() => {
       router.replace(home);
     });

@@ -177,7 +177,7 @@ export async function convertDealToManaged(dealid: string): Promise<{ success: b
       postcode: deal.property_postcode || '',
       city: deal.property_city || '',
       bedrooms: deal.bedrooms || 1,
-      nation: 'ENG',
+      nation: 'england',
       is_hmo: deal.property_type === 'hmo',
       is_furnished: false,
       managing_agency_id: agencyId,

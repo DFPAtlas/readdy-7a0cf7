@@ -33,7 +33,21 @@ export default function N8NIntegrationPage() {
       ]);
 
       if (agentRes.data) setAgents(agentRes.data as N8NAgent[]);
-      if (runRes.data) setRuns(runRes.data as N8NAgentRun[]);
+      if (runRes.data) {
+        const agentLookup = new Map<string, { agent_name: string; agent_group: string }>();
+        (agentRes.data || []).forEach((a: N8NAgent) => {
+          agentLookup.set(a.agent_key, { agent_name: a.agent_name, agent_group: a.agent_group });
+        });
+        const enrichedRuns = (runRes.data as N8NAgentRun[]).map((run) => {
+          const match = agentLookup.get(run.agent_key);
+          return {
+            ...run,
+            agent_name: run.agent_name || match?.agent_name || run.agent_key || "Unknown agent",
+            agent_group: run.agent_group || match?.agent_group || "",
+          };
+        });
+        setRuns(enrichedRuns);
+      }
       setLoading(false);
     }
     fetchData();
@@ -60,8 +74,11 @@ export default function N8NIntegrationPage() {
 
   const agentRuns = useMemo(() => {
     if (!logModalAgent) return [];
-    return runs.filter((r) => r.agent_id === logModalAgent).slice(0, 8);
-  }, [runs, logModalAgent]);
+    const target = agents.find((a) => a.id === logModalAgent);
+    return runs
+      .filter((r) => r.agent_id === logModalAgent || (!!target && r.agent_key === target.agent_key))
+      .slice(0, 8);
+  }, [runs, logModalAgent, agents]);
 
   const handleAgentAction = async (agent: N8NAgent, action: "run" | "pause" | "resume") => {
     let newStatus = agent.status;
@@ -78,6 +95,12 @@ export default function N8NIntegrationPage() {
   };
 
   const getAgentGroupMeta = (group: string) => groupMeta[group] || { label: group, icon: "ri-cpu-line", color: "#687068", bg: "bg-[#687068]/5" };
+
+  const formatDuration = (value: number | null) =>
+    value === null || value === undefined ? "—" : `${Number(value).toFixed(1)}s`;
+
+  const formatCount = (value: number | null) =>
+    value === null || value === undefined ? "—" : Number(value).toLocaleString();
 
   return (
     <DashboardShell>
@@ -370,14 +393,14 @@ export default function N8NIntegrationPage() {
                                       <span className="text-[10px] text-[#94A3B8]">
                                         {new Date(run.started_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                                       </span>
-                                      <span className="text-[10px] text-[#94A3B8]">{Number(run.duration_seconds).toFixed(1)}s</span>
+                                      <span className="text-[10px] text-[#94A3B8]">{formatDuration(run.duration_seconds)}</span>
                                     </div>
                                     <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#94A3B8]">
-                                      <span>{run.records_processed} processed</span>
+                                      <span>{formatCount(run.records_processed)} processed</span>
                                       <span>·</span>
-                                      <span>{run.records_created} created</span>
+                                      <span>{formatCount(run.records_created)} created</span>
                                       <span>·</span>
-                                      <span>{run.records_updated} updated</span>
+                                      <span>{formatCount(run.records_updated)} updated</span>
                                     </div>
                                     {run.error_message && (
                                       <p className="text-[10px] text-[#EF4444] mt-1">{run.error_message}</p>
@@ -428,9 +451,9 @@ export default function N8NIntegrationPage() {
                           <div className="flex items-center gap-3 mt-1 text-[10px] text-[#94A3B8]">
                             <span>{new Date(run.started_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                             <span>·</span>
-                            <span>{Number(run.duration_seconds).toFixed(1)}s</span>
+                            <span>{formatDuration(run.duration_seconds)}</span>
                             <span>·</span>
-                            <span>{run.records_processed} processed ({run.records_created}c / {run.records_updated}u)</span>
+                            <span>{formatCount(run.records_processed)} processed ({formatCount(run.records_created)}c / {formatCount(run.records_updated)}u)</span>
                           </div>
                           {run.output_summary && run.run_status === "completed" && (
                             <p className="text-[10px] text-[#10B981] mt-1">{run.output_summary}</p>

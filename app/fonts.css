@@ -1,0 +1,16 @@
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+.brand-wordmark,
+.font-\[\'Pacifico\'\] {
+  font-family: var(--font-pacifico), "Brush Script MT", cursive;
+  font-weight: 400;
+}

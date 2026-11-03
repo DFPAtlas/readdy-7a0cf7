@@ -93,9 +93,9 @@ export default function OwnerDashboardPage() {
 
       const landlordId = (access as any).landlord_id;
 
-      const { data: landlord } = await supabase.from("landlords").select("name, email").eq("id", landlordId).maybeSingle();
+      const { data: landlord } = await supabase.from("landlords").select("display_name, email").eq("id", landlordId).maybeSingle();
       if (landlord) {
-        setOwnerName((landlord as any).name || "");
+        setOwnerName((landlord as any).display_name || "");
         setOwnerEmail((landlord as any).email || "");
       }
 
@@ -109,7 +109,7 @@ export default function OwnerDashboardPage() {
         supabase.from("property_compliance_items").select("id, obligation_code, status, next_due").in("property_id", propIds),
         supabase.from("rent_payments").select("id, tenancy_id, amount, payment_date, method").in("tenancy_id", propIds.length > 0 ? await supabase.from("tenancies").select("id").in("property_id", propIds).then(r => (r.data || []).map((t: any) => t.id)) : []).order("payment_date", { ascending: false }).limit(8),
         supabase.from("inspections").select("id, property_id, title, inspection_type, status, scheduled_date").in("property_id", propIds).order("scheduled_date", { ascending: false }).limit(6),
-        supabase.from("notifications").select("id, title, message, notification_type, status, created_at").eq("landlord_id", landlordId).order("created_at", { ascending: false }).limit(10),
+        supabase.from("notifications").select("id, title, body, type, is_read, created_at").eq("profile_id", session.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
 
       const tenList = (tenancies || []) as any[];
@@ -165,9 +165,9 @@ export default function OwnerDashboardPage() {
         id: n.id,
         title: n.title || "Update",
         property_name: "Property",
-        update_type: n.notification_type || "general",
-        status: n.status || "sent",
-        message: n.message || "",
+        update_type: n.type || "general",
+        status: n.is_read ? "Read" : "New",
+        message: n.body || "",
         sent_at: n.created_at,
         created_at: n.created_at,
       }));
@@ -205,6 +205,8 @@ export default function OwnerDashboardPage() {
   };
 
   const statusBadge: Record<string, string> = {
+    New: "bg-[#F59E0B]/10 text-[#F59E0B]",
+    Read: "bg-[#7A9A7E]/10 text-[#7A9A7E]",
     draft: "bg-[#F1F5F9] text-[#687068]",
     ready: "bg-[#F59E0B]/10 text-[#F59E0B]",
     sent: "bg-[#7A9A7E]/10 text-[#7A9A7E]",

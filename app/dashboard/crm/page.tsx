@@ -766,7 +766,7 @@ export default function CRMPage() {
                   onClick={async () => {
                     setEditSaving(true);
                     const { supabase } = await import('@/lib/supabaseClient');
-                    const updates: Record<string, unknown> = {
+                    const updates: { pipeline_stage: string; follow_up_date: string | null; notes: string | null; updated_at: string } = {
                       pipeline_stage: editStage,
                       follow_up_date: editFollowUp ? new Date(editFollowUp).toISOString() : null,
                       notes: editNotes.trim() || null,

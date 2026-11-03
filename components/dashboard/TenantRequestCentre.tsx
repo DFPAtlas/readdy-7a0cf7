@@ -82,7 +82,7 @@ export default function TenantRequestCentre() {
       if (tenancyIds.size > 0) {
         const { data: tenancies } = await supabase
           .from("tenancies")
-          .select("id, ref, property_id")
+          .select("id, property_id")
           .in("id", Array.from(tenancyIds));
 
         const { data: parties } = await supabase
@@ -96,7 +96,7 @@ export default function TenantRequestCentre() {
 
         const { data: tenants } = await supabase
           .from("tenants")
-          .select("id, name, email")
+          .select("id, full_name, email")
           .in("id", tenantIds);
 
         const { data: properties } = await supabase
@@ -121,9 +121,9 @@ export default function TenantRequestCentre() {
           const tenant = party ? (tenants || []).find((tn: any) => tn.id === party.tenant_id) : null;
           const prop = (properties || []).find((pr: any) => pr.id === t.property_id);
           tenancyMap[t.id] = {
-            ref: t.ref || "—",
+            ref: t.id ? String(t.id).slice(0, 8).toUpperCase() : "—",
             property_name: prop ? `${prop.line1 || ""}, ${prop.city || ""}` : "Unknown property",
-            tenant_name: tenant?.name || "Unknown tenant",
+            tenant_name: tenant?.full_name || "Unknown tenant",
             tenant_email: tenant?.email || "",
             tenant_profile_id: tenant ? (profileMap[tenant.id] || "") : "",
           };

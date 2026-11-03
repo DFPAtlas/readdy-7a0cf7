@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef } from "react"
 import DashboardShell from "@/components/DashboardShell"
 import BrandingTab from "./BrandingTab"
+import AccountProfileCard from "@/components/settings/AccountProfileCard"
+import AgencyProfileCard from "@/components/settings/AgencyProfileCard"
+import PasswordSection from "@/components/settings/PasswordSection"
+import SessionsSection from "@/components/settings/SessionsSection"
+import SecurityActivityLog from "@/components/settings/SecurityActivityLog"
 import { SETTINGS_CATEGORIES } from "@/lib/settingsSystem"
 import Link from "next/link"
 
@@ -64,114 +69,14 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {["profile", "password", "notifications", "sessions"].map((section) => (
-            <div key={section} className="bg-white rounded-xl border border-[#D5D9D5] p-6 space-y-4">
+          {["profile", "password", "notifications", "sessions", "activity"].map((section) => (
+            <div key={section} className={section === "profile" || section === "activity" ? "space-y-4" : "bg-white rounded-xl border border-[#D5D9D5] p-6 space-y-4"}>
               {section === "profile" && (
-                <>
-                  <h2 className="font-semibold text-[#3A3F3A]">Profile Information</h2>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-[#C28A78] rounded-full flex items-center justify-center text-white text-xl font-bold">
-                      A
-                    </div>
-                    <div>
-                      <button className="text-sm font-medium text-[#C28A78] hover:text-[#143828] transition-colors">
-                        Change photo
-                      </button>
-                      <p className="text-xs text-[#94A3B8] mt-0.5">JPG, PNG. Max 2MB</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">First name</label>
-                      <input
-                        type="text"
-                        defaultValue="Alex"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Last name</label>
-                      <input
-                        type="text"
-                        defaultValue="Smith"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Email</label>
-                      <input
-                        type="email"
-                        defaultValue="alex.smith@lethub.co.uk"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Phone</label>
-                      <input
-                        type="tel"
-                        defaultValue="+44 7700 900123"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-4 border-t border-[#D5D9D5]">
-                    <button
-                      onClick={() => showToast("Profile saved")}
-                      className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-6 py-2.5 rounded-lg whitespace-nowrap transition-colors"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                </>
+                <AccountProfileCard onToast={showToast} />
               )}
 
               {section === "password" && (
-                <>
-                  <h2 className="font-semibold text-[#3A3F3A]">Password & Security</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Current password</label>
-                      <input
-                        type="password"
-                        placeholder="Enter current password"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">New password</label>
-                      <input
-                        type="password"
-                        placeholder="Min 8 characters"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Confirm new password</label>
-                      <input
-                        type="password"
-                        placeholder="Confirm new password"
-                        className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between py-4 border-t border-[#D5D9D5]">
-                    <div>
-                      <p className="text-sm font-medium text-[#3A3F3A]">Two-factor authentication</p>
-                      <p className="text-xs text-[#687068] mt-0.5">Add an extra layer of security to your account</p>
-                    </div>
-                    <button className="text-sm font-medium text-[#C28A78] hover:text-[#143828] transition-colors">
-                      Enable
-                    </button>
-                  </div>
-                  <div className="flex justify-end pt-4 border-t border-[#D5D9D5]">
-                    <button
-                      onClick={() => showToast("Password updated")}
-                      className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-6 py-2.5 rounded-lg whitespace-nowrap transition-colors"
-                    >
-                      Update Password
-                    </button>
-                  </div>
-                </>
+                <PasswordSection onToast={showToast} />
               )}
 
               {section === "notifications" && (
@@ -208,43 +113,11 @@ export default function SettingsPage() {
               )}
 
               {section === "sessions" && (
-                <>
-                  <h2 className="font-semibold text-[#3A3F3A]">Active Sessions</h2>
-                  <div className="space-y-3">
-                    {[
-                      { device: "Chrome on Windows", location: "London, UK", ip: "203.0.113.45", current: true },
-                      { device: "Safari on iPhone", location: "London, UK", ip: "203.0.113.46", current: false },
-                      { device: "Chrome on MacBook", location: "Manchester, UK", ip: "198.51.100.22", current: false },
-                    ].map((session) => (
-                      <div key={session.device} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-[#C28A78]/10 rounded-lg flex items-center justify-center">
-                            <i className="ri-computer-line text-[#C28A78] text-sm"></i>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-[#3A3F3A]">{session.device}</p>
-                              {session.current && (
-                                <span className="text-[10px] font-medium text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded-full">Current</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-[#687068]">{session.location} · {session.ip}</p>
-                          </div>
-                        </div>
-                        {!session.current && (
-                          <button className="text-xs font-medium text-[#EF4444] hover:text-[#DC2626] transition-colors">
-                            Sign out
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-4 border-t border-[#D5D9D5]">
-                    <button className="text-sm font-medium text-[#EF4444] hover:text-[#DC2626] transition-colors">
-                      Sign out of all other sessions
-                    </button>
-                  </div>
-                </>
+                <SessionsSection onToast={showToast} />
+              )}
+
+              {section === "activity" && (
+                <SecurityActivityLog />
               )}
             </div>
           ))}
@@ -272,75 +145,11 @@ export default function SettingsPage() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-[#3A3F3A]">Agency Profile</h1>
-              <p className="text-sm text-[#687068] mt-1">Manage your agency details and business information</p>
+              <p className="text-sm text-[#687068] mt-1">Your agency details and workspace access</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#D5D9D5] p-6 space-y-4">
-            <h2 className="font-semibold text-[#3A3F3A]">Agency Information</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Agency name</label>
-                <input
-                  type="text"
-                  defaultValue="Acme Property Management Ltd"
-                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Company registration number</label>
-                <input
-                  type="text"
-                  defaultValue="08512345"
-                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">VAT number</label>
-                <input
-                  type="text"
-                  defaultValue="GB123456789"
-                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Office address</label>
-                <textarea
-                  defaultValue="123 Property Lane, London, EC2A 4BX"
-                  rows={3}
-                  className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] focus:ring-1 focus:ring-[#C28A78] resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Time zone</label>
-                  <div className="relative">
-                    <button className="w-full flex items-center justify-between px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] bg-white">
-                      Europe/London
-                      <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Currency</label>
-                  <div className="relative">
-                    <button className="w-full flex items-center justify-between px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] bg-white">
-                      GBP (£)
-                      <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end pt-4 border-t border-[#D5D9D5]">
-              <button
-                onClick={() => showToast("Agency profile saved")}
-                className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-6 py-2.5 rounded-lg whitespace-nowrap transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
+          <AgencyProfileCard />
         </div>
         {saveToast && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#3A3F3A] text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
@@ -486,7 +295,12 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium text-[#3A3F3A]">Audit log</p>
                 <p className="text-xs text-[#687068] mt-0.5">View all security-related activity and settings changes</p>
               </div>
-              <button className="text-xs text-[#C28A78] font-medium hover:underline">View log</button>
+              <button
+                onClick={() => setView("audit")}
+                className="text-xs text-[#C28A78] font-medium hover:underline cursor-pointer"
+              >
+                View log
+              </button>
             </div>
           </div>
         </div>
@@ -627,41 +441,11 @@ export default function SettingsPage() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-[#3A3F3A]">Audit & Activity</h1>
-              <p className="text-sm text-[#687068] mt-1">View recent account activity and settings changes</p>
+              <p className="text-sm text-[#687068] mt-1">Real sign-ins, password changes and session actions on your account</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#D5D9D5] bg-[#FBF9F4]">
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Date</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">User</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Action</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Detail</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#D5D9D5]">
-                  {[
-                    { date: "Today, 10:23", user: "Alex Smith", action: "Updated agency profile", detail: "Changed office address" },
-                    { date: "Today, 09:15", user: "David Chen", action: "Invited team member", detail: "tom.h@lethub.com as Viewer" },
-                    { date: "Yesterday, 16:42", user: "Alex Smith", action: "Changed notification settings", detail: "Disabled marketing emails" },
-                    { date: "Yesterday, 14:05", user: "Lisa Patel", action: "Updated branding", detail: "Changed primary colour" },
-                    { date: "22 Jul 2026, 11:30", user: "David Chen", action: "Created API key", detail: "Production Web App" },
-                    { date: "21 Jul 2026, 09:00", user: "Alex Smith", action: "Updated password", detail: "Password changed successfully" },
-                  ].map((entry) => (
-                    <tr key={entry.date + entry.action} className="hover:bg-[#FBF9F4] transition-colors">
-                      <td className="px-5 py-3.5 text-xs text-[#687068]">{entry.date}</td>
-                      <td className="px-5 py-3.5 text-sm text-[#3A3F3A]">{entry.user}</td>
-                      <td className="px-5 py-3.5 text-sm text-[#3A3F3A]">{entry.action}</td>
-                      <td className="px-5 py-3.5 text-xs text-[#687068]">{entry.detail}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <SecurityActivityLog />
         </div>
       </DashboardShell>
     )

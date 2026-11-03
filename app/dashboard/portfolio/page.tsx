@@ -38,19 +38,24 @@ interface Property {
   tenantPortal: string;
 }
 
-const nationLabels: Record<string, string> = {
+type Nation = "england" | "wales" | "scotland" | "northern_ireland";
+
+const nationLabels: Record<Nation, string> = {
   england: "England",
   wales: "Wales",
   scotland: "Scotland",
   northern_ireland: "Northern Ireland",
 };
 
-const nationOptions = [
+const nationOptions: { value: Nation; label: string }[] = [
   { value: "england", label: "England" },
   { value: "wales", label: "Wales" },
   { value: "scotland", label: "Scotland" },
   { value: "northern_ireland", label: "Northern Ireland" },
 ];
+
+const isNation = (value: string): value is Nation =>
+  value === "england" || value === "wales" || value === "scotland" || value === "northern_ireland";
 
 const statusStyles: Record<string, string> = {
   Occupied: "bg-[#7A9A7E]/10 text-[#7A9A7E]",
@@ -92,7 +97,14 @@ export default function PortfolioPage() {
   const [accountType, setAccountType] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    line1: string;
+    city: string;
+    postcode: string;
+    nation: Nation;
+    bedrooms: number;
+    is_hmo: boolean;
+  }>({
     line1: "",
     city: "",
     postcode: "",
@@ -339,7 +351,7 @@ export default function PortfolioPage() {
       line1: property.name !== "—" ? property.name : "",
       city: property.city !== "—" ? property.city : "",
       postcode: property.postcode !== "—" ? property.postcode : "",
-      nation: property.nation !== "—" ? property.nation : "england",
+      nation: isNation(property.nation) ? property.nation : "england",
       bedrooms: property.bedrooms,
       is_hmo: property.isHmo,
     });
@@ -506,7 +518,7 @@ export default function PortfolioPage() {
               onClick={() => setNationDropdown(!nationDropdown)}
               className="flex items-center gap-2 px-3 py-2 border border-[#D5D9D5] rounded-lg bg-white text-sm text-[#3A3F3A] w-full sm:w-auto"
             >
-              <span>Nation: {nationFilter === "All" ? "All" : nationLabels[nationFilter] || nationFilter}</span>
+              <span>Nation: {nationFilter === "All" ? "All" : nationLabels[nationFilter as Nation] || nationFilter}</span>
               <div className="w-4 h-4 flex items-center justify-center">
                 <i className="ri-arrow-down-s-line text-[#94A3B8] text-xs"></i>
               </div>
@@ -519,7 +531,7 @@ export default function PortfolioPage() {
                     onClick={() => { setNationFilter(n); setNationDropdown(false); }}
                     className="block w-full text-left px-4 py-2 text-sm text-[#3A3F3A] hover:bg-[#F1F5F9]"
                   >
-                    {n === "All" ? "All" : nationLabels[n] || n}
+                    {n === "All" ? "All" : nationLabels[n as Nation] || n}
                   </button>
                 ))}
               </div>
@@ -539,7 +551,7 @@ export default function PortfolioPage() {
                       {p.status}
                     </span>
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#94A3B8]/10 text-[#94A3B8]">
-                      {nationLabels[p.nation] || p.nation || "—"}
+                      {isNation(p.nation) ? nationLabels[p.nation] : p.nation || "—"}
                     </span>
                   </div>
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
@@ -555,7 +567,7 @@ export default function PortfolioPage() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <Link href={`/dashboard/property/${p.id}`} className="block group">
+                  <Link href={`/dashboard/portfolio/${p.id}`} className="block group">
                     <h3 className="font-semibold text-[#3A3F3A] text-sm truncate group-hover:text-[#C28A78] transition-colors">{p.name}</h3>
                   </Link>
                   <p className="text-xs text-[#687068] mt-0.5 truncate">{p.city}, {p.postcode}</p>
@@ -592,7 +604,7 @@ export default function PortfolioPage() {
 
                   <div className="mt-3 pt-3 border-t border-[#D5D9D5] flex items-center gap-2">
                     <Link
-                      href={`/dashboard/property/${p.id}`}
+                      href={`/dashboard/portfolio/${p.id}`}
                       className="flex-1 text-center text-xs font-medium text-[#C28A78] hover:text-[#143828] py-2 rounded-lg hover:bg-[#F1F5F9] transition-colors"
                     >
                       View Details

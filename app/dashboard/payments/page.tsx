@@ -303,7 +303,7 @@ export default function PaymentsPage() {
                       return (
                         <tr key={p.id} className="hover:bg-[#FBF9F4] transition-colors">
                           <td className="px-5 py-4">
-                            <Link href={`/dashboard/property/${p.propertyId}`} className="text-sm font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">
+                            <Link href={`/dashboard/portfolio/${p.propertyId}`} className="text-sm font-medium text-[#3A3F3A] hover:text-[#C28A78] transition-colors">
                               {p.propertyName}
                             </Link>
                             <p className="text-xs text-[#94A3B8]">{p.tenancyRef}</p>

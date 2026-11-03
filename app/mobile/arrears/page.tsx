@@ -76,6 +76,7 @@ export default function MobileArrearsPage() {
               arrearsMonths={item.arrearsMonths}
               riskRating={item.riskRating as ArrearsRisk}
               lastContact={item.lastContact}
+              lastReminderSent={item.lastReminderSent || "Never"}
               onClick={() => setSelectedItem(item)}
             />
           ))}

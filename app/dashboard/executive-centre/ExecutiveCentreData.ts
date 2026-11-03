@@ -89,7 +89,7 @@ export async function fetchExecutiveReport(): Promise<ExecutiveReportData> {
 
   const properties = (agg || []) as Array<{
     id: string
-    property_financials: { current_value: number }[] | null
+    property_financials: { current_value: number | null }[] | null
     property_health_scores: { overall_score: number }[] | null
   }>
 
@@ -183,11 +183,11 @@ export async function fetchHighRiskProperties(): Promise<HighRiskProperty[]> {
   const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propIds)
   const { data: financials } = await supabase.from("property_financials").select("property_id, current_value").in("property_id", propIds)
 
-  const propMap = new Map<string, { line1: string; city: string; postcode: string }>()
-  ;(properties || []).forEach((p: { id: string; line1: string; city: string; postcode: string }) => propMap.set(p.id, p))
+  const propMap = new Map<string, { line1: string; city: string | null; postcode: string }>()
+  ;(properties || []).forEach((p: { id: string; line1: string; city: string | null; postcode: string }) => propMap.set(p.id, p))
 
   const finMap = new Map<string, number>()
-  ;(financials || []).forEach((f: { property_id: string; current_value: number }) => finMap.set(f.property_id, f.current_value))
+  ;(financials || []).forEach((f: { property_id: string; current_value: number | null }) => finMap.set(f.property_id, f.current_value ?? 0))
 
   return scores.map((s) => ({
     id: s.property_id,
@@ -225,13 +225,13 @@ export async function fetchOpenIssues(): Promise<OpenIssue[]> {
     ...(complianceItems || []).map((c: { property_id: string }) => c.property_id),
   ].filter(Boolean);
 
-  const propMap = new Map<string, { line1: string; city: string }>();
+  const propMap = new Map<string, { line1: string; city: string | null }>();
   if (allPropertyIds.length > 0) {
     const { data: properties } = await supabase
       .from("properties")
       .select("id, line1, city")
       .in("id", [...new Set(allPropertyIds)]);
-    (properties || []).forEach((p: { id: string; line1: string; city: string }) => propMap.set(p.id, p));
+    (properties || []).forEach((p: { id: string; line1: string; city: string | null }) => propMap.set(p.id, p));
   }
 
   const issues: OpenIssue[] = [];
@@ -297,7 +297,7 @@ export async function fetchRegionalBreakdown(): Promise<RegionalBreakdown[]> {
     let portVal = 0
     if (propertyIds.length) {
       const { data: fin } = await supabase.from("property_financials").select("current_value").in("property_id", propertyIds)
-      portVal = (fin || []).reduce((s: number, f: { current_value: number }) => s + (f.current_value || 0), 0)
+      portVal = (fin || []).reduce((s: number, f: { current_value: number | null }) => s + (f.current_value || 0), 0)
     }
 
     let compRate = 0

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, TenancyRecord } from "./TenanciesData";
+import CreateTenancyModal from "@/components/dashboard/CreateTenancyModal";
 
 export default function TenanciesPage() {
   const [search, setSearch] = useState("");
@@ -17,17 +18,6 @@ export default function TenanciesPage() {
   const [error, setError] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    propertyName: "",
-    tenantName: "",
-    ownerName: "",
-    startDate: "",
-    endDate: "",
-    rent: "",
-    deposit: "",
-    periodic: false,
-  });
 
   const mountedRef = useRef(true);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -384,29 +374,9 @@ export default function TenanciesPage() {
     }, 3000);
   };
 
-  const handleAddTenancy = async () => {
-    if (!formData.propertyName || !formData.startDate) return;
-    if (demoMode) { showDemoBlockedMessage(); return; }
-    try {
-      await supabase.from("tenancies").insert({
-        property_id: "d0000000-0000-0000-0000-000000000001",
-        regime: "ast_legacy",
-        term_type: "fixed_term",
-        status: "active",
-        start_date: new Date().toISOString().split("T")[0],
-        rent_amount: parseInt(formData.rent) || 0,
-        rent_period: "pcm",
-        deposit_amount: parseInt(formData.deposit) || 0,
-        deposit_scheme: "TDS",
-        is_periodic: formData.periodic,
-      });
-    } catch (err: any) {
-      showToast("Failed to create tenancy: " + (err.message || "Unknown error"));
-      return;
-    }
+  const handleTenancyCreated = (message: string) => {
     setAddModalOpen(false);
-    setFormData({ propertyName: "", tenantName: "", ownerName: "", startDate: "", endDate: "", rent: "", deposit: "", periodic: false });
-    showToast("Tenancy created as draft");
+    showToast(message);
     loadTenancies();
   };
 
@@ -479,7 +449,7 @@ export default function TenanciesPage() {
           <DemoHelperTip id="tenancies-overview" title="Tenancy Management">Create and manage tenancy records linked to properties, tenants and landlords. Track start/end dates, rent, deposits and tenancy status.</DemoHelperTip>
           <button
             onClick={() => {
-              setFormData({ propertyName: "", tenantName: "", ownerName: "", startDate: "", endDate: "", rent: "", deposit: "", periodic: false });
+              if (demoMode) { showDemoBlockedMessage(); return; }
               setAddModalOpen(true);
             }}
             className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 cursor-pointer"
@@ -633,69 +603,12 @@ export default function TenanciesPage() {
         </div>
       </div>
 
-      {addModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setAddModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-[#3A3F3A]">Create Tenancy</h3>
-              <button onClick={() => setAddModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] cursor-pointer">
-                <i className="ri-close-line text-[#94A3B8]"></i>
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Property *</label>
-                <input type="text" value={formData.propertyName} onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })} placeholder="e.g. Rose Court Flat 2A" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Tenant</label>
-                  <input type="text" value={formData.tenantName} onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })} placeholder="e.g. John Miller" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Owner</label>
-                  <input type="text" value={formData.ownerName} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="e.g. James Richardson" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Start Date *</label>
-                  <input type="text" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} placeholder="DD Mon YYYY" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">End Date</label>
-                  <input type="text" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} placeholder="DD Mon YYYY or TBC" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Monthly Rent (£)</label>
-                  <input type="text" value={formData.rent} onChange={(e) => setFormData({ ...formData, rent: e.target.value })} placeholder="e.g. 1850" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">Deposit (£)</label>
-                  <input type="text" value={formData.deposit} onChange={(e) => setFormData({ ...formData, deposit: e.target.value })} placeholder="e.g. 1850" className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, periodic: !formData.periodic })}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${formData.periodic ? "bg-[#C28A78] border-[#C28A78]" : "border-[#D5D9D5]"}`}
-                >
-                  {formData.periodic && <i className="ri-check-line text-white text-xs"></i>}
-                </button>
-                <span className="text-sm text-[#3A3F3A]">Periodic tenancy (rolling)</span>
-              </label>
-              <div className="flex items-center gap-3 pt-2">
-                <button onClick={handleAddTenancy} className="flex-1 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap cursor-pointer">Create as Draft</button>
-                <button onClick={() => setAddModalOpen(false)} className="flex-1 text-sm font-medium text-[#687068] border border-[#D5D9D5] py-2.5 rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap cursor-pointer">Cancel</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateTenancyModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onCreated={handleTenancyCreated}
+        showToast={showToast}
+      />
 
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#3A3F3A] text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">

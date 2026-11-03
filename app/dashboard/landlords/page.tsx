@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
@@ -10,6 +11,7 @@ import LandlordQuickView from "@/components/dashboard/LandlordQuickView";
 import { owners, portalStatusBadge, portalStatusLabel, Owner } from "./LandlordsData";
 
 export default function LandlordsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [statusDropdown, setStatusDropdown] = useState(false);
@@ -327,7 +329,7 @@ export default function LandlordsPage() {
             </div>
             <p className="text-sm font-medium text-[#3A3F3A]">Failed to load landlords</p>
             <p className="text-xs text-[#94A3B8] mt-1">{error}</p>
-            <button onClick={loadLandlords} className="mt-3 text-sm font-medium text-[#C28A78] hover:underline cursor-pointer">Retry</button>
+            <button onClick={() => loadLandlords()} className="mt-3 text-sm font-medium text-[#C28A78] hover:underline cursor-pointer">Retry</button>
           </div>
         </div>
       </DashboardShell>
@@ -609,7 +611,7 @@ export default function LandlordsPage() {
           onViewFull={(owner) => {
             setQuickViewOwner(null);
             if (owner.linkedProperties.length > 0) {
-              window.location.href = `/dashboard/property/${owner.linkedProperties[0].id}`;
+              router.push(`/dashboard/portfolio/${owner.linkedProperties[0].id}`);
             }
           }}
         />

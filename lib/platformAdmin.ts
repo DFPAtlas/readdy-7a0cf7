@@ -1,4 +1,13 @@
 import { supabase } from "@/lib/supabaseClient";
+import type { Database } from "@/lib/database.types";
+
+type PublicTableName = keyof Database["public"]["Tables"];
+
+type TableQueryClient = {
+  from: (table: PublicTableName) => any;
+};
+
+const tableClient = supabase as unknown as TableQueryClient;
 
 export function getSupabaseAdminClient() {
   return supabase;
@@ -46,7 +55,7 @@ export async function requirePlatformAdmin(): Promise<{
 }
 
 export async function fetchPlatformKpi(
-  table: string,
+  table: PublicTableName,
   opts?: {
     column?: string;
     filter?: Record<string, unknown>;
@@ -54,7 +63,7 @@ export async function fetchPlatformKpi(
   }
 ): Promise<{ count: number | null; error: string | null }> {
   try {
-    let query = supabase.from(table).select(opts?.column || "*", { count: "exact", head: true });
+    let query = tableClient.from(table).select(opts?.column || "*", { count: "exact", head: true });
     if (opts?.filter) {
       for (const [key, value] of Object.entries(opts.filter)) {
         if (value !== undefined && value !== null) {
@@ -71,7 +80,7 @@ export async function fetchPlatformKpi(
 }
 
 export async function fetchTableRows(
-  table: string,
+  table: PublicTableName,
   opts?: {
     columns?: string;
     filters?: Record<string, unknown>;
@@ -80,7 +89,7 @@ export async function fetchTableRows(
   }
 ): Promise<{ data: any[] | null; error: string | null }> {
   try {
-    let query = supabase.from(table).select(opts?.columns || "*");
+    let query = tableClient.from(table).select(opts?.columns || "*");
     if (opts?.filters) {
       for (const [key, value] of Object.entries(opts.filters)) {
         if (value !== undefined && value !== null) {

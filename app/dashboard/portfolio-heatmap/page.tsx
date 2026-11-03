@@ -115,7 +115,7 @@ export default function PortfolioHeatmapPage() {
               return (
                 <Link
                   key={prop.id}
-                  href={`/dashboard/property/${prop.id}`}
+                  href={`/dashboard/portfolio/${prop.id}`}
                   className="block rounded-xl border border-[#E2E8F0] overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1"
                 >
                   <div className="relative h-36">

@@ -13,6 +13,8 @@ import DocumentSummary from '@/components/dashboard/DocumentSummary';
 import DocumentActionCentre from '@/components/dashboard/DocumentActionCentre';
 import { allDocuments, documentFolders, documentTypes, propertiesForDocs, DocumentItem } from './DocumentData';
 
+type DocumentKind = 'gas_safety' | 'eicr' | 'epc' | 'pat' | 'legionella_risk_assessment' | 'right_to_rent' | 'deposit_prescribed_info' | 'how_to_rent_guide' | 'rra_information_sheet' | 'hmo_licence' | 'selective_licence' | 'tenancy_agreement' | 'inventory' | 'epc_exemption' | 'insurance' | 'other';
+
 export default function DocumentsPage() {
   const [search, setSearch] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('all');
@@ -79,10 +81,10 @@ export default function DocumentsPage() {
       const kindColorMap: Record<string, string> = { tenancy_agreement: 'bg-[#3B82F6]', gas_safety: 'bg-[#10B981]', eicr: 'bg-[#10B981]', epc: 'bg-[#10B981]' };
       const formatSize = (bytes: number | null): string => { if (!bytes) return '—'; if (bytes < 1024) return `${bytes} B`; if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`; return `${(bytes / 1048576).toFixed(1)} MB`; };
       const docItems: DocumentItem[] = (docs || []).map(d => {
-        const prop = propMap[d.property_id]; const kind = d.kind || 'other';
+        const prop = d.property_id ? propMap[d.property_id] : null; const kind = d.kind || 'other';
         return {
-          id: d.id, name: `${kindLabelMap[kind] || kind} - ${prop ? prop.line1 : 'Unknown'}`, type: kindLabelMap[kind] || 'Other', folder: kindFolderMap[kind] || 'Other',
-          propertyId: d.property_id || 'all', propertyName: prop ? `${prop.line1}, ${prop.city || ''}` : 'Unknown',
+          id: d.id, name: `${kindLabelMap[kind] || kind} - ${prop ? prop.line1 : 'No property'}`, type: kindLabelMap[kind] || 'Other', folder: kindFolderMap[kind] || 'Other',
+          propertyId: d.property_id || 'all', propertyName: prop ? `${prop.line1}, ${prop.city || ''}` : 'No property',
           date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
           size: formatSize(d.file_size), description: d.storage_path || '', fileType: 'pdf', icon: kindIconMap[kind] || 'ri-file-line', color: kindColorMap[kind] || 'bg-[#94A3B8]',
           uploadedBy: 'System', uploadedByRole: 'Agent', versions: [{ version: 1, date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-', uploadedBy: 'System', uploadedByRole: 'Agent', size: '—', notes: '' }], access: ['agent'],
@@ -107,7 +109,7 @@ export default function DocumentsPage() {
         const filePath = `${Date.now()}_${uploadedFile.name}`;
         const { error: uploadErr } = await supabase.storage.from(bucket).upload(filePath, uploadedFile);
         if (uploadErr) throw uploadErr;
-        const kindMap: Record<string, string> = { 'Tenancy Agreement': 'tenancy_agreement', 'Gas Safety': 'gas_safety', 'EICR': 'eicr', 'EPC': 'epc' };
+        const kindMap: Record<string, DocumentKind> = { 'Tenancy Agreement': 'tenancy_agreement', 'Gas Safety': 'gas_safety', 'EICR': 'eicr', 'EPC': 'epc', 'Right to Rent': 'right_to_rent', 'RRA Information Sheet': 'rra_information_sheet' };
         await supabase.from('documents').insert({ property_id: uploadProperty !== 'all' ? uploadProperty : null, tenancy_id: uploadLinkTenancy || null, kind: kindMap[uploadType] || 'tenancy_agreement', storage_path: filePath, file_size: uploadedFile.size });
       }
     } catch (err: any) { if (showRlsError(err, 'documents')) { setUploading(false); return; } }
@@ -150,7 +152,8 @@ export default function DocumentsPage() {
 
   const handleDelete = async () => {
     if (demoMode) { showDemoBlockedMessage(); setShowDeleteModal(false); setDocToDelete(null); return; }
-    try { await supabase.from('documents').delete().eq('id', docToDelete?.id); } catch (err) { console.error(err); }
+    if (!docToDelete?.id) return;
+    try { await supabase.from('documents').delete().eq('id', docToDelete.id); } catch (err) { console.error(err); }
     setShowDeleteModal(false); setDocToDelete(null); loadDocuments();
   };
   const handleShare = () => {
