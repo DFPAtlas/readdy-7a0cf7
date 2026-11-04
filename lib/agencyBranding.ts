@@ -43,6 +43,12 @@ export function useAgencyBranding(agencyId: string | null): {
     let cancelled = false;
 
     async function fetchBranding() {
+      if (!agencyId) {
+        setBranding(DEFAULT_BRANDING);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 

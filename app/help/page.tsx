@@ -121,10 +121,10 @@ export default function HelpPage() {
                 Contact support
               </Link>
               <a
-                href="mailto:support@lethub.co.uk"
+                href="mailto:support@lethub.uk"
                 className="text-sm font-semibold text-[#3A3F3A] border border-[#E2E8F0] px-6 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap"
               >
-                support@lethub.co.uk
+                support@lethub.uk
               </a>
             </div>
           </div>

@@ -100,7 +100,7 @@ export function getPlaceholderDefault(key: string): string {
     agency_name: 'LetHub Property Management',
     agency_address: '123 High Street, London, WC1A 1AA',
     agency_phone: '020 7946 0000',
-    agency_email: 'info@lethub.co.uk',
+    agency_email: 'info@lethub.uk',
     priority_level: 'Standard',
     payment_terms: '30 days from invoice',
     variation_limit: '10% of quoted amount',

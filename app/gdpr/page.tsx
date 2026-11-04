@@ -70,7 +70,7 @@ export default function GDPRPage() {
                 ))}
               </ul>
               <p className="text-sm text-[#475569] leading-relaxed mt-3">
-                To exercise any of these rights, contact our Data Protection Officer at dpo@lethub.co.uk. We will verify your identity before processing any request.
+                To exercise any of these rights, contact our Data Protection Officer at dpo@lethub.uk. We will verify your identity before processing any request.
               </p>
             </div>
 
@@ -98,7 +98,7 @@ export default function GDPRPage() {
                 ))}
               </ul>
               <p className="text-sm text-[#475569] leading-relaxed mt-3">
-                You can request a copy of our DPA by emailing legal@lethub.co.uk. The DPA forms part of our Terms of Service and is automatically incorporated when you create an account.
+                You can request a copy of our DPA by emailing legal@lethub.uk. The DPA forms part of our Terms of Service and is automatically incorporated when you create an account.
               </p>
             </div>
 
@@ -202,7 +202,7 @@ export default function GDPRPage() {
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">9. Contact our DPO</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
                 Our Data Protection Officer can be reached at:<br />
-                Email: dpo@lethub.co.uk<br />
+                Email: dpo@lethub.uk<br />
                 Post: Data Protection Officer, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE<br /><br />
                 You also have the right to lodge a complaint with the Information Commissioner's Office (ICO):<br />
                 Website: ico.org.uk<br />

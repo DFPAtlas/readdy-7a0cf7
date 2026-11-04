@@ -76,7 +76,7 @@ export default function PrivacyPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">4. Data retention</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
-                We retain personal data only for as long as necessary to fulfil the purposes for which it was collected. Account data is retained for the duration of your account plus 6 years (to comply with UK tax and property record-keeping requirements). Usage data is anonymised after 26 months. You can request deletion of your data at any time by contacting privacy@lethub.co.uk, subject to our legal obligations to retain certain records.
+                We retain personal data only for as long as necessary to fulfil the purposes for which it was collected. Account data is retained for the duration of your account plus 6 years (to comply with UK tax and property record-keeping requirements). Usage data is anonymised after 26 months. You can request deletion of your data at any time by contacting privacy@lethub.uk, subject to our legal obligations to retain certain records.
               </p>
             </div>
 
@@ -132,7 +132,7 @@ export default function PrivacyPage() {
                 ))}
               </ul>
               <p className="text-sm text-[#475569] leading-relaxed mt-3">
-                To exercise any of these rights, email privacy@lethub.co.uk. We will respond within one month. You also have the right to lodge a complaint with the Information Commissioner's Office (ICO) at ico.org.uk.
+                To exercise any of these rights, email privacy@lethub.uk. We will respond within one month. You also have the right to lodge a complaint with the Information Commissioner's Office (ICO) at ico.org.uk.
               </p>
             </div>
 
@@ -154,7 +154,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">10. Contact us</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
                 For any privacy-related questions or to exercise your data rights:<br />
-                Email: privacy@lethub.co.uk<br />
+                Email: privacy@lethub.uk<br />
                 Post: Data Protection Officer, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE<br />
                 ICO registration: ZA123456
               </p>

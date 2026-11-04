@@ -38,7 +38,7 @@ export default function N8NIntegrationPage() {
         (agentRes.data || []).forEach((a: N8NAgent) => {
           agentLookup.set(a.agent_key, { agent_name: a.agent_name, agent_group: a.agent_group });
         });
-        const enrichedRuns = (runRes.data as N8NAgentRun[]).map((run) => {
+        const enrichedRuns = (runRes.data as unknown as N8NAgentRun[]).map((run) => {
           const match = agentLookup.get(run.agent_key);
           return {
             ...run,

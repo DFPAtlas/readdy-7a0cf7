@@ -30,7 +30,7 @@ export default function PressPage() {
             </p>
             <p className="text-sm text-[#687068] leading-relaxed">
               For press enquiries, interview requests, or speaking opportunities, please contact us through the form below or email{" "}
-              <a href="mailto:press@lethub.co.uk" className="text-[#C28A78] underline">press@lethub.co.uk</a>.
+              <a href="mailto:press@lethub.uk" className="text-[#C28A78] underline">press@lethub.uk</a>.
             </p>
           </div>
 
@@ -75,10 +75,10 @@ export default function PressPage() {
                 <i className="ri-arrow-right-line"></i>
               </Link>
               <a
-                href="mailto:press@lethub.co.uk"
+                href="mailto:press@lethub.uk"
                 className="text-white font-semibold px-6 py-3 rounded-xl border border-white/30 hover:bg-white/10 transition-colors whitespace-nowrap"
               >
-                press@lethub.co.uk
+                press@lethub.uk
               </a>
             </div>
           </div>

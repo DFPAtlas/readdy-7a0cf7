@@ -7,6 +7,7 @@ import SidebarNavItem from "@/components/SidebarNavItem";
 import { usePathname } from "next/navigation";
 import GettingStartedChecklist from "@/components/onboarding/GettingStartedChecklist";
 import AvatarUploader from "@/components/dashboard/AvatarUploader";
+import { isDemoAccount } from "@/lib/demoMode";
 import {
   AppRole,
   canAccessDashboardPath,
@@ -263,7 +264,29 @@ const roleColours: Record<AppRole, string> = {
   suspended: "bg-red-500",
 };
 
-function groupsForRole(role: AppRole): NavGroup[] {
+const sampleOnlyPaths = new Set([
+  "/dashboard/accounting",
+  "/dashboard/admin",
+  "/dashboard/agent-control-centre",
+  "/dashboard/ai-maintenance-triage",
+  "/dashboard/ai-operations",
+  "/dashboard/business-intelligence",
+  "/dashboard/enterprise-ops",
+  "/dashboard/executive",
+  "/dashboard/financial-hub",
+  "/dashboard/integrations",
+  "/dashboard/inventory-marketplace",
+  "/dashboard/landlord",
+  "/dashboard/marketplace",
+  "/dashboard/open-banking",
+  "/dashboard/operations-director",
+  "/dashboard/portfolio-heatmap",
+  "/dashboard/quote-workflow",
+  "/dashboard/risk-centre",
+  "/dashboard/tenant",
+]);
+
+function groupsForRole(role: AppRole, showSampleOnlyPages: boolean): NavGroup[] {
   if (role === "landlord") return landlordGroups;
   if (role === "tenant") return tenantGroups;
   if (role === "contractor") return contractorGroups;
@@ -271,11 +294,24 @@ function groupsForRole(role: AppRole): NavGroup[] {
   const filteredAgencyGroups = agencyGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canAccessDashboardPath(role, item.href)),
+      items: group.items.filter(
+        (item) =>
+          canAccessDashboardPath(role, item.href) &&
+          (showSampleOnlyPages || !sampleOnlyPaths.has(item.href))
+      ),
     }))
     .filter((group) => group.items.length > 0);
 
-  return role === "platform_admin" ? [...platformGroups, ...filteredAgencyGroups] : filteredAgencyGroups;
+  if (role !== "platform_admin") return filteredAgencyGroups;
+
+  const filteredPlatformGroups = platformGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => showSampleOnlyPages || !sampleOnlyPaths.has(item.href)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return [...filteredPlatformGroups, ...filteredAgencyGroups];
 }
 
 export default function Sidebar({
@@ -306,7 +342,16 @@ export default function Sidebar({
   onAvatarUpdate: (url: string) => void;
 }) {
   const pathname = usePathname();
-  const groups = useMemo(() => groupsForRole(role), [role]);
+  const [showSampleOnlyPages, setShowSampleOnlyPages] = useState(false);
+
+  useEffect(() => {
+    setShowSampleOnlyPages(isDemoAccount());
+  }, []);
+
+  const groups = useMemo(
+    () => groupsForRole(role, showSampleOnlyPages),
+    [role, showSampleOnlyPages]
+  );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["home", "portfolio", "platform"]));
   const home = getRoleHome(role);
   const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);

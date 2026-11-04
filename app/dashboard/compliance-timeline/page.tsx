@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
@@ -8,21 +8,19 @@ import { isDemoAccount } from "@/lib/demoMode";
 import {
   timelineEvents,
   timelineCategories,
-  timelinePropertyFilter,
   statusStyles,
   categoryColors,
   TimelineEvent,
 } from "./ComplianceTimelineData";
+import { fetchTimelineEvents } from "./loadComplianceTimeline";
 
-const monthLabels = ["Jul 2026", "Aug 2026", "Sep 2026", "Oct 2026", "Nov 2026", "Dec 2026", "Jan 2027", "Feb 2027", "Mar 2027", "Apr 2027", "May 2027", "Jun 2027"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function getMonthIndex(dateStr: string): number {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function getMonthIndex(dateStr: string, baseYear: number, baseMonth: number): number {
   const parts = dateStr.split(" ");
-  const monthIdx = months.indexOf(parts[1]);
+  const monthIdx = MONTH_NAMES.indexOf(parts[1]);
   const year = parseInt(parts[2]);
-  const baseMonth = 6;
-  const baseYear = 2026;
+  if (monthIdx < 0 || Number.isNaN(year)) return -1;
   return (year - baseYear) * 12 + monthIdx - baseMonth;
 }
 
@@ -31,33 +29,106 @@ export default function ComplianceTimelinePage() {
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!demoMode && isDemoAccount()) setDemoMode(true);
+  const monthLabels = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      return { label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, year: d.getFullYear(), month: d.getMonth() };
+    });
+  }, []);
+
+  const baseYear = monthLabels[0].year;
+  const baseMonth = monthLabels[0].month;
+  const monthIndexFor = (dateStr: string) => getMonthIndex(dateStr, baseYear, baseMonth);
+
+  useEffect(() => {
+    const demo = isDemoAccount();
+    setDemoMode(demo);
+
+    if (demo) {
+      setEvents(timelineEvents);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      try {
+        const loaded = await fetchTimelineEvents();
+        if (!active) return;
+        setEvents(loaded);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Unable to load compliance dates.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const propertyNames = useMemo(() => {
+    const names = Array.from(new Set(events.map((e) => e.propertyName)));
+    names.sort((a, b) => a.localeCompare(b));
+    return names;
+  }, [events]);
 
   const filteredEvents = useMemo(() => {
-    return timelineEvents.filter((e) => {
+    return events.filter((e) => {
       const catMatch = activeCategory === "all" || e.category === activeCategory;
       const propMatch = propertyFilter === "All Properties" || e.propertyName === propertyFilter;
       return catMatch && propMatch;
     });
-  }, [activeCategory, propertyFilter]);
+  }, [events, activeCategory, propertyFilter]);
 
   const monthsWithEvents = useMemo(() => {
-    return monthLabels.map((label, idx) => {
-      const eventsInMonth = filteredEvents.filter((e) => {
-        const mi = getMonthIndex(e.date);
-        return mi === idx;
-      });
-      return { label, events: eventsInMonth };
+    return monthLabels.map((month, idx) => {
+      const eventsInMonth = filteredEvents.filter((e) => monthIndexFor(e.date) === idx);
+      return { label: month.label, events: eventsInMonth };
     });
-  }, [filteredEvents]);
+  }, [filteredEvents, monthLabels, baseYear, baseMonth]);
 
-  const expiredCount = timelineEvents.filter((e) => e.status === "expired").length;
-  const expiringCount = timelineEvents.filter((e) => e.status === "expiring").length;
-  const validCount = timelineEvents.filter((e) => e.status === "valid").length;
-  const completedCount = timelineEvents.filter((e) => e.status === "completed").length;
+  const expiredCount = events.filter((e) => e.status === "expired").length;
+  const expiringCount = events.filter((e) => e.status === "expiring").length;
+  const validCount = events.filter((e) => e.status === "valid").length;
+  const completedCount = events.filter((e) => e.status === "completed").length;
 
   const monthsWithData = monthsWithEvents.filter((m) => m.events.length > 0);
+
+  if (loading) {
+    return (
+      <DashboardShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#C28A78] border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-sm text-[#687068]">Loading compliance timeline...</span>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardShell>
+        <div className="text-center py-20">
+          <div className="w-14 h-14 mx-auto mb-4 bg-[#FEF2F2] rounded-full flex items-center justify-center">
+            <i className="ri-error-warning-line text-[#C46868] text-2xl"></i>
+          </div>
+          <p className="text-sm font-medium text-[#C46868]">Failed to load compliance timeline</p>
+          <p className="text-xs text-[#687068] mt-1">{error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 text-sm text-[#C28A78] font-medium hover:underline">
+            Try again
+          </button>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell>
@@ -123,7 +194,7 @@ export default function ComplianceTimelinePage() {
               onChange={(e) => setPropertyFilter(e.target.value)}
               className="px-3 py-2 border border-[#E2E8F0] rounded-lg bg-white text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-8 appearance-none cursor-pointer"
             >
-              {timelinePropertyFilter.map((p) => (
+              {propertyNames.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>
@@ -137,14 +208,14 @@ export default function ComplianceTimelinePage() {
                 <div className="w-40 flex-shrink-0 px-4 py-3 border-r border-[#E2E8F0]">
                   <span className="text-xs font-medium text-[#687068]">Property</span>
                 </div>
-                {monthLabels.map((ml, i) => {
+                {monthLabels.map((month, i) => {
                   const isCurrent = i === 0;
                   return (
                     <div
-                      key={ml}
+                      key={month.label}
                       className={`flex-1 px-2 py-3 text-center border-r border-[#E2E8F0] ${isCurrent ? "bg-[#C28A78]/5" : ""}`}
                     >
-                      <p className={`text-xs font-medium ${isCurrent ? "text-[#C28A78]" : "text-[#687068]"}`}>{ml}</p>
+                      <p className={`text-xs font-medium ${isCurrent ? "text-[#C28A78]" : "text-[#687068]"}`}>{month.label}</p>
                       {isCurrent && (
                         <span className="text-[10px] text-[#C28A78] bg-[#C28A78]/10 px-1.5 py-0.5 rounded-full font-medium">Now</span>
                       )}
@@ -153,7 +224,7 @@ export default function ComplianceTimelinePage() {
                 })}
               </div>
 
-              {["Rose Court Flat 2A", "Riverside Court", "Maple Gardens House"].filter(
+              {propertyNames.filter(
                 (p) => propertyFilter === "All Properties" || p === propertyFilter
               ).map((propName) => {
                 const propEvents = filteredEvents.filter((e) => e.propertyName === propName);
@@ -163,10 +234,10 @@ export default function ComplianceTimelinePage() {
                     <div className="w-40 flex-shrink-0 px-4 py-3 border-r border-[#E2E8F0] flex items-center">
                       <p className="text-xs font-medium text-[#3A3F3A] truncate">{propName}</p>
                     </div>
-                    {monthLabels.map((ml, mi) => {
-                      const eventsInCell = propEvents.filter((e) => getMonthIndex(e.date) === mi);
+                    {monthLabels.map((month, mi) => {
+                      const eventsInCell = propEvents.filter((e) => monthIndexFor(e.date) === mi);
                       return (
-                        <div key={ml} className="flex-1 px-1 py-2 border-r border-[#E2E8F0] min-h-[48px] flex items-center justify-center flex-wrap gap-1">
+                        <div key={month.label} className="flex-1 px-1 py-2 border-r border-[#E2E8F0] min-h-[48px] flex items-center justify-center flex-wrap gap-1">
                           {eventsInCell.map((ev) => {
                             const catColor = categoryColors[ev.category] || categoryColors.inspections;
                             return (
@@ -192,9 +263,23 @@ export default function ComplianceTimelinePage() {
                 );
               })}
 
-              {filteredEvents.filter((e) => !["Rose Court Flat 2A", "Riverside Court", "Maple Gardens House"].includes(e.propertyName)).length === 0 &&
-               propertyFilter !== "All Properties" &&
-               !["Rose Court Flat 2A", "Riverside Court", "Maple Gardens House"].includes(propertyFilter) && (
+              {events.length === 0 && (
+                <div className="text-center py-12 px-6">
+                  <div className="w-14 h-14 mx-auto mb-4 bg-[#F8FAFC] rounded-full flex items-center justify-center">
+                    <i className="ri-calendar-line text-[#C28A78] text-2xl"></i>
+                  </div>
+                  <p className="text-sm text-[#687068]">No compliance dates yet. Add certificates to your properties to build the timeline.</p>
+                  <Link
+                    href="/dashboard/portfolio"
+                    className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-[#C28A78] text-white text-sm font-medium rounded-lg whitespace-nowrap hover:bg-[#B0796A] transition-colors cursor-pointer"
+                  >
+                    <i className="ri-building-line text-sm"></i>
+                    Go to Portfolio
+                  </Link>
+                </div>
+              )}
+
+              {events.length > 0 && filteredEvents.length === 0 && (
                 <div className="text-center py-8 text-sm text-[#94A3B8]">
                   No events found for this property
                 </div>

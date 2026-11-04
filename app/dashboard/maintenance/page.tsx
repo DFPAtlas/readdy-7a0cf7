@@ -4,8 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
-import MaintenanceJobCard from "@/components/dashboard/MaintenanceJobCard";
+import MaintenanceJobCard, { type MaintenanceJobListItem } from "@/components/dashboard/MaintenanceJobCard";
 import { isDemoAccount } from "@/lib/demoMode";
+import {
+  fetchMaintenanceJobs,
+  fetchMaintenanceProperties,
+  createMaintenanceJob,
+  type MaintenancePropertyOption,
+} from "@/lib/maintenanceJobs";
 import { useEntitlements } from "@/lib/useEntitlements";
 import { getStatusConfig, getPriorityConfig, type MaintenanceStage } from "@/lib/maintenanceStatus";
 
@@ -42,30 +48,114 @@ export default function MaintenancePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [statusDropdown, setStatusDropdown] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [jobs, setJobs] = useState<MaintenanceJobListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobSuccess, setNewJobSuccess] = useState(false);
-  const [newJobForm, setNewJobForm] = useState({
-    title: "",
-    property: "12 Rose Avenue, London E1 6AN",
-    category: "Plumbing",
-    priority: "Normal",
-    description: "",
-    reportedBy: "Tenant",
-    targetDate: "",
-    accessNotes: "",
-  });
+  const [newJobSaving, setNewJobSaving] = useState(false);
+  const [newJobError, setNewJobError] = useState<string | null>(null);
+  const [properties, setProperties] = useState<MaintenancePropertyOption[]>([]);
+  const emptyJobForm = { title: "", propertyId: "", category: "Plumbing", priority: "Normal", description: "", reportedBy: "Tenant", targetDate: "", accessNotes: "" };
+  const [newJobForm, setNewJobForm] = useState(emptyJobForm);
   const { isReadOnly } = useEntitlements();
 
+  const reloadJobs = async () => {
+    try {
+      const loaded = await fetchMaintenanceJobs();
+      setJobs(loaded);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load maintenance jobs.");
+    }
+  };
+
+  const handleCreateJob = async () => {
+    if (isReadOnly || newJobSaving) return;
+
+    if (!newJobForm.title.trim()) {
+      setNewJobError("Please enter a job title.");
+      return;
+    }
+    if (!demoMode && !newJobForm.propertyId) {
+      setNewJobError("Please select a property.");
+      return;
+    }
+
+    setNewJobError(null);
+
+    if (!demoMode) {
+      setNewJobSaving(true);
+      try {
+        await createMaintenanceJob({
+          propertyId: newJobForm.propertyId,
+          title: newJobForm.title,
+          description: newJobForm.description,
+          category: newJobForm.category,
+          priority: newJobForm.priority,
+          reportedBy: newJobForm.reportedBy,
+          targetDate: newJobForm.targetDate,
+          accessNotes: newJobForm.accessNotes,
+        });
+        setNewJobSuccess(true);
+        setNewJobSaving(false);
+        setTimeout(() => {
+          setNewJobSuccess(false);
+          setShowNewJobModal(false);
+          setNewJobForm(emptyJobForm);
+          void reloadJobs();
+        }, 2000);
+      } catch (err) {
+        setNewJobSaving(false);
+        setNewJobError(err instanceof Error ? err.message : "Could not save the job. Please try again.");
+      }
+      return;
+    }
+
+    setNewJobSuccess(true);
+    setTimeout(() => {
+      setNewJobSuccess(false);
+      setShowNewJobModal(false);
+      setNewJobForm(emptyJobForm);
+    }, 2000);
+  };
+
   useEffect(() => {
-    setDemoMode(isDemoAccount());
-    setLoading(false);
+    const demo = isDemoAccount();
+    setDemoMode(demo);
+
+    if (demo) {
+      setJobs(DEMO_JOBS);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      try {
+        const [loaded, propertyOptions] = await Promise.all([
+          fetchMaintenanceJobs(),
+          fetchMaintenanceProperties().catch(() => [] as MaintenancePropertyOption[]),
+        ]);
+        if (!active) return;
+        setJobs(loaded);
+        setProperties(propertyOptions);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Unable to load maintenance jobs.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const actions = DEMO_ACTIONS;
-  const allJobs = DEMO_JOBS;
+  const actions = demoMode ? DEMO_ACTIONS : [];
+  const allJobs = jobs;
 
   const filtered = allJobs.filter((j) => {
     const matchesSearch = j.title.toLowerCase().includes(search.toLowerCase()) || j.property.toLowerCase().includes(search.toLowerCase());
@@ -143,7 +233,7 @@ export default function MaintenancePage() {
             </Link>
             {!isReadOnly && (
               <button
-                onClick={() => setShowNewJobModal(true)}
+                onClick={() => { setNewJobError(null); setNewJobSuccess(false); setShowNewJobModal(true); }}
                 className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2"
               >
                 <div className="w-4 h-4 flex items-center justify-center">
@@ -337,19 +427,33 @@ export default function MaintenancePage() {
                     <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
                     <div className="relative">
                       <select
-                        value={newJobForm.property}
-                        onChange={(e) => setNewJobForm({ ...newJobForm, property: e.target.value })}
+                        value={newJobForm.propertyId}
+                        onChange={(e) => setNewJobForm({ ...newJobForm, propertyId: e.target.value })}
                         className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] pr-10 appearance-none bg-[#FAFAF8] transition-colors cursor-pointer"
                       >
-                        <option>12 Rose Avenue, London E1 6AN</option>
-                        <option>45 Baker Street, Manchester M1 2CD</option>
-                        <option>8 The Crescent, Leeds LS1 3AB</option>
-                        <option>Unit 3, Riverside Court, Bristol BS1 4ST</option>
-                        <option>Flat 4B, Oak Street, Birmingham B2 3CD</option>
-                        <option>Flat 2A, Park View, Cardiff CF10 3BZ</option>
+                        {demoMode ? (
+                          <>
+                            <option value="demo-1">12 Rose Avenue, London E1 6AN</option>
+                            <option value="demo-2">45 Baker Street, Manchester M1 2CD</option>
+                            <option value="demo-3">8 The Crescent, Leeds LS1 3AB</option>
+                            <option value="demo-4">Unit 3, Riverside Court, Bristol BS1 4ST</option>
+                            <option value="demo-5">Flat 4B, Oak Street, Birmingham B2 3CD</option>
+                            <option value="demo-6">Flat 2A, Park View, Cardiff CF10 3BZ</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="">Select a property</option>
+                            {properties.map((property) => (
+                              <option key={property.id} value={property.id}>{property.label}</option>
+                            ))}
+                          </>
+                        )}
                       </select>
                       <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none"><i className="ri-arrow-down-s-line text-[#94A3B8] text-sm"></i></div>
                     </div>
+                    {!demoMode && properties.length === 0 && (
+                      <p className="text-xs text-[#94A3B8] mt-1">No properties found yet. Add a property before logging a job.</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -463,6 +567,15 @@ export default function MaintenancePage() {
                     </p>
                   </div>
 
+                  {newJobError && (
+                    <div className="flex items-start gap-2 bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-3.5 py-3">
+                      <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i className="ri-error-warning-line text-[#C46868] text-sm"></i>
+                      </div>
+                      <p className="text-xs text-[#C46868]">{newJobError}</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 pt-1">
                     <button
                       onClick={() => setShowNewJobModal(false)}
@@ -471,24 +584,16 @@ export default function MaintenancePage() {
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
-                        if (!newJobForm.title) return;
-                        setNewJobSuccess(true);
-                        setTimeout(() => {
-                          setNewJobSuccess(false);
-                          setShowNewJobModal(false);
-                          setNewJobForm({ title: "", property: "12 Rose Avenue, London E1 6AN", category: "Plumbing", priority: "Normal", description: "", reportedBy: "Tenant", targetDate: "", accessNotes: "" });
-                        }, 2000);
-                      }}
-                      disabled={!newJobForm.title}
+                      onClick={handleCreateJob}
+                      disabled={!newJobForm.title || newJobSaving}
                       className={`flex-1 text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                        newJobForm.title
+                        newJobForm.title && !newJobSaving
                           ? "bg-[#C28A78] hover:bg-[#143828] text-white"
                           : "bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed"
                       }`}
                     >
-                      <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-circle-line text-sm"></i></div>
-                      Log Job
+                      <div className="w-4 h-4 flex items-center justify-center"><i className={`${newJobSaving ? "ri-loader-4-line animate-spin" : "ri-add-circle-line"} text-sm`}></i></div>
+                      {newJobSaving ? "Saving..." : "Log Job"}
                     </button>
                   </div>
                 </>

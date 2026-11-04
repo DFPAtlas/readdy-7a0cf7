@@ -14,7 +14,7 @@ const myArrears = {
   lastContact: "5 Jun 2026",
   contactMethod: "Email Reminder",
   agentPhone: "+44 20 7946 0958",
-  agentEmail: "arrears@lethub.co.uk",
+  agentEmail: "arrears@lethub.uk",
   paymentHistory: [
     { month: "Jun 2026", amount: 1850, date: null, status: "Unpaid", daysLate: 5 },
     { month: "May 2026", amount: 1850, date: "1 May 2026", status: "Paid", daysLate: 0 },

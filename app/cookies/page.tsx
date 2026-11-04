@@ -137,7 +137,7 @@ export default function CookiesPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">7. Contact</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
-                Questions about cookies? Email privacy@lethub.co.uk or visit our <a href="/contact" className="text-[#C28A78] underline">contact page</a>.
+                Questions about cookies? Email privacy@lethub.uk or visit our <a href="/contact" className="text-[#C28A78] underline">contact page</a>.
               </p>
             </div>
           </div>

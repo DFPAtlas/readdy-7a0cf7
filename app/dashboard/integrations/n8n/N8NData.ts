@@ -28,8 +28,8 @@ export interface N8NAgentRun {
   id: string;
   agent_id: string | null;
   agent_key: string;
-  agent_name: string;
-  agent_group: string;
+  agent_name?: string;
+  agent_group?: string;
   run_status: string;
   started_at: string;
   finished_at: string | null;

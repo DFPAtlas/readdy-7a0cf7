@@ -122,7 +122,7 @@ export default function TermsPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">10. Termination</h2>
               <p className="text-sm text-[#475569] leading-relaxed mb-3">
-                Either party may terminate these terms at any time. You may terminate by closing your account through the Platform settings or by contacting support@lethub.co.uk. We may terminate or suspend your access immediately if you breach these terms, fail to pay fees, or engage in conduct that we reasonably believe violates applicable law or harms other users.
+                Either party may terminate these terms at any time. You may terminate by closing your account through the Platform settings or by contacting support@lethub.uk. We may terminate or suspend your access immediately if you breach these terms, fail to pay fees, or engage in conduct that we reasonably believe violates applicable law or harms other users.
               </p>
               <p className="text-sm text-[#475569] leading-relaxed">
                 Upon termination, your right to access the Platform ceases immediately. We will retain your Content for 30 days after termination to allow you to export it. After 30 days, your Content will be permanently deleted, subject to our legal retention obligations.
@@ -147,7 +147,7 @@ export default function TermsPage() {
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">13. Contact</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
                 For questions about these terms:<br />
-                Email: legal@lethub.co.uk<br />
+                Email: legal@lethub.uk<br />
                 Post: Legal Department, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE
               </p>
             </div>

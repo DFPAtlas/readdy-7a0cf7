@@ -6,61 +6,38 @@ import Footer from "@/components/Footer";
 
 const sections = [
   {
-    title: "Data encryption",
-    icon: "ri-lock-line",
-    items: [
-      "All data encrypted at rest using AES-256 encryption.",
-      "Data in transit protected by TLS 1.3 with perfect forward secrecy.",
-      "Encrypted backups stored in geographically separate UK data centres.",
-    ],
-  },
-  {
     title: "Infrastructure security",
     icon: "ri-server-line",
     items: [
-      "Platform hosted on AWS (London region, eu-west-2) and Vercel's enterprise infrastructure.",
-      "Supabase database hosted in EU (Ireland) with SOC 2 Type II certification.",
-      "DDoS protection via AWS Shield and Vercel's edge network.",
-      "Web Application Firewall (WAF) blocking OWASP Top 10 attack vectors.",
+      "Application hosted on Vercel, with TLS encryption for all traffic.",
+      "Database hosted by Supabase in the EU, on infrastructure with SOC 2 Type II certification.",
+      "Data encrypted at rest and in transit.",
     ],
   },
   {
     title: "Access control",
     icon: "ri-shield-user-line",
     items: [
-      "Multi-factor authentication (MFA) available for all user accounts.",
-      "Role-based access control (RBAC) with granular permissions — admin, agent, landlord, tenant, contractor.",
-      "Row-Level Security (RLS) in Supabase ensures users only see their own data.",
-      "Session timeout after 30 minutes of inactivity (configurable per agency).",
-      "Single Sign-On (SSO) via SAML 2.0 available on Enterprise plans.",
+      "Role-based access control with separate permissions for agency staff, landlords, tenants and contractors.",
+      "Row-Level Security in the database, so each account can only access its own agency's data.",
+      "Passwordless sign-in with one-time email codes.",
+      "Account activity log showing recent sign-ins and security events.",
     ],
   },
   {
     title: "Application security",
     icon: "ri-code-s-slash-line",
     items: [
-      "Secure development lifecycle: code review, static analysis (SAST), dependency scanning.",
-      "Cross-Site Scripting (XSS) and Cross-Site Request Forgery (CSRF) protections built into the framework.",
-      "Content Security Policy (CSP), HTTP Strict Transport Security (HSTS), and other security headers enforced.",
-      "Responsible disclosure at security@lethub.co.uk.",
+      "Automated dependency vulnerability checks on every code change.",
+      "Payments processed by Stripe. LetHub never stores or handles card numbers.",
+      "Responsible disclosure: report security issues to security@lethub.uk.",
     ],
   },
   {
     title: "Compliance",
     icon: "ri-award-line",
     items: [
-      "UK GDPR compliant — see our GDPR page for full details.",
-      "PCI DSS compliance via Stripe — we never handle raw card data.",
-      "Data Processing Agreement (DPA) available for all customers.",
-    ],
-  },
-  {
-    title: "Business continuity",
-    icon: "ri-refresh-line",
-    items: [
-      "Real-time database replication with point-in-time recovery (PITR).",
-      "Disaster recovery plan with documented runbooks.",
-      "24/7 on-call engineering team for critical incidents.",
+      "Built to comply with UK GDPR. See our GDPR page for details.",
     ],
   },
 ];
@@ -113,8 +90,8 @@ export default function SecurityPage() {
               If you believe you have found a security vulnerability in LetHub, please email us immediately. We take all reports seriously and aim to respond within 24 hours.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <a href="mailto:security@lethub.co.uk" className="text-sm font-semibold text-white bg-[#C28A78] hover:bg-[#143828] px-6 py-3 rounded-xl transition-colors whitespace-nowrap">
-                security@lethub.co.uk
+              <a href="mailto:security@lethub.uk" className="text-sm font-semibold text-white bg-[#C28A78] hover:bg-[#143828] px-6 py-3 rounded-xl transition-colors whitespace-nowrap">
+                security@lethub.uk
               </a>
               <Link href="/gdpr" className="text-sm font-semibold text-[#3A3F3A] border border-[#E2E8F0] px-6 py-3 rounded-xl hover:border-[#C28A78] transition-colors whitespace-nowrap">
                 GDPR compliance
