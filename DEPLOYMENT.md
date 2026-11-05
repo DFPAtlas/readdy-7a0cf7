@@ -95,7 +95,7 @@ Use [`supabase/SCHEMA_AUTHORITY.md`](supabase/SCHEMA_AUTHORITY.md) as the source
 
 The repository check `npm run check:migrations` validates filenames, ordering, gaps and SQL file hygiene only. It does not inspect production or establish which migrations have run. Regenerate `lib/database.types.ts` from the confirmed live schema after an accepted migration, then record the new authority fingerprint.
 
-The migration history and schema fingerprint have not been re-verified against the live LetHub project in this review. Do not apply migrations 009–014 to production until that verification is complete.
+The live project was checked on 5 November 2026. The current ledger, schema fingerprint and catalog observations are recorded in `supabase/SCHEMA_AUTHORITY.md`. The July 2026 authority record is still the only recorded fingerprint, several live schema changes do not map cleanly to the repository migration names, and no Supabase development branches are currently listed. Do not apply further production SQL until those records are reconciled. Migration 014 must also preserve the live `open` and `scheduled` maintenance-job statuses before it can be considered for deployment.
 
 ## Build and start
 
