@@ -25,7 +25,7 @@ The fingerprint covers public relations, columns, RLS state, policies, public fu
 
 This file is the source of truth for the documented migration classification and database baseline. The repository contains migrations `001` through `014`. Much of the production schema was originally created outside the tracked migration chain (via the Supabase dashboard and SQL tool), so files `001`–`008` are retained as historical reconstruction and hardening work and must not be replayed against production.
 
-A migration file being present in Git does not prove that it has been applied to production. The documented live history below is a dated baseline snapshot, not a current migration ledger. In particular, the claims that `011` and `012` were applied live have not been reconciled against a current ledger in this review. Verify the production migration ledger and schema fingerprint before classifying any unverified migration as applied or applying it.
+A migration file being present in Git does not prove that it has been applied to production. The current production ledger and schema were checked on 5 November 2026; the July 2026 authority record below is only a dated baseline. The live ledger includes later security and agent migrations not found by the repository-wide GitHub search, while catalog checks confirm core effects from migrations `010`–`013` without matching migration names in the ledger. Reconcile these records before applying or recording any migration.
 
 ### Complete migration inventory
 
@@ -39,18 +39,69 @@ A migration file being present in Git does not prove that it has been applied to
 | `006_enable_missing_rls.sql` | Enable + force RLS on 21 tables | Historical — do not replay |
 | `007_fix_permissive_rls_policies.sql` | Re-scope permissive RLS policies | Recorded as applied in the 28 July 2026 baseline |
 | `008_schema_authority.sql` | Authority ledger + fingerprint function | Recorded as applied in the 28 July 2026 baseline |
-| `009_tenant_isolation_hardening.sql` | Revoke browser-role `TRUNCATE`; remove cross-agency contractor reads | Forward-only — verify current live status before applying |
-| `010_registration_invite_hardening.sql` | Restrict self-registration roles and browser access to portal invitations/grants | Forward-only — verify current live status before applying |
-| `011_tenancy_relationship_flow.sql` | Tenant ownership scope, scoped tenant policies and browser insert lockdown | Reported applied live; current ledger verification pending |
-| `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Reported applied live; current ledger verification pending |
-| `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Forward-only — verify current live status before applying |
-| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Forward-only — verify current live status and review its existing-row status normalization before applying |
+| `009_tenant_isolation_hardening.sql` | Revoke browser-role `TRUNCATE`; remove cross-agency contractor reads | Applied live under ledger name `tenant_isolation_hardening` (2026-10-02); checked effects confirmed |
+| `010_registration_invite_hardening.sql` | Restrict self-registration roles and browser access to portal invitations/grants | Core effects observed live; matching migration ledger name not found — reconcile before any replay |
+| `011_tenancy_relationship_flow.sql` | Tenant ownership scope, scoped tenant policies and browser insert lockdown | Core fields and function observed live; matching migration ledger name not found — reconcile before any replay |
+| `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Column observed live; matching migration ledger name not found — reconcile before any replay |
+| `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Table, RLS and own-row policies observed live; matching migration ledger name not found — reconcile before any replay |
+| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; pending code must preserve existing `open` and `scheduled` statuses before it is considered |
 
 The next new migration must be numbered `015`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence.
 
-### Forward-only migration record: `009_tenant_isolation_hardening.sql`
+### Production verification on 5 November 2026
 
-Classification: **Forward-only security hardening migration — verify live migration status before applying.**
+The connected LetHub account identifies project `gejxrnreuafnyzwrchvy` as `Lethub UK Overview (via Readdy)`, active and healthy in `eu-west-2`.
+
+Current schema fingerprint:
+
+```text
+sha256: d12e8b007ffdd06eeade9940d32ddd475ae256d587554afe84b90ce80e9d5ca1
+public tables: 91
+RLS-enabled public tables: 91
+views: 7
+public functions: 43
+policies: 245
+indexes: 192
+enums: 18
+non-internal public triggers: 2
+```
+
+The only row in `app_private.schema_authority` is still `batch-0b-2026-07-28`, fingerprint `7ab444ffe62ddba5d673adfe701b065610f27f7445c202a7250d098730b38d2b` (83 tables, 83 RLS-enabled, 7 views, 31 functions, 237 policies, 162 indexes, 18 enums and 0 non-internal triggers). The live schema has changed since that record, but the current fingerprint has not been recorded as a newer authority release.
+
+The current migration ledger contains 15 entries:
+
+| Version | Name | Repository mapping |
+|---|---|---|
+| `20260728184005` | `fix_permissive_rls_policies` | `007_fix_permissive_rls_policies.sql` |
+| `20260728213651` | `batch_0a_immediate_containment` | No tracked file |
+| `20260728214449` | `batch_0b_schema_authority` | `008_schema_authority.sql` |
+| `20260907164953` | `security_01a_pin_function_search_paths` | No matching file found in this repository |
+| `20260907165044` | `security_01b_harden_rls_helper_search_paths` | No matching file found in this repository |
+| `20260907165245` | `agent_db_01_extend_agent_registry` | No matching file found in this repository |
+| `20260907165342` | `agent_db_02_event_task_approval_heartbeat` | No matching file found in this repository |
+| `20260907165436` | `agent_registry_01_seed_lethub_agents` | No matching file found in this repository |
+| `20260907165531` | `agent_registry_02_tools_and_approval_rules` | No matching file found in this repository |
+| `20260907165628` | `agent_engine_01_event_router` | No matching file found in this repository |
+| `20260907165738` | `agent_engine_02_run_and_heartbeat_functions` | No matching file found in this repository |
+| `20260907165816` | `agent_engine_03_dfp_status_payload` | No matching file found in this repository |
+| `20260907165858` | `agent_engine_04_database_heartbeat` | No matching file found in this repository |
+| `20260907165949` | `agent_engine_05_unified_status_and_workflow_contract` | No matching file found in this repository |
+| `20261002164159` | `tenant_isolation_hardening` | Corresponds by name to migration 009; live effects checked |
+
+Catalog checks on the current database confirmed:
+
+- All 91 public tables have RLS enabled; no public table grants `TRUNCATE` to `anon` or `authenticated`.
+- The two cross-agency contractor policies named in migration 009 are absent.
+- The profile role-integrity trigger and the portal-access policies described by migration 010 are present.
+- Migration 011's tenant scope columns and `can_manage_tenant(uuid)`, migration 012's `tenants.notes`, and migration 013's `user_security_events` table, RLS and own-row policies are present, but their corresponding named migrations do not appear in the ledger.
+- Migration 014's detail columns are absent. Existing maintenance-job statuses are 8 `open`, 4 `reported`, 3 `scheduled` and 2 `in_progress`. The current draft migration would rewrite the 8 `open` and 3 `scheduled` rows to `reported`; the application uses both `open` and `scheduled`, so this must be corrected before applying it.
+- No Supabase development branches are currently listed for the project.
+
+These findings show why filename order alone is unsafe. Reconcile the unmatched schema changes and record a current authority fingerprint. Do not apply migrations 010–014 to production until the ledger/source mapping is clear; migration 014 also needs the status-preserving fix and development-branch validation.
+
+### Migration record: `009_tenant_isolation_hardening.sql`
+
+Classification: **Applied live under migration ledger entry `20261002164159 tenant_isolation_hardening`; catalog checks confirm browser roles cannot `TRUNCATE` public tables and the two named cross-agency policies are absent.**
 
 Purpose:
 
@@ -59,9 +110,9 @@ Purpose:
 - Remove the cross-agency read policy `cp_agency_read` from `contractor_profiles`.
 - Remove the cross-agency read policy `cp_perf_agency_read` from `contractor_performance`.
 
-### Forward-only migration record: `010_registration_invite_hardening.sql`
+### Migration record: `010_registration_invite_hardening.sql`
 
-Classification: **Forward-only security hardening migration — verify live migration status before applying.**
+Classification: **Core effects are visible live: the profile role-integrity trigger and expected portal-access policies exist. No matching `registration_invite_hardening` ledger entry was found. Do not replay this file; reconcile it with the recorded security migrations first.**
 
 Purpose:
 
@@ -74,7 +125,7 @@ Invitation acceptance is performed by the trusted `accept-portal-invite` Edge Fu
 
 ### Migration record: `011_tenancy_relationship_flow.sql`
 
-Classification: **Reported applied live in this document; verify the current production ledger before relying on that status.**
+Classification: **Tenant scope columns, `can_manage_tenant(uuid)` and `tenants_scope_update` are present live. No matching `tenancy_relationship_flow` ledger entry was found; do not replay until the source of these objects is reconciled.**
 
 Purpose:
 
@@ -86,7 +137,7 @@ Tenant creation runs through the trusted `create-tenant` Edge Function and tenan
 
 ### Migration record: `012_tenant_notes.sql`
 
-Classification: **Reported applied live in this document; verify the current production ledger before relying on that status.**
+Classification: **The `tenants.notes` column is present live. No matching `tenant_notes` ledger entry was found; do not replay until the source of this column is reconciled.**
 
 Purpose:
 
@@ -94,9 +145,9 @@ Purpose:
 
 Tenant notes are written by the trusted `create-tenant` Edge Function on creation and by the scoped `tenants_scope_update` policy on edit.
 
-### Forward-only migration record: `013_user_security_events.sql`
+### Migration record: `013_user_security_events.sql`
 
-Classification: **Forward-only migration — verify live migration status before applying.**
+Classification: **The table, RLS and own-row select/insert policies are present live. No matching `user_security_events` ledger entry was found; do not replay until the source is reconciled.**
 
 Purpose:
 
@@ -105,7 +156,7 @@ Purpose:
 
 ### Forward-only migration record: `014_maintenance_job_details.sql`
 
-Classification: **Forward-only migration — verify live migration status before applying and review the existing-row updates.**
+Classification: **The detail columns and constraints are absent from the live schema and no matching ledger entry exists. The current file would rewrite eight `open` and three `scheduled` jobs to `reported`; update the migration to preserve both statuses before applying.**
 
 Purpose:
 
@@ -113,7 +164,7 @@ Purpose:
 - Normalize null or unrecognized priorities to `normal` and null or unrecognized statuses to `reported`, then add check constraints for the allowed values.
 - Leave existing RLS policies unchanged.
 
-The status normalization changes existing rows. Confirm the proposed mapping is acceptable and inspect affected row counts before applying this migration to production.
+The status normalization changes existing rows. The live application uses `open` and `scheduled` statuses, so both must remain allowed in the constraint and must not be normalized to `reported`.
 
 ## Live Supabase migration history
 
