@@ -23,11 +23,9 @@ The fingerprint covers public relations, columns, RLS state, policies, public fu
 
 ## Migration reconciliation
 
-This file is the single source of truth for migration history and the authoritative
-database baseline. The repository contains migrations `001` through `008`, but much of
-the production schema was originally created outside the tracked migration chain (via
-the Supabase dashboard and SQL tool). Those files are retained as historical
-reconstruction and hardening work; they must **not** be replayed against production.
+This file is the source of truth for the documented migration classification and database baseline. The repository contains migrations `001` through `014`. Much of the production schema was originally created outside the tracked migration chain (via the Supabase dashboard and SQL tool), so files `001`–`008` are retained as historical reconstruction and hardening work and must not be replayed against production.
+
+A migration file being present in Git does not prove that it has been applied to production. The documented live history below is a dated baseline snapshot, not a current migration ledger. In particular, the claims that `011` and `012` were applied live have not been reconciled against a current ledger in this review. Verify the production migration ledger and schema fingerprint before classifying any unverified migration as applied or applying it.
 
 ### Complete migration inventory
 
@@ -39,17 +37,16 @@ reconstruction and hardening work; they must **not** be replayed against product
 | `004_auth_rbac_hardening.sql` | Profiles RLS, role-integrity trigger | Historical — do not replay |
 | `005_billing_authority.sql` | Stripe-authoritative subscriptions, `status = incomplete` backfill | Historical — do not replay |
 | `006_enable_missing_rls.sql` | Enable + force RLS on 21 tables | Historical — do not replay |
-| `007_fix_permissive_rls_policies.sql` | Re-scope permissive RLS policies | Already applied live (see below) |
-| `008_schema_authority.sql` | Authority ledger + fingerprint function | Already applied live (see below) |
-| `009_tenant_isolation_hardening.sql` | Revoke `TRUNCATE` from browser roles, stop future public tables granting `TRUNCATE` to `anon`/`authenticated`, drop cross-agency read policies on contractor tables | Forward-only — verify live status before applying |
-| `010_registration_invite_hardening.sql` | Restrict public self-registration to `estate_agent_admin`/`landlord`, least-privilege placeholder profile on signup, lock down portal invite/access browser access | Forward-only — verify live status before applying |
-| `011_tenancy_relationship_flow.sql` | Tenant ownership scope + scoped tenant RLS, browser tenant-insert lockdown, tenant scope-change guard | Applied live (see below) |
-| `012_tenant_notes.sql` | Add `tenants.notes` free-text column (not a scope field) | Applied live (see below) |
+| `007_fix_permissive_rls_policies.sql` | Re-scope permissive RLS policies | Recorded as applied in the 28 July 2026 baseline |
+| `008_schema_authority.sql` | Authority ledger + fingerprint function | Recorded as applied in the 28 July 2026 baseline |
+| `009_tenant_isolation_hardening.sql` | Revoke browser-role `TRUNCATE`; remove cross-agency contractor reads | Forward-only — verify current live status before applying |
+| `010_registration_invite_hardening.sql` | Restrict self-registration roles and browser access to portal invitations/grants | Forward-only — verify current live status before applying |
+| `011_tenancy_relationship_flow.sql` | Tenant ownership scope, scoped tenant policies and browser insert lockdown | Reported applied live; current ledger verification pending |
+| `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Reported applied live; current ledger verification pending |
+| `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Forward-only — verify current live status before applying |
+| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Forward-only — verify current live status and review its existing-row status normalization before applying |
 
-`009_tenant_isolation_hardening.sql` is the first forward-only migration after the
-historical/reconciliation chain. Its live application status must be verified against the
-production Supabase migration ledger before deployment. The next new migration must be
-numbered `012`.
+The next new migration must be numbered `015`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence.
 
 ### Forward-only migration record: `009_tenant_isolation_hardening.sql`
 
@@ -75,9 +72,9 @@ Purpose:
 
 Invitation acceptance is performed by the trusted `accept-portal-invite` Edge Function (service role), and self-registration role assignment by `complete-registration`.
 
-### Forward-only migration record: `011_tenancy_relationship_flow.sql`
+### Migration record: `011_tenancy_relationship_flow.sql`
 
-Classification: **Forward-only migration — applied live.**
+Classification: **Reported applied live in this document; verify the current production ledger before relying on that status.**
 
 Purpose:
 
@@ -85,28 +82,42 @@ Purpose:
 - Add `can_manage_tenant(uuid)` and scoped `tenants_scope_read` / `tenants_scope_update` policies.
 - Block browser tenant creation (insert policies now require `is_platform_admin`) and guard tenant scope changes via `prevent_tenant_scope_change`.
 
-Tenant creation runs through the trusted `create-tenant` Edge Function and tenancy creation
-through `create-tenancy`, which verifies property and tenant scope, rejects duplicate active
-tenancies for a property, writes the `tenancies` row and its lead `tenancy_parties` row, and
-rolls back the tenancy if the party link cannot be written. Both run with the service role; the
-browser cannot create tenants or tenancies against an arbitrary property outside its scope.
+Tenant creation runs through the trusted `create-tenant` Edge Function and tenancy creation through `create-tenancy`, which verifies property and tenant scope, rejects duplicate active tenancies for a property, writes the `tenancies` row and its lead `tenancy_parties` row, and rolls back the tenancy if the party link cannot be written. Both run with the service role; the browser cannot create tenants or tenancies against an arbitrary property outside its scope.
 
-### Forward-only migration record: `012_tenant_notes.sql`
+### Migration record: `012_tenant_notes.sql`
 
-Classification: **Forward-only migration — applied live.**
+Classification: **Reported applied live in this document; verify the current production ledger before relying on that status.**
 
 Purpose:
 
-- Add a free-text `notes` column to `public.tenants` so tenant notes persist instead of
-  being discarded by the UI. `notes` is operational metadata and is intentionally **not** a
-  scope field, so it is editable under the existing `tenants_scope_update` policy.
+- Add a free-text `notes` column to `public.tenants` so tenant notes persist instead of being discarded by the UI. `notes` is operational metadata and is intentionally not a scope field, so it is editable under the existing `tenants_scope_update` policy.
 
-Tenant notes are written by the trusted `create-tenant` Edge Function on creation and by the
-scoped `tenants_scope_update` policy on edit.
+Tenant notes are written by the trusted `create-tenant` Edge Function on creation and by the scoped `tenants_scope_update` policy on edit.
 
-### Live Supabase migration history
+### Forward-only migration record: `013_user_security_events.sql`
 
-The live migration history at the Batch 0B baseline is:
+Classification: **Forward-only migration — verify live migration status before applying.**
+
+Purpose:
+
+- Create `public.user_security_events` for durable account security and device-trust events.
+- Allow authenticated users to read and append only their own events. The migration defines no update or delete policies.
+
+### Forward-only migration record: `014_maintenance_job_details.sql`
+
+Classification: **Forward-only migration — verify live migration status before applying and review the existing-row updates.**
+
+Purpose:
+
+- Add operational detail columns to `public.maintenance_jobs` for priority, category, reporter, target date, access notes, estimated cost and update time.
+- Normalize null or unrecognized priorities to `normal` and null or unrecognized statuses to `reported`, then add check constraints for the allowed values.
+- Leave existing RLS policies unchanged.
+
+The status normalization changes existing rows. Confirm the proposed mapping is acceptable and inspect affected row counts before applying this migration to production.
+
+## Live Supabase migration history
+
+The following is the migration history documented for the Batch 0B baseline on 28 July 2026. It is not a current ledger snapshot:
 
 | Version | Name | Git file |
 |---|---|---|
@@ -114,9 +125,9 @@ The live migration history at the Batch 0B baseline is:
 | `20260728213651` | `batch_0a_immediate_containment` | *(none — live-only, backfill pending)* |
 | `20260728214449` | `batch_0b_schema_authority` | `008_schema_authority.sql` |
 
-`batch_0a_immediate_containment` (`20260728213651`) was applied directly to production as
-an emergency containment change and has no tracked file in Git yet. It must be backfilled
-into `supabase/migrations/` in a future change, identified by its exact Supabase version.
+`batch_0a_immediate_containment` (`20260728213651`) was applied directly to production as an emergency containment change and has no tracked file in Git yet. It must be backfilled into `supabase/migrations/` in a future change, identified by its exact Supabase version.
+
+The later documentation entries for migrations `011` and `012` report them as applied live, but the current production ledger has not been checked in this review. Do not infer their status, or the status of migrations `009`, `010`, `013` or `014`, from this dated baseline.
 
 ## Required workflow
 
