@@ -1,8 +1,9 @@
 // Authoritative Supabase database types for LetHub.
-// Source: live Supabase project `gejxrnreuafnyzwrchvy` (PostgREST), schema as of migrations 001-008.
+// Base source: live Supabase project `gejxrnreuafnyzwrchvy` (PostgREST), schema as of migrations 001-008.
+// Forward-only additions from tracked migrations 012-014 are represented below. This is not a fresh
+// live schema export; regenerate from the live project and reconcile its migration ledger before deployment.
 // Regenerate after every accepted schema migration with:
 //   npx supabase gen types typescript --project-id gejxrnreuafnyzwrchvy --schema public > lib/database.types.ts
-// Do not hand-edit table shapes to make the compiler pass; resolve schema/code mismatches in application code instead.
 export type Json =
   | string
   | number
@@ -2124,34 +2125,55 @@ export type Database = {
       }
       maintenance_jobs: {
         Row: {
+          access_notes: string | null
           assigned_contractor_profile_id: string | null
+          category: string | null
           created_at: string
           description: string | null
+          estimated_cost: number | null
           id: string
+          priority: string
           property_id: string
+          reported_by: string | null
           status: string
+          target_date: string | null
           tenancy_id: string | null
           title: string
+          updated_at: string
         }
         Insert: {
+          access_notes?: string | null
           assigned_contractor_profile_id?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
+          estimated_cost?: number | null
           id?: string
+          priority?: string
           property_id: string
+          reported_by?: string | null
           status?: string
+          target_date?: string | null
           tenancy_id?: string | null
           title: string
+          updated_at?: string
         }
         Update: {
+          access_notes?: string | null
           assigned_contractor_profile_id?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
+          estimated_cost?: number | null
           id?: string
+          priority?: string
           property_id?: string
+          reported_by?: string | null
           status?: string
+          target_date?: string | null
           tenancy_id?: string | null
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -4385,6 +4407,7 @@ export type Database = {
           full_name: string
           id: string
           import_id: string | null
+          notes: string | null
           phone: string | null
           profile_id: string | null
         }
@@ -4397,6 +4420,7 @@ export type Database = {
           full_name: string
           id?: string
           import_id?: string | null
+          notes?: string | null
           phone?: string | null
           profile_id?: string | null
         }
@@ -4409,6 +4433,7 @@ export type Database = {
           full_name?: string
           id?: string
           import_id?: string | null
+          notes?: string | null
           phone?: string | null
           profile_id?: string | null
         }
@@ -4421,6 +4446,33 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+      }
+      user_security_events: {
+        Row: {
+          created_at: string
+          description: string
+          device: string | null
+          event_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          device?: string | null
+          event_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          device?: string | null
+          event_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       webhook_endpoints: {
         Row: {

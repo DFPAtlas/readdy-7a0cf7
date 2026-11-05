@@ -17,7 +17,7 @@ interface PropertyRow {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const INCLUDED_STATUSES = ["compliant", "due_soon", "overdue", "missing"];
+const INCLUDED_STATUSES = ["compliant", "due_soon", "overdue", "missing"] as const;
 
 const OBLIGATION_LABELS: Record<string, string> = {
   gas_safety: "Gas Safety Certificate",
@@ -81,7 +81,7 @@ export async function fetchTimelineEvents(): Promise<TimelineEvent[]> {
   if (error) throw new Error(error.message);
 
   const rows = ((data ?? []) as ComplianceItemRow[]).filter(
-    (row) => !!row.next_due && INCLUDED_STATUSES.includes(row.status)
+    (row) => !!row.next_due && INCLUDED_STATUSES.some((status) => status === row.status)
   );
   if (rows.length === 0) return [];
 
