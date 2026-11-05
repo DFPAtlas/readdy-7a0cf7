@@ -81,7 +81,7 @@ export async function fetchTimelineEvents(): Promise<TimelineEvent[]> {
   if (error) throw new Error(error.message);
 
   const rows = ((data ?? []) as ComplianceItemRow[]).filter(
-    (row) => !!row.next_due && INCLUDED_STATUSES.includes(row.status)
+    (row) => !!row.next_due && INCLUDED_STATUSES.some((status) => status === row.status)
   );
   if (rows.length === 0) return [];
 
