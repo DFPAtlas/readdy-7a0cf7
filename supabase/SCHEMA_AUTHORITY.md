@@ -44,7 +44,7 @@ A migration file being present in Git does not prove that it has been applied to
 | `011_tenancy_relationship_flow.sql` | Tenant ownership scope, scoped tenant policies and browser insert lockdown | Core fields and function observed live; matching migration ledger name not found — reconcile before any replay |
 | `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Column observed live; matching migration ledger name not found — reconcile before any replay |
 | `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Table, RLS and own-row policies observed live; matching migration ledger name not found — reconcile before any replay |
-| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; pending code must preserve existing `open` and `scheduled` statuses before it is considered |
+| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; this PR preserves `open` and `scheduled`, pending CI and development-branch validation |
 
 The next new migration must be numbered `015`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence.
 
@@ -94,7 +94,7 @@ Catalog checks on the current database confirmed:
 - The two cross-agency contractor policies named in migration 009 are absent.
 - The profile role-integrity trigger and the portal-access policies described by migration 010 are present.
 - Migration 011's tenant scope columns and `can_manage_tenant(uuid)`, migration 012's `tenants.notes`, and migration 013's `user_security_events` table, RLS and own-row policies are present, but their corresponding named migrations do not appear in the ledger.
-- Migration 014's detail columns are absent. Existing maintenance-job statuses are 8 `open`, 4 `reported`, 3 `scheduled` and 2 `in_progress`. The current draft migration would rewrite the 8 `open` and 3 `scheduled` rows to `reported`; the application uses both `open` and `scheduled`, so this must be corrected before applying it.
+- Migration 014's detail columns are absent. Existing maintenance-job statuses are 8 `open`, 4 `reported`, 3 `scheduled` and 2 `in_progress`. The original migration would have rewritten the 8 `open` and 3 `scheduled` rows to `reported`; this PR updates its allowed set to preserve those values. CI and development-branch validation remain outstanding.
 - No Supabase development branches are currently listed for the project.
 
 These findings show why filename order alone is unsafe. Reconcile the unmatched schema changes and record a current authority fingerprint. Do not apply migrations 010–014 to production until the ledger/source mapping is clear; migration 014 also needs the status-preserving fix and development-branch validation.
@@ -156,12 +156,12 @@ Purpose:
 
 ### Forward-only migration record: `014_maintenance_job_details.sql`
 
-Classification: **The detail columns and constraints are absent from the live schema and no matching ledger entry exists. The current file would rewrite eight `open` and three `scheduled` jobs to `reported`; update the migration to preserve both statuses before applying.**
+Classification: **The detail columns and constraints are absent from the live schema and no matching ledger entry exists. This PR updates the migration to preserve `open` and `scheduled`; validate the updated SQL in CI and on a development branch before production.**
 
 Purpose:
 
 - Add operational detail columns to `public.maintenance_jobs` for priority, category, reporter, target date, access notes, estimated cost and update time.
-- Normalize null or unrecognized priorities to `normal` and null or unrecognized statuses to `reported`, then add check constraints for the allowed values.
+- Normalize null or unrecognized priorities to `normal` and null or unrecognized statuses outside the preserved `open` and `scheduled` values to `reported`, then add check constraints for the allowed values.
 - Leave existing RLS policies unchanged.
 
 The status normalization changes existing rows. The live application uses `open` and `scheduled` statuses, so both must remain allowed in the constraint and must not be normalized to `reported`.
@@ -178,7 +178,7 @@ The following is the migration history documented for the Batch 0B baseline on 2
 
 `batch_0a_immediate_containment` (`20260728213651`) was applied directly to production as an emergency containment change and has no tracked file in Git yet. It must be backfilled into `supabase/migrations/` in a future change, identified by its exact Supabase version.
 
-The later documentation entries for migrations `011` and `012` report them as applied live, but the current production ledger has not been checked in this review. Do not infer their status, or the status of migrations `009`, `010`, `013` or `014`, from this dated baseline.
+The current production ledger is recorded in the verification snapshot above. The July table is retained only as the original Batch 0B baseline.
 
 ## Required workflow
 
