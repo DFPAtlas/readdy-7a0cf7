@@ -164,7 +164,7 @@ export default function TenantsPage() {
     setLoading(true);
     const { data: supabaseTenants, error: tenantsError } = await supabase
       .from("tenants")
-      .select("id, full_name, email, phone, created_at, emergency_contact_name, emergency_contact_phone");
+      .select("id, full_name, email, phone, created_at, emergency_contact_name, emergency_contact_phone, notes");
 
     if (tenantsError) {
       if (!mountedRef.current) return;
