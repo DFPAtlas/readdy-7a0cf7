@@ -17,7 +17,7 @@ interface PropertyRow {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const INCLUDED_STATUSES = ["compliant", "due_soon", "overdue", "missing"];
+const INCLUDED_STATUSES = ["compliant", "due_soon", "overdue", "missing"] as const;
 
 const OBLIGATION_LABELS: Record<string, string> = {
   gas_safety: "Gas Safety Certificate",
