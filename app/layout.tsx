@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Inter, Pacifico } from "next/font/google";
 import "./globals.css";
 import "./lethub-theme.css";
 import "./fonts.css";
@@ -7,27 +6,6 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import PWAUpdateNotice from "@/components/PWAUpdateNotice";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--font-manrope",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-pacifico",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -89,7 +67,7 @@ export default function RootLayout({
           }
         `}</style>
       </head>
-      <body className={`${inter.variable} ${manrope.variable} ${pacifico.variable} antialiased`}>
+      <body className="antialiased">
         {children}
         <CookieConsentBanner />
         <ServiceWorkerRegistration />
