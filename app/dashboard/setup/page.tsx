@@ -31,11 +31,7 @@ export default function SetupPage() {
   const [profileForm, setProfileForm] = useState({
     companyName: "",
     displayName: "",
-    email: "",
     phone: "",
-    staffCount: "",
-    yearsTrading: "",
-    propertyCount: "",
   });
 
   const [propertyList, setPropertyList] = useState<{ id: string; address: string; city: string; postcode: string; bedrooms: number }[]>([]);
