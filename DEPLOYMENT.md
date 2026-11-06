@@ -82,19 +82,20 @@ The webhook still rejects every request without a valid Stripe signature.
 
 ## Database migrations
 
-Apply every migration in filename order:
+Do not apply the repository's migration files to the existing LetHub production database simply by filename order. The tracked migrations include historical reconstruction, previously applied hardening and forward-only changes. A file's presence in Git does not prove whether it has been applied in production.
 
-```text
-001_core_schema.sql
-002_schema_foundation.sql
-003_security_containment.sql
-004_auth_rbac_hardening.sql
-005_billing_authority.sql
-```
+Use [`supabase/SCHEMA_AUTHORITY.md`](supabase/SCHEMA_AUTHORITY.md) as the source of truth for migration classification and the database baseline. Before applying any production SQL:
 
-Run `npm run check:migrations` before deployment. It rejects gaps, duplicate numbers, invalid filenames, empty SQL files and unresolved merge markers.
+1. Confirm the Supabase project reference is the LetHub production project.
+2. Read the current `supabase_migrations.schema_migrations` ledger.
+3. Compare `app_private.compute_public_schema_authority()` with the latest `app_private.schema_authority` record.
+4. Resolve any disagreement between the ledger, fingerprint and migration documentation.
+5. Review the proposed migration for data changes, RLS, grants, function privileges and rollback risk.
+6. Apply and test the migration on a Supabase development branch first.
 
-Migration 005 removes browser write access to subscription state and changes any paid/trial row without a Stripe subscription ID to `incomplete`.
+The repository check `npm run check:migrations` validates filenames, ordering, gaps and SQL file hygiene only. It does not inspect production or establish which migrations have run. Regenerate `lib/database.types.ts` from the confirmed live schema after an accepted migration, then record the new authority fingerprint.
+
+The live project was checked on 5 November 2026. The current ledger, schema fingerprint and catalog observations are recorded in `supabase/SCHEMA_AUTHORITY.md`. The July 2026 authority record is still the only recorded fingerprint, several live schema changes do not map cleanly to the repository migration names, and no Supabase development branches are currently listed. Do not apply further production SQL until those records are reconciled. Migration 014 must also preserve the live `open` and `scheduled` maintenance-job statuses before it can be considered for deployment.
 
 ## Build and start
 

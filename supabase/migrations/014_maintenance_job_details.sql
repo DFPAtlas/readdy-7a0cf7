@@ -6,7 +6,8 @@
 --   * add the operational detail columns the maintenance workflow screens need
 --     on public.maintenance_jobs (priority, category, reporter, target date,
 --     access notes, estimated cost, updated_at).
---   * lock down the allowed job status set with a check constraint.
+--   * preserve the existing `open` and `scheduled` job statuses used by the
+--     application while constraining the accepted status set.
 --
 -- RLS policies on public.maintenance_jobs are intentionally left unchanged.
 
@@ -32,6 +33,8 @@ ALTER TABLE public.maintenance_jobs
 UPDATE public.maintenance_jobs
 SET status = 'reported'
 WHERE status IS NULL OR status NOT IN (
+  'open',
+  'scheduled',
   'reported',
   'triage',
   'awaiting_approval',
@@ -50,6 +53,8 @@ ALTER TABLE public.maintenance_jobs DROP CONSTRAINT IF EXISTS maintenance_jobs_s
 ALTER TABLE public.maintenance_jobs
   ADD CONSTRAINT maintenance_jobs_status_check
   CHECK (status IN (
+    'open',
+    'scheduled',
     'reported',
     'triage',
     'awaiting_approval',
