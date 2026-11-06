@@ -33,48 +33,17 @@ export const agencyQuestions: Record<string, { label: string; fields: { name: st
     fields: [
       { name: "companyName", label: "Agency Name", type: "text", placeholder: "e.g. Oakwood Lettings", required: true },
       { name: "displayName", label: "Contact Name", type: "text", placeholder: "e.g. Sarah Jenkins", required: true },
-      { name: "email", label: "Agency Email", type: "email", placeholder: "e.g. info@oakwoodlettings.co.uk", required: true },
-      { name: "phone", label: "Phone Number", type: "text", placeholder: "e.g. 020 7946 0000" },
-      { name: "staffCount", label: "Number of Staff", type: "text", placeholder: "e.g. 5-10" },
-      { name: "yearsTrading", label: "Years Trading", type: "text", placeholder: "e.g. 8" },
     ],
   },
-  portfolio: {
-    label: "Portfolio Setup",
-    fields: [],
-  },
-  landlords: {
-    label: "Add Landlords",
-    fields: [],
-  },
-  properties: {
-    label: "Add Properties",
-    fields: [],
-  },
-  tenants: {
-    label: "Add Tenants",
-    fields: [],
-  },
-  tenancies: {
-    label: "Create Tenancies",
-    fields: [],
-  },
-  "owner-portals": {
-    label: "Owner Portal Setup",
-    fields: [],
-  },
-  "tenant-portals": {
-    label: "Tenant Portal Setup",
-    fields: [],
-  },
-  compliance: {
-    label: "Compliance Configuration",
-    fields: [],
-  },
-  review: {
-    label: "Review Your Dashboard",
-    fields: [],
-  },
+  portfolio: { label: "Portfolio Setup", fields: [] },
+  landlords: { label: "Add Landlords", fields: [] },
+  properties: { label: "Add Properties", fields: [] },
+  tenants: { label: "Add Tenants", fields: [] },
+  tenancies: { label: "Create Tenancies", fields: [] },
+  "owner-portals": { label: "Owner Portal Setup", fields: [] },
+  "tenant-portals": { label: "Tenant Portal Setup", fields: [] },
+  compliance: { label: "Compliance Configuration", fields: [] },
+  review: { label: "Review Your Dashboard", fields: [] },
 };
 
 export const ownerQuestions: Record<string, { label: string; fields: { name: string; label: string; type: string; placeholder?: string; required?: boolean }[] }> = {
@@ -82,29 +51,12 @@ export const ownerQuestions: Record<string, { label: string; fields: { name: str
     label: "Owner Profile",
     fields: [
       { name: "displayName", label: "Your Name", type: "text", placeholder: "e.g. David Mitchell", required: true },
-      { name: "email", label: "Email Address", type: "email", placeholder: "e.g. david@example.com", required: true },
       { name: "phone", label: "Phone Number", type: "text", placeholder: "e.g. 07700 900000" },
-      { name: "propertyCount", label: "How many properties do you own?", type: "text", placeholder: "e.g. 3" },
     ],
   },
-  properties: {
-    label: "Your Properties",
-    fields: [],
-  },
-  tenants: {
-    label: "Your Tenants",
-    fields: [],
-  },
-  portals: {
-    label: "Tenant Portal Setup",
-    fields: [],
-  },
-  documents: {
-    label: "Compliance Documents",
-    fields: [],
-  },
-  review: {
-    label: "Review Your Dashboard",
-    fields: [],
-  },
+  properties: { label: "Your Properties", fields: [] },
+  tenants: { label: "Your Tenants", fields: [] },
+  portals: { label: "Tenant Portal Setup", fields: [] },
+  documents: { label: "Compliance Documents", fields: [] },
+  review: { label: "Review Your Dashboard", fields: [] },
 };
