@@ -76,6 +76,7 @@ interface NormalizedBody {
   city: string;
   postcode: string;
   nation: string;
+  bedrooms: number | null;
   isHmo: boolean;
   isFurnished: boolean;
   requestedLandlordId: string | null;
@@ -89,6 +90,14 @@ function parseBody(body: unknown): NormalizedBody {
   const line1 = clean(input.address);
   const city = clean(input.city);
   const postcode = normalizePostcode(input.postcode);
+  const bedroomsValue = input.bedrooms;
+  const bedrooms = bedroomsValue === undefined || bedroomsValue === null || bedroomsValue === ""
+    ? null
+    : Number(bedroomsValue);
+
+  if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0 || bedrooms > 100)) {
+    throw { status: 400, code: "INVALID_BEDROOMS", error: "Bedrooms must be a whole number between 0 and 100." };
+  }
 
   if (!name) {
     throw { status: 400, code: "INVALID_NAME", error: "Property name is required." };
@@ -127,6 +136,7 @@ function parseBody(body: unknown): NormalizedBody {
     city,
     postcode,
     nation,
+    bedrooms,
     isHmo,
     isFurnished,
     requestedLandlordId,
@@ -402,6 +412,7 @@ Deno.serve(async (req: Request) => {
       is_hmo: input.isHmo,
       is_furnished: input.isFurnished,
     };
+    if (input.bedrooms !== null) insertPayload.bedrooms = input.bedrooms;
     if (input.line2) insertPayload.line2 = input.line2;
     if (accountId) insertPayload.managing_agency_id = accountId;
 

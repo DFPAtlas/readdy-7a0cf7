@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
-import { showRlsError } from "@/lib/rlsErrorHandler";
 import { agencySteps, ownerSteps, agencyQuestions, ownerQuestions } from "./SetupData";
+import { createTenant } from "@/lib/tenancyFlow";
 
 export default function SetupPage() {
   const [accountType, setAccountType] = useState<"agency" | "owner" | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addingProperty, setAddingProperty] = useState(false);
+  const [addingTenant, setAddingTenant] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,17 +31,13 @@ export default function SetupPage() {
   const [profileForm, setProfileForm] = useState({
     companyName: "",
     displayName: "",
-    email: "",
     phone: "",
-    staffCount: "",
-    yearsTrading: "",
-    propertyCount: "",
   });
 
-  const [propertyList, setPropertyList] = useState<{ id: number; address: string; city: string; postcode: string; bedrooms: number }[]>([]);
+  const [propertyList, setPropertyList] = useState<{ id: string; address: string; city: string; postcode: string; bedrooms: number }[]>([]);
   const [newProperty, setNewProperty] = useState({ address: "", city: "", postcode: "", bedrooms: 1 });
-  const [tenantList, setTenantList] = useState<{ id: number; name: string; email: string; property: string }[]>([]);
-  const [newTenant, setNewTenant] = useState({ name: "", email: "", property: "" });
+  const [tenantList, setTenantList] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [newTenant, setNewTenant] = useState({ name: "", email: "" });
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -47,26 +45,54 @@ export default function SetupPage() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSelectType = async (type: "agency" | "owner") => {
-    setAccountType(type);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase.from("profiles").upsert({
-          id: session.user.id,
-          account_type: type,
-        }, { onConflict: "id" });
-      }
-    } catch (err: any) {
-      showRlsError(err, "profiles");
+  const ensureOnboardingAccount = async () => {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) throw new Error("Your session has expired. Sign in again to save setup.");
+
+    const { data, error } = await supabase.functions.invoke("complete-onboarding", {
+      body: {
+        account_type: accountType,
+        full_name: profileForm.displayName.trim(),
+        agency_name: accountType === "agency" ? profileForm.companyName.trim() : undefined,
+        phone: accountType === "owner" ? profileForm.phone.trim() : undefined,
+      },
+    });
+    if (error || data?.success !== true) {
+      throw new Error(data?.error || error?.message || "We couldn't save your account setup.");
     }
   };
 
-  const handleNext = () => {
+  const handleSelectType = (type: "agency" | "owner") => {
+    setAccountType(type);
+    setCurrentStep(0);
+    setPropertyList([]);
+    setTenantList([]);
+  };
+
+  const handleNext = async () => {
+    const missing = currentQuestions.fields.find(
+      (field) => field.required && !String((profileForm as any)[field.name] || "").trim(),
+    );
+    if (missing) {
+      showToast(`${missing.label} is required.`);
+      return;
+    }
+
     if (currentStep < steps.length - 1) {
-      setCurrentStep((s) => s + 1);
+      if (currentStepData.id === "profile") {
+        setSaving(true);
+        try {
+          await ensureOnboardingAccount();
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : "We couldn't save your account setup.");
+          return;
+        } finally {
+          setSaving(false);
+        }
+      }
+      setCurrentStep((step) => step + 1);
     } else {
-      handleComplete();
+      await handleComplete();
     }
   };
 
@@ -79,46 +105,77 @@ export default function SetupPage() {
   const handleComplete = async () => {
     setSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase.from("profiles").upsert({
-          id: session.user.id,
-          account_type: accountType,
-          full_name: profileForm.displayName || undefined,
-        }, { onConflict: "id" });
-      }
-    } catch (err: any) {
-      showRlsError(err, "profiles");
+      await ensureOnboardingAccount();
+      setCompleted(true);
+      showToast("Setup complete! Welcome to LetHub.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Setup could not be saved. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setCompleted(true);
-    showToast("Setup complete! Welcome to LetHub.");
   };
 
-  const handleAddProperty = () => {
-    if (!newProperty.address || !newProperty.city || !newProperty.postcode) return;
+  const handleAddProperty = async () => {
+    if (!newProperty.address.trim() || !newProperty.city.trim() || !newProperty.postcode.trim()) {
+      showToast("Enter the address, city and postcode.");
+      return;
+    }
     if (accountType === "owner" && propertyList.length >= 5) {
       showToast("Self-managing owners can add up to 5 properties.");
       return;
     }
-    setPropertyList((prev) => [...prev, { ...newProperty, id: Date.now(), bedrooms: newProperty.bedrooms }]);
-    setNewProperty({ address: "", city: "", postcode: "", bedrooms: 1 });
-    showToast("Property added!");
+
+    setAddingProperty(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-property", {
+        body: {
+          name: newProperty.address.trim(),
+          address: newProperty.address.trim(),
+          city: newProperty.city.trim(),
+          postcode: newProperty.postcode.trim(),
+          nation: "england",
+          bedrooms: newProperty.bedrooms,
+        },
+      });
+      if (error || data?.success !== true || !data?.property?.id) {
+        throw new Error(data?.error || error?.message || "The property could not be saved.");
+      }
+
+      setPropertyList((prev) => [...prev, { ...newProperty, id: data.property.id as string }]);
+      setNewProperty({ address: "", city: "", postcode: "", bedrooms: 1 });
+      showToast("Property saved.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "The property could not be saved.");
+    } finally {
+      setAddingProperty(false);
+    }
   };
 
-  const handleRemoveProperty = (id: number) => {
-    setPropertyList((prev) => prev.filter((p) => p.id !== id));
-  };
+  const handleAddTenant = async () => {
+    if (!newTenant.name.trim() || !newTenant.email.trim()) {
+      showToast("Enter the tenant's name and email address.");
+      return;
+    }
 
-  const handleAddTenant = () => {
-    if (!newTenant.name || !newTenant.email || !newTenant.property) return;
-    setTenantList((prev) => [...prev, { ...newTenant, id: Date.now() }]);
-    setNewTenant({ name: "", email: "", property: "" });
-    showToast("Tenant added!");
-  };
+    setAddingTenant(true);
+    try {
+      const result = await createTenant(supabase, {
+        fullName: newTenant.name.trim(),
+        email: newTenant.email.trim(),
+        phone: "",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+      });
+      if (!result.ok || !result.id) throw new Error(result.message || "The tenant could not be saved.");
 
-  const handleRemoveTenant = (id: number) => {
-    setTenantList((prev) => prev.filter((t) => t.id !== id));
+      setTenantList((prev) => [...prev, { id: result.id!, ...newTenant }]);
+      setNewTenant({ name: "", email: "" });
+      showToast("Tenant record saved. Link it to a tenancy from the Tenancies page.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "The tenant could not be saved.");
+    } finally {
+      setAddingTenant(false);
+    }
   };
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,7 +429,7 @@ export default function SetupPage() {
                   You can add landlords through the Landlord Portal once setup is complete. Each landlord gets their own dashboard to view properties, rent collection, and reports.
                 </p>
                 <Link
-                  href="/dashboard/landlord"
+                  href="/dashboard/landlords"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
                   Go to Landlord Portal
@@ -429,9 +486,6 @@ export default function SetupPage() {
                           <p className="text-xs text-[#687068]">{prop.city}, {prop.postcode} · {prop.bedrooms} bed{prop.bedrooms > 1 ? "s" : ""}</p>
                         </div>
                       </div>
-                      <button onClick={() => handleRemoveProperty(prop.id)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#FEE2E2] transition-colors">
-                        <i className="ri-delete-bin-line text-[#EF4444] text-sm"></i>
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -483,10 +537,11 @@ export default function SetupPage() {
                 </div>
                 <button
                   onClick={handleAddProperty}
+                  disabled={addingProperty}
                   className="bg-[#C28A78] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#143828] transition-colors flex items-center gap-2"
                 >
                   <i className="ri-add-line text-sm"></i>
-                  Add Property
+                  {addingProperty ? "Saving..." : "Save Property"}
                 </button>
               </div>
             </div>
@@ -508,7 +563,7 @@ export default function SetupPage() {
                   You can add and manage tenants through the Tenant Portal. Each tenant gets access to their own dashboard for rent payments, maintenance requests, and documents.
                 </p>
                 <Link
-                  href="/dashboard/tenant"
+                  href="/dashboard/tenants"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
                   Go to Tenant Portal
@@ -523,7 +578,7 @@ export default function SetupPage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-semibold text-[#3A3F3A]">Add Your Tenants</h2>
-                <p className="text-sm text-[#687068] mt-1">Add tenants for your properties.</p>
+                <p className="text-sm text-[#687068] mt-1">Save tenant contact records, then link them to a property and tenancy from Tenancies.</p>
               </div>
 
               {tenantList.length > 0 && (
@@ -536,12 +591,9 @@ export default function SetupPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-[#3A3F3A]">{tenant.name}</p>
-                          <p className="text-xs text-[#687068]">{tenant.email} · {tenant.property}</p>
+                          <p className="text-xs text-[#687068]">{tenant.email}</p>
                         </div>
                       </div>
-                      <button onClick={() => handleRemoveTenant(tenant.id)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#FEE2E2] transition-colors">
-                        <i className="ri-delete-bin-line text-[#EF4444] text-sm"></i>
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -570,23 +622,14 @@ export default function SetupPage() {
                       className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs text-[#687068] block mb-1">Property</label>
-                    <input
-                      type="text"
-                      value={newTenant.property}
-                      onChange={(e) => setNewTenant((t) => ({ ...t, property: e.target.value }))}
-                      placeholder="e.g. 12 Rose Avenue"
-                      className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm text-[#3A3F3A] placeholder:text-[#94A3B8] outline-none focus:border-[#C28A78] bg-white"
-                    />
-                  </div>
                 </div>
                 <button
                   onClick={handleAddTenant}
+                  disabled={addingTenant}
                   className="bg-[#C28A78] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#143828] transition-colors flex items-center gap-2"
                 >
                   <i className="ri-add-line text-sm"></i>
-                  Add Tenant
+                  {addingTenant ? "Saving..." : "Save Tenant"}
                 </button>
               </div>
             </div>
@@ -608,10 +651,10 @@ export default function SetupPage() {
                   Create and manage tenancy agreements linking tenants to properties. Set rent amounts, deposit details, and tenancy dates.
                 </p>
                 <Link
-                  href="/dashboard/tenant"
+                  href="/dashboard/tenancies"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
-                  Go to Tenant Portal
+                  Go to Tenancies
                   <i className="ri-arrow-right-line text-sm"></i>
                 </Link>
               </div>
@@ -634,7 +677,7 @@ export default function SetupPage() {
                   Each landlord gets a secure portal to view their properties, rent collection, maintenance status, and compliance reports. Set up access through the Landlord Portal.
                 </p>
                 <Link
-                  href="/dashboard/landlord"
+                  href="/dashboard/landlords"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
                   Go to Landlord Portal
@@ -660,7 +703,7 @@ export default function SetupPage() {
                   Tenants can view their tenancy details, pay rent, submit maintenance requests, and access documents through their own secure portal.
                 </p>
                 <Link
-                  href="/dashboard/tenant"
+                  href="/dashboard/tenants"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
                   Go to Tenant Portal
@@ -686,7 +729,7 @@ export default function SetupPage() {
                   Your tenants can view tenancy details, pay rent, submit maintenance requests, and access documents through their secure portal.
                 </p>
                 <Link
-                  href="/dashboard/tenant"
+                  href="/dashboard/tenants"
                   className="inline-flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors"
                 >
                   Go to Tenant Portal
