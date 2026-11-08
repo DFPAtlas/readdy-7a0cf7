@@ -44,7 +44,7 @@ A migration file being present in Git does not prove that it has been applied to
 | `011_tenancy_relationship_flow.sql` | Tenant ownership scope, scoped tenant policies and browser insert lockdown | Core fields and function observed live; matching migration ledger name not found — reconcile before any replay |
 | `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Column observed live; matching migration ledger name not found — reconcile before any replay |
 | `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Table, RLS and own-row policies observed live; matching migration ledger name not found — reconcile before any replay |
-| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; this PR preserves `open` and `scheduled`, pending CI and development-branch validation |
+| `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; corrected SQL passed a targeted synthetic-data test, but the complete branch migration chain remains blocked at migration 007 |
 
 The next new migration must be numbered `015`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence.
 
@@ -94,8 +94,8 @@ Catalog checks on the current database confirmed:
 - The two cross-agency contractor policies named in migration 009 are absent.
 - The profile role-integrity trigger and the portal-access policies described by migration 010 are present.
 - Migration 011's tenant scope columns and `can_manage_tenant(uuid)`, migration 012's `tenants.notes`, and migration 013's `user_security_events` table, RLS and own-row policies are present, but their corresponding named migrations do not appear in the ledger.
-- Migration 014's detail columns are absent. Existing maintenance-job statuses are 8 `open`, 4 `reported`, 3 `scheduled` and 2 `in_progress`. The original migration would have rewritten the 8 `open` and 3 `scheduled` rows to `reported`; this PR updates its allowed set to preserve those values. CI and development-branch validation remain outstanding.
-- No Supabase development branches are currently listed for the project.
+- Migration 014's detail columns are absent. Existing maintenance-job statuses are 8 `open`, 4 `reported`, 3 `scheduled` and 2 `in_progress`. The corrected SQL was run against a synthetic maintenance table on an isolated branch and preserved the `open` and `scheduled` values. This was a targeted behavior check, not validation of the complete migration chain.
+- A development branch created on 5 November 2026, `lethub-migration-014-test-2026-11-05` (`jgljwvsjhzibgrqkhupb`), was created without production data. Its bootstrap remains `MIGRATIONS_FAILED` at migration 007 because the empty branch lacks `public.open_banking_connections`, which migration 007 expects. Production remains unchanged.
 
 These findings show why filename order alone is unsafe. Reconcile the unmatched schema changes and record a current authority fingerprint. Do not apply migrations 010–014 to production until the ledger/source mapping is clear; migration 014 also needs the status-preserving fix and development-branch validation.
 
@@ -156,7 +156,7 @@ Purpose:
 
 ### Forward-only migration record: `014_maintenance_job_details.sql`
 
-Classification: **The detail columns and constraints are absent from the live schema and no matching ledger entry exists. This PR updates the migration to preserve `open` and `scheduled`; validate the updated SQL in CI and on a development branch before production.**
+Classification: **The detail columns and constraints are absent from the live schema and no matching ledger entry exists. The corrected SQL preserves `open` and `scheduled` and passed a targeted synthetic-data test. The full migration chain is not yet validated because the test branch bootstrap fails at migration 007; reconcile the branch baseline and production ledger before any production application.**
 
 Purpose:
 
@@ -224,3 +224,12 @@ Before applying any new SQL to production, the deployment verification must:
 ## Type generation
 
 Types must be regenerated from the live project after every accepted schema migration. The Batch 0B audit successfully generated types against PostgREST `14.5`, covering all current tables, views, functions and enums. The generated file should be consumed by the Supabase client rather than maintaining handwritten table interfaces.
+
+
+## Development branch validation update — 6 November 2026
+
+The targeted test of migration 014 used a synthetic `public.maintenance_jobs` table on the development branch. It contained 8 `open`, 3 `scheduled`, 4 `reported`, 2 `in_progress`, and 1 deliberately unsupported status row. After the corrected migration ran, the rows were 8 `open`, 3 `scheduled`, 2 `in_progress`, and 5 `reported`; the unsupported status was normalized to `reported`. All seven detail columns and both check constraints were present.
+
+This verifies migration 014's targeted data-preservation behavior only. The branch was still `MIGRATIONS_FAILED` at migration 007 because its empty baseline lacks `public.open_banking_connections`. Migration 007 targets 18 existing production tables; those objects are present in production, and its production ledger entry is `20260728184005 fix_permissive_rls_policies`. Do not add an isolated table to production or replay migration 007 there.
+
+The branch's synthetic table has RLS disabled. Do not connect the application to this branch. No production SQL was applied for this test.
