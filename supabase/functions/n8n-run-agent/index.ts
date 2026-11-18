@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", user.id)
       .maybeSingle();
 
-    const allowedRoles = ["agency", "landlord", "admin", "estate_agent_admin"];
+    const allowedRoles = ["agency", "landlord", "admin", "estate_agent_admin", "platform_admin"];
     const userRole = profile?.role || profile?.account_type || "";
 
     if (!allowedRoles.includes(userRole)) {
@@ -76,10 +76,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SB_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) throw new Error("Service role key is not configured");
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    let body: any;
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
@@ -89,9 +90,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { agent_key, account_id, triggered_by_user_id, source } = body;
+    const agent_key = typeof body.agent_key === "string" ? body.agent_key.trim() : "";
 
-    if (!agent_key) {
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(agent_key)) {
       return new Response(JSON.stringify({ success: false, error: "agent_key is required" }), {
         status: 400,
         headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
@@ -118,16 +119,55 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Authorization is scoped to the actual agent tenant, not just a role.
+    // Ignore caller-supplied account_id and triggered_by_user_id entirely.
+    const isPlatformAdmin = userRole === "platform_admin";
+    if (!isPlatformAdmin) {
+      if (!agent.agency_id) {
+        return new Response(JSON.stringify({ success: false, error: "This agent is not assigned to an agency" }), {
+          status: 403, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
+        });
+      }
+      const { data: membership, error: membershipError } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("profile_id", user.id)
+        .eq("agency_id", agent.agency_id)
+        .maybeSingle();
+      if (membershipError || !membership) {
+        return new Response(JSON.stringify({ success: false, error: "Not permitted to run this agency's agent" }), {
+          status: 403, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Do not dispatch arbitrary or insecure webhook destinations.
     const webhookUrl = agent.n8n_webhook_url;
+    let parsedWebhook: URL;
+    try {
+      parsedWebhook = new URL(webhookUrl);
+      if (parsedWebhook.protocol !== "https:" || parsedWebhook.username || parsedWebhook.password) throw new Error("Invalid webhook URL");
+    } catch {
+      return new Response(JSON.stringify({ success: false, error: "Agent webhook URL is invalid or missing" }), {
+        status: 503, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
+      });
+    }
+    const allowedHosts = (Deno.env.get("N8N_ALLOWED_WEBHOOK_HOSTS") || "").split(",").map(host => host.trim().toLowerCase()).filter(Boolean);
+    if (!allowedHosts.length || !allowedHosts.includes(parsedWebhook.hostname.toLowerCase())) {
+      return new Response(JSON.stringify({ success: false, error: "Agent webhook host is not allowlisted" }), {
+        status: 503, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
+      });
+    }
+
     const n8nSecret = Deno.env.get("N8N_AGENT_WEBHOOK_SECRET");
 
     const payload = {
       agent_key: agent.agent_key,
       agent_name: agent.agent_name,
       agent_group: agent.agent_group,
-      account_id: account_id || null,
-      triggered_by_user_id: triggered_by_user_id || user.id,
-      source: source || "lethub_agent_control",
+      account_id: agent.agency_id ?? null,
+      triggered_by_user_id: user.id,
+      source: "lethub_agent_control",
       triggered_at: new Date().toISOString(),
       triggered_by_email: user.email,
       triggered_by_role: userRole,
@@ -148,6 +188,7 @@ Deno.serve(async (req: Request) => {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(15_000),
         });
         n8nResponse = {
           status: resp.status,
@@ -157,6 +198,12 @@ Deno.serve(async (req: Request) => {
         const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
         n8nResponse = { status: 0, ok: false, error: msg };
       }
+    }
+
+    if (!n8nResponse?.ok) {
+      return new Response(JSON.stringify({ success: false, error: "Agent webhook dispatch failed", webhook_response: n8nResponse }), {
+        status: 502, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
+      });
     }
 
     await supabase.from("n8n_agents").update({
