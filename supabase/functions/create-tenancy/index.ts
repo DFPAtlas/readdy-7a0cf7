@@ -122,8 +122,10 @@ Deno.serve(async (req: Request) => {
     const rentAmount = toAmount(body.rent_amount);
     const depositAmount = toAmount(body.deposit_amount);
     const depositScheme = clean(body.deposit_scheme) || null;
-    const termType = clean(body.term_type) || "fixed_term";
-    const regime = clean(body.regime) || "ast_legacy";
+    let termType = clean(body.term_type) || "periodic";
+    // The regime is decided from the property's nation below; the value sent
+    // by the browser is only validated, never trusted.
+    const requestedRegime = clean(body.regime);
     const status = clean(body.status) || "draft";
 
     if (!UUID_RE.test(propertyId)) return fail(req, 400, "MISSING_PROPERTY", "A valid property is required.");
@@ -136,8 +138,28 @@ Deno.serve(async (req: Request) => {
       return fail(req, 400, "INVALID_DEPOSIT", "Enter a valid deposit amount.");
     }
     if (!TERM_TYPES.has(termType)) return fail(req, 400, "INVALID_TERM_TYPE", "Invalid tenancy term type.");
-    if (!REGIMES.has(regime)) return fail(req, 400, "INVALID_REGIME", "Invalid tenancy regime.");
+    if (requestedRegime && !REGIMES.has(requestedRegime)) return fail(req, 400, "INVALID_REGIME", "Invalid tenancy regime.");
     if (!STATUSES.has(status)) return fail(req, 400, "INVALID_STATUS", "Invalid tenancy status.");
+
+    const { data: property, error: propertyError } = await admin
+      .from("properties")
+      .select("id, line1, city, postcode, landlord_id, managing_agency_id, nation")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (propertyError) return fail(req, 500, "PROPERTY_LOOKUP_FAILED", "Unable to resolve the property.");
+    if (!property) return fail(req, 404, "PROPERTY_NOT_FOUND", "That property could not be found.");
+
+    // Statutory regime by nation (mirror of lib/tenancyRegime.ts).
+    // England: Renters' Rights Act 2025 Phase 1 (1 May 2026) abolished ASTs and
+    // fixed terms; private tenancies are assured periodic tenancies.
+    const nation = String(property.nation || "england");
+    const regime =
+      nation === "wales" ? "occupation_contract_wales" :
+      nation === "scotland" ? "prt_scotland" :
+      nation === "northern_ireland" ? "ni_private_tenancy" :
+      "assured_periodic_rra";
+    const periodicOnly = regime === "assured_periodic_rra" || regime === "prt_scotland";
+    if (periodicOnly) termType = "periodic";
 
     const isPeriodic = termType === "periodic";
     let endDate: string | null = null;
@@ -146,17 +168,6 @@ Deno.serve(async (req: Request) => {
       if (rawEndDate < startDate) return fail(req, 400, "INVALID_END_DATE", "End date cannot be before the start date.");
       endDate = rawEndDate;
     }
-    if (regime === "assured_periodic_rra" && !isPeriodic) {
-      return fail(req, 400, "INVALID_REGIME", "A Renters' Rights Act periodic tenancy must be periodic.");
-    }
-
-    const { data: property, error: propertyError } = await admin
-      .from("properties")
-      .select("id, line1, city, postcode, landlord_id, managing_agency_id")
-      .eq("id", propertyId)
-      .maybeSingle();
-    if (propertyError) return fail(req, 500, "PROPERTY_LOOKUP_FAILED", "Unable to resolve the property.");
-    if (!property) return fail(req, 404, "PROPERTY_NOT_FOUND", "That property could not be found.");
 
     const { data: landlord } = await admin
       .from("landlords")

@@ -95,7 +95,7 @@ const integrations = [
     items: [
       {
         name: "DocuSign",
-        description: "Industry-standard e-signatures for tenancy agreements, Section 21 notices, and contractor agreements.",
+        description: "Industry-standard e-signatures for tenancy agreements, Section 8 notices, and contractor agreements.",
         status: "Available",
       },
       {

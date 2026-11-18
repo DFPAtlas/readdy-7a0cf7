@@ -1,5 +1,6 @@
 "use client";
 
+import { COMPANY } from "@/lib/companyDetails";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -13,7 +14,7 @@ export default function GDPRPage() {
           <div className="mb-12">
             <span className="inline-flex items-center gap-2 text-sm font-medium text-[#C28A78] bg-[#C28A78]/10 px-4 py-1.5 rounded-full mb-6">
               <i className="ri-lock-2-line"></i>
-              Last updated: 15 June 2025
+              Last updated: {COMPANY.legalPagesLastUpdated}
             </span>
             <h1 className="text-4xl font-bold text-[#3A3F3A] mb-4">GDPR Compliance</h1>
             <p className="text-lg text-[#687068]">
@@ -203,7 +204,7 @@ export default function GDPRPage() {
               <p className="text-sm text-[#475569] leading-relaxed">
                 Our Data Protection Officer can be reached at:<br />
                 Email: dpo@lethub.uk<br />
-                Post: Data Protection Officer, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE<br /><br />
+                Post: Data Protection, {COMPANY.legalName}, {COMPANY.registeredOffice}<br /><br />
                 You also have the right to lodge a complaint with the Information Commissioner's Office (ICO):<br />
                 Website: ico.org.uk<br />
                 Phone: 0303 123 1113

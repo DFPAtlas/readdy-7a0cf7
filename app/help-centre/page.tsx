@@ -45,7 +45,7 @@ const videoSections: VideoSection[] = [
       { id: "cp1", title: "Compliance Dashboard Overview", description: "Understanding the compliance hub, certificate tracking, and expiry alerts.", duration: "5:20", level: "Intermediate" },
       { id: "cp2", title: "Managing Gas Safety Certificates", description: "How to upload CP12 certificates, set reminders, and track renewals.", duration: "4:45", level: "Intermediate" },
       { id: "cp3", title: "EPC Compliance Tracking", description: "Energy Performance Certificate management and minimum rating requirements.", duration: "3:30", level: "Intermediate" },
-      { id: "cp4", title: "Renters' Rights Bill 2025 Readiness", description: "What the new legislation means and how LetHub helps you comply.", duration: "7:15", level: "Advanced" },
+      { id: "cp4", title: "Renters' Rights Act 2025", description: "What the new legislation means and how LetHub helps you comply.", duration: "7:15", level: "Advanced" },
     ],
   },
   {

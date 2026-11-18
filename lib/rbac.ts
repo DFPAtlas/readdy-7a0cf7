@@ -26,8 +26,11 @@ export const ROLE_HOME: Record<AppRole, string> = {
   platform_admin: "/dashboard/supa-admin",
   estate_agent_admin: "/dashboard",
   estate_agent_staff: "/dashboard",
-  landlord: "/dashboard/landlord",
-  tenant: "/dashboard/tenant",
+  // Landlords and tenants use the dedicated live-data portals. The older
+  // /dashboard/landlord and /dashboard/tenant pages are sample-data prototypes
+  // and are switched off by lib/launchScope.ts.
+  landlord: "/owner/dashboard",
+  tenant: "/tenant/dashboard",
   contractor: "/dashboard/contractor",
   suspended: "/login",
 };

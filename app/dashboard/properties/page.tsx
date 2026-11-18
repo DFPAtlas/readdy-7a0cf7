@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchPropertySummaries } from "@/lib/propertySummaries";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount } from "@/lib/demoMode";
 import { useEntitlements } from "@/lib/useEntitlements";
@@ -16,18 +17,6 @@ const nationLabels: Record<string, string> = {
   northern_ireland: "Northern Ireland",
 };
 
-const propertyImages = [
-  "https://readdy.ai/api/search-image?query=Modern%20UK%20residential%20property%20exterior%2C%20clean%20architectural%20lines%2C%20professional%20real%20estate%20photography%2C%20neutral%20tones%2C%20clean%20simple%20background%20with%20muted%20colours&width=400&height=300&seq=props-img-1&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=British%20suburban%20house%20with%20red%20brick%20facade%2C%20bay%20windows%2C%20well%20maintained%20front%20garden%2C%20professional%20property%20photography%2C%20natural%20daylight&width=400&height=300&seq=props-img-2&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=UK%20terraced%20house%20Victorian%20style%2C%20white%20window%20frames%2C%20clean%20street%20view%2C%20professional%20real%20estate%20photography%2C%20afternoon%20light&width=400&height=300&seq=props-img-3&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Scottish%20stone%20cottage%20exterior%2C%20slate%20roof%2C%20garden%2C%20gravel%20path%2C%20professional%20property%20photography%2C%20natural%20light&width=400&height=300&seq=props-img-4&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Modern%20waterfront%20apartment%20building%20UK%2C%20glass%20balconies%2C%20riverside%20location%2C%20contemporary%20architecture%2C%20bright%20sky&width=400&height=300&seq=props-img-5&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=British%20semi-detached%20house%20on%20a%20hill%2C%20stone%20facade%2C%20mature%20trees%2C%20classic%20suburban%20architecture%2C%20soft%20morning%20light&width=400&height=300&seq=props-img-6&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Nottingham%20city%20centre%20modern%20flat%20exterior%2C%20red%20brick%2C%20large%20windows%2C%20professional%20real%20estate%20photography%2C%20urban%20setting&width=400&height=300&seq=props-img-7&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Southampton%20harbour%20view%20apartment%20building%20exterior%2C%20white%20render%2C%20balconies%2C%20coastal%20setting%2C%20professional%20property%20photography&width=400&height=300&seq=props-img-8&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Sheffield%20terraced%20house%2C%20red%20brick%2C%20traditional%20design%2C%20neat%20front%20garden%2C%20professional%20real%20estate%20photography%2C%20residential%20street&width=400&height=300&seq=props-img-9&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Newcastle%20city%20centre%20flat%2C%20modern%20exterior%2C%20large%20windows%2C%20urban%20setting%2C%20professional%20property%20photography%2C%20neutral%20tones&width=400&height=300&seq=props-img-10&orientation=landscape",
-];
 
 interface PropertyRow {
   id: string;
@@ -42,8 +31,8 @@ interface PropertyRow {
   isFurnished: boolean;
   dateAdded: string;
   image: string;
-  landlordName: string;
-  tenantName: string;
+  landlordName: string | null;
+  tenantName: string | null;
   tenancyStatus: string;
   rentAmount: number;
   complianceStatus: string;
@@ -52,12 +41,6 @@ interface PropertyRow {
   tenantPortal: string;
 }
 
-const enrichedMock = [
-  { id: "1", landlordName: "James Richardson", tenantName: "John Miller", tenancyStatus: "Active", rentAmount: 950, complianceStatus: "Valid", maintenanceOpen: 2, ownerPortal: "active", tenantPortal: "active" },
-  { id: "2", landlordName: "Sarah Chen", tenantName: "Emily Watson", tenancyStatus: "Active", rentAmount: 1250, complianceStatus: "Expiring Soon", maintenanceOpen: 0, ownerPortal: "active", tenantPortal: "invited" },
-  { id: "3", landlordName: "David Olu", tenantName: "Rachel Green", tenancyStatus: "Active", rentAmount: 1600, complianceStatus: "Overdue", maintenanceOpen: 3, ownerPortal: "invited", tenantPortal: "active" },
-  { id: "4", landlordName: "Fiona MacLeod", tenantName: null, tenancyStatus: "None", rentAmount: 2200, complianceStatus: "Valid", maintenanceOpen: 1, ownerPortal: "not-invited", tenantPortal: "not-invited" },
-];
 
 const statusStyles: Record<string, string> = {
   Occupied: "bg-[#7A9A7E]/10 text-[#7A9A7E]",
@@ -120,8 +103,9 @@ export default function PropertiesPage() {
         .order("created_at", { ascending: false });
 
       if (data && data.length > 0) {
-        const mapped: PropertyRow[] = data.map((p: any, idx: number) => {
-          const enriched = enrichedMock.find((m) => m.id === p.id) || {};
+        const summaries = await fetchPropertySummaries(supabase, data as any[]);
+        const mapped: PropertyRow[] = data.map((p: any) => {
+          const enriched = summaries.get(p.id);
           return {
             id: p.id,
             name: p.line1 || "—",
@@ -134,15 +118,15 @@ export default function PropertiesPage() {
             isHmo: p.is_hmo || false,
             isFurnished: p.is_furnished || false,
             dateAdded: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "—",
-            image: propertyImages[idx % propertyImages.length],
-            landlordName: (enriched as any).landlordName || null,
-            tenantName: (enriched as any).tenantName || null,
-            tenancyStatus: (enriched as any).tenancyStatus || "None",
-            rentAmount: (enriched as any).rentAmount || 0,
-            complianceStatus: (enriched as any).complianceStatus || "Missing",
-            maintenanceOpen: (enriched as any).maintenanceOpen || 0,
-            ownerPortal: (enriched as any).ownerPortal || "not-invited",
-            tenantPortal: (enriched as any).tenantPortal || "not-invited",
+            image: "",
+            landlordName: enriched && enriched.landlord !== "—" ? enriched.landlord : null,
+            tenantName: enriched && enriched.tenant !== "—" ? enriched.tenant : null,
+            tenancyStatus: enriched?.status === "Occupied" ? "Active" : "None",
+            rentAmount: enriched?.rentAmount || 0,
+            complianceStatus: enriched?.complianceStatus || "Missing",
+            maintenanceOpen: enriched?.maintenanceOpen || 0,
+            ownerPortal: enriched?.ownerPortal || "not-invited",
+            tenantPortal: enriched?.tenantPortal || "not-invited",
           };
         });
         setProperties(mapped);
@@ -265,7 +249,13 @@ export default function PropertiesPage() {
             {filtered.map((p) => (
               <div key={p.id} className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  {p.image ? (
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+                      <i className="ri-building-4-line text-[#C28A78] text-4xl"></i>
+                    </div>
+                  )}
                   <div className="absolute top-3 left-3 flex items-center gap-2">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[p.tenancyStatus] || "bg-[#94A3B8]/10 text-[#94A3B8]"}`}>
                       {p.tenancyStatus}

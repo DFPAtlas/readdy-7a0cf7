@@ -39,6 +39,9 @@ jobs:
       - name: Validate migration sequence
         run: npm run check:migrations
 
+      - name: Validate Supabase query columns
+        run: npm run check:queries
+
   security-audit:
     name: Dependency vulnerability audit
     runs-on: ubuntu-latest

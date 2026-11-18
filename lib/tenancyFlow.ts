@@ -6,6 +6,7 @@ export interface SelectableProperty {
   address: string;
   landlordId: string;
   landlordName: string;
+  nation: string;
 }
 
 export interface SelectableTenant {
@@ -101,7 +102,7 @@ export async function fetchSelectableProperties(
 ): Promise<SelectableProperty[]> {
   const { data: props, error } = await supabase
     .from("properties")
-    .select("id, line1, city, postcode, landlord_id");
+    .select("id, line1, city, postcode, landlord_id, nation");
   if (error || !props) return [];
 
   const landlordIds = [...new Set(props.map((p: any) => p.landlord_id).filter(Boolean))];
@@ -122,6 +123,7 @@ export async function fetchSelectableProperties(
       address,
       landlordId: p.landlord_id || "",
       landlordName: p.landlord_id ? landlordMap.get(p.landlord_id) || "" : "",
+      nation: p.nation || "england",
     };
   });
 }

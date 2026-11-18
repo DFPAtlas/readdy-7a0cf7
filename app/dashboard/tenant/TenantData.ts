@@ -165,7 +165,7 @@ export const tickets: MaintenanceTicket[] = [
 ];
 
 export const tenancyDocs: TenancyDocument[] = [
-  { id: "td1", name: "Tenancy Agreement - Rose Court Flat 2A.pdf", type: "Tenancy", date: "15 Sep 2024", size: "1.2 MB", icon: "ri-file-text-line", color: "bg-[#3B82F6]", description: "Signed AST tenancy agreement for 24-month fixed term" },
+  { id: "td1", name: "Tenancy Agreement - Rose Court Flat 2A.pdf", type: "Tenancy", date: "15 Sep 2024", size: "1.2 MB", icon: "ri-file-text-line", color: "bg-[#3B82F6]", description: "Signed assured periodic tenancy agreement" },
   { id: "td2", name: "Inventory Check-in Report.pdf", type: "Inventory", date: "15 Sep 2024", size: "2.4 MB", icon: "ri-file-list-line", color: "bg-[#F59E0B]", description: "Full inventory and condition report at move-in" },
   { id: "td3", name: "Gas Safety Certificate 2026.pdf", type: "Compliance", date: "12 Mar 2026", size: "0.8 MB", icon: "ri-file-shield-line", color: "bg-[#10B981]", description: "Annual gas safety certificate CP12" },
   { id: "td4", name: "EPC Certificate.pdf", type: "Compliance", date: "20 Oct 2023", size: "0.5 MB", icon: "ri-leaf-line", color: "bg-[#14B8A6]", description: "Energy Performance Certificate rating C" },

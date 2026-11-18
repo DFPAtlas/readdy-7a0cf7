@@ -9,15 +9,21 @@ import {
   notificationEventLabels,
   eventIcons,
   eventColors,
-  seedNotifications,
   getDefaultPreferences,
   getChannelStats,
 } from "./NotificationCentreData";
+import {
+  loadNotificationPreferences,
+  loadNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  saveNotificationPreferences,
+} from "@/lib/notificationsData";
 
 type Tab = "inbox" | "settings" | "analytics";
 
 export default function NotificationCentreContent() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [preferences, setPreferences] = useState<NotificationPreference[]>(getDefaultPreferences());
   const [activeTab, setActiveTab] = useState<Tab>("inbox");
   const [filterType, setFilterType] = useState<"all" | "unread" | "action_required" | NotificationEventType>("all");
@@ -27,7 +33,14 @@ export default function NotificationCentreContent() {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let active = true;
+    Promise.all([loadNotifications(), loadNotificationPreferences()]).then(([items, prefs]) => {
+      if (!active) return;
+      setNotifications(items);
+      setPreferences(prefs);
+    });
     return () => {
+      active = false;
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
@@ -75,12 +88,14 @@ export default function NotificationCentreContent() {
   }, [notifications, filterType, channelFilter, searchQuery]);
 
   const markRead = (id: string) => {
+    void markNotificationRead(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
     );
   };
 
   const markAllRead = () => {
+    void markAllNotificationsRead();
     setNotifications((prev) =>
       prev.map((n) => (n.isRead ? n : { ...n, isRead: true, readAt: new Date().toISOString() }))
     );
@@ -102,8 +117,9 @@ export default function NotificationCentreContent() {
 
   const eventTypes = Object.keys(notificationEventLabels) as NotificationEventType[];
 
-  const handleSavePreferences = () => {
-    showToast("Notification preferences saved");
+  const handleSavePreferences = async () => {
+    const result = await saveNotificationPreferences(preferences);
+    showToast(result.message);
   };
 
   return (

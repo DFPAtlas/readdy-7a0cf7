@@ -1,5 +1,6 @@
 "use client";
 
+import { COMPANY } from "@/lib/companyDetails";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -13,7 +14,7 @@ export default function PrivacyPage() {
           <div className="mb-12">
             <span className="inline-flex items-center gap-2 text-sm font-medium text-[#C28A78] bg-[#C28A78]/10 px-4 py-1.5 rounded-full mb-6">
               <i className="ri-shield-check-line"></i>
-              Last updated: 15 June 2025
+              Last updated: {COMPANY.legalPagesLastUpdated}
             </span>
             <h1 className="text-4xl font-bold text-[#3A3F3A] mb-4">Privacy Policy</h1>
             <p className="text-lg text-[#687068]">
@@ -25,7 +26,7 @@ export default function PrivacyPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">1. Who we are</h2>
               <p className="text-sm text-[#475569] leading-relaxed">
-                LetHub Ltd ("LetHub", "we", "us", or "our") is a company registered in England and Wales (Company No. 12345678) with registered office at 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE. We are the data controller for the personal data processed through our platform. We are registered with the Information Commissioner's Office (ICO) under registration number ZA123456.
+                {COMPANY.legalName} ("LetHub", "we", "us", or "our") is a company registered in England and Wales (Company No. {COMPANY.companyNumber}) with registered office at {COMPANY.registeredOffice}. We are the data controller for personal data about our own customers and website visitors. For tenant, landlord and contractor data that letting agents put into LetHub, the agent is the controller and we act as their processor. We are registered with the Information Commissioner's Office (ICO) under registration number {COMPANY.icoRegistration}.
               </p>
             </div>
 
@@ -155,8 +156,8 @@ export default function PrivacyPage() {
               <p className="text-sm text-[#475569] leading-relaxed">
                 For any privacy-related questions or to exercise your data rights:<br />
                 Email: privacy@lethub.uk<br />
-                Post: Data Protection Officer, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE<br />
-                ICO registration: ZA123456
+                Post: Data Protection, {COMPANY.legalName}, {COMPANY.registeredOffice}<br />
+                ICO registration: {COMPANY.icoRegistration}
               </p>
             </div>
           </div>

@@ -81,7 +81,7 @@ export const allSignatureDocuments: SignatureDocument[] = [
     createdBy: "Sarah Jones",
     createdByRole: "Agent",
     createdAt: "2026-05-10",
-    description: "Assured Shorthold Tenancy Agreement for 12 Rose Avenue, Flat 2A. 12-month fixed term commencing 15 September 2026.",
+    description: "Assured periodic tenancy agreement for 12 Rose Avenue, Flat 2A, commencing 15 September 2026.",
     auditTrail: [
       { id: "a1", action: "Document Created", timestamp: "2026-05-10 11:23", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Tenancy agreement drafted from template" },
       { id: "a2", action: "Document Sent", timestamp: "2026-05-12 09:00", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Sent to all parties for signature" },
@@ -201,7 +201,7 @@ export const allSignatureDocuments: SignatureDocument[] = [
     createdBy: "Sarah Jones",
     createdByRole: "Agent",
     createdAt: "2026-05-29",
-    description: "Draft assured shorthold tenancy agreement for 8 Elm Road. Awaiting final rent confirmation before sending to parties.",
+    description: "Draft assured periodic tenancy agreement for 8 Elm Road. Awaiting final rent confirmation before sending to parties.",
     auditTrail: [
       { id: "e1", action: "Document Created", timestamp: "2026-05-29 14:00", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Draft tenancy agreement created from template" },
       { id: "e2", action: "Document Edited", timestamp: "2026-05-29 14:30", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Rent amount updated to £1,650 pcm" },
@@ -209,7 +209,7 @@ export const allSignatureDocuments: SignatureDocument[] = [
   },
   {
     id: "sig-006",
-    title: "Section 21 Notice - 15 Oak Street",
+    title: "Section 8 Notice (Ground 8) - 15 Oak Street",
     type: "Notice",
     status: "Completed",
     propertyName: "15 Oak Street",
@@ -227,9 +227,9 @@ export const allSignatureDocuments: SignatureDocument[] = [
     createdBy: "Sarah Jones",
     createdByRole: "Agent",
     createdAt: "2026-04-14",
-    description: "Section 21 Notice of Possession served to tenant Michael Clark. Valid for two months from service date.",
+    description: "Section 8 notice seeking possession on Ground 8 (rent arrears) served to tenant Michael Clark, giving four weeks' notice.",
     auditTrail: [
-      { id: "f1", action: "Document Created", timestamp: "2026-04-14 16:00", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Section 21 notice prepared" },
+      { id: "f1", action: "Document Created", timestamp: "2026-04-14 16:00", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Section 8 notice prepared" },
       { id: "f2", action: "Document Sent", timestamp: "2026-04-15 08:00", user: "Sarah Jones", userRole: "Agent", ipAddress: "192.168.1.45", details: "Served to tenant via email and post" },
       { id: "f3", action: "Document Viewed", timestamp: "2026-04-15 08:50", user: "Patricia Green", userRole: "Landlord", ipAddress: "203.0.113.20", details: "Landlord reviewed notice" },
       { id: "f4", action: "Signature Applied", timestamp: "2026-04-15 09:00", user: "Patricia Green", userRole: "Landlord", ipAddress: "203.0.113.20", details: "Landlord signed as server" },

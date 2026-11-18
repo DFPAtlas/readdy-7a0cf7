@@ -55,14 +55,26 @@ export default function ContractorPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<ContJob[]>([]);
-  const [profile] = useState(mockProfile);
-  const [docs] = useState(mockDocs);
-  const [stats] = useState(mockStats);
+  const [profile, setProfile] = useState<{ companyName: string; trade: string; rating: number | null }>({
+    companyName: "Your business",
+    trade: "Contractor",
+    rating: null,
+  });
+  const [docs, setDocs] = useState<typeof mockDocs>([]);
+  const [demoStats, setDemoStats] = useState<typeof mockStats | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab && TABS.some((tab) => tab.id === requestedTab)) setActiveTab(requestedTab);
+  }, []);
 
   useEffect(() => {
     if (isDemoAccount()) {
       setJobs(mockJobs as ContJob[]);
+      setProfile({ companyName: mockProfile.companyName, trade: mockProfile.trade, rating: mockProfile.rating });
+      setDocs(mockDocs);
+      setDemoStats(mockStats);
       setLoading(false);
       return;
     }
@@ -70,6 +82,22 @@ export default function ContractorPortalPage() {
     async function fetchData() {
       try {
         setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: contractorProfile } = await supabase
+            .from("contractor_profiles")
+            .select("business_name, trade, rating")
+            .eq("profile_id", user.id)
+            .maybeSingle();
+          if (contractorProfile) {
+            setProfile({
+              companyName: contractorProfile.business_name || "Your business",
+              trade: contractorProfile.trade || "Contractor",
+              rating: contractorProfile.rating ?? null,
+            });
+          }
+        }
+
         const { data: mJobs, error: mErr } = await supabase
           .from("maintenance_jobs")
           .select("id, property_id, title, description, status, created_at, assigned_contractor_profile_id")
@@ -88,12 +116,12 @@ export default function ContractorPortalPage() {
 
         const { data: cQuotes } = await supabase
           .from("contractor_quotes")
-          .select("maintenance_job_id, total_amount, status, created_at")
-          .in("maintenance_job_id", mJobs.map((j: any) => j.id));
+          .select("maintenance_action_id, total_amount, status, created_at")
+          .in("maintenance_action_id", mJobs.map((j: any) => j.id));
 
         const quoteMap = new Map<string, any>();
         (cQuotes || []).forEach((q: any) => {
-          if (q.maintenance_job_id && !quoteMap.has(q.maintenance_job_id)) quoteMap.set(q.maintenance_job_id, q);
+          if (q.maintenance_action_id && !quoteMap.has(q.maintenance_action_id)) quoteMap.set(q.maintenance_action_id, q);
         });
 
         const built: ContJob[] = mJobs.map((j: any) => {
@@ -125,6 +153,9 @@ export default function ContractorPortalPage() {
   const pendingQuotes = jobs.filter((j) => j.status === "Assigned");
   const inProgress = jobs.filter((j) => j.status === "In Progress" || j.status === "Scheduled" || j.status === "Approved");
   const completedJobs = jobs.filter((j) => j.status === "Completed");
+  const approvedQuoteTotal = jobs
+    .filter((j) => j.status === "Approved" || j.status === "Completed")
+    .reduce((sum, j) => sum + (Number(j.quoteTotal) || 0), 0);
 
   const actionItems = [
     ...pendingQuotes.map((j) => ({
@@ -192,7 +223,7 @@ export default function ContractorPortalPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#687068] bg-[#F1F5F9] px-3 py-1.5 rounded-lg">
               <i className="ri-star-fill mr-1 text-amber-400"></i>
-              {profile.rating} Rating
+              {profile.rating !== null ? `${profile.rating} Rating` : "No rating yet"}
             </span>
             <span className="text-xs text-[#7A9A7E] bg-[#7A9A7E]/10 px-3 py-1.5 rounded-lg font-medium">
               <i className="ri-check-double-line mr-1"></i>
@@ -207,8 +238,10 @@ export default function ContractorPortalPage() {
             { label: "Active Jobs", value: activeJobs.length, icon: "ri-tools-line", color: "text-[#C28A78]", bg: "bg-[#C28A78]/10" },
             { label: "Quotes Needed", value: pendingQuotes.length, icon: "ri-money-pound-circle-line", color: "text-[#EF4444]", bg: "bg-[#EF4444]/10" },
             { label: "In Progress", value: inProgress.length, icon: "ri-loader-4-line", color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10" },
-            { label: "This Month", value: `£${stats.thisMonthRevenue.toLocaleString()}`, icon: "ri-funds-line", color: "text-[#10B981]", bg: "bg-[#10B981]/10" },
-            { label: "On-Time Rate", value: `${stats.onTimeRate}%`, icon: "ri-timer-line", color: "text-[#8B5CF6]", bg: "bg-[#8B5CF6]/10" },
+            demoStats
+              ? { label: "This Month", value: `£${demoStats.thisMonthRevenue.toLocaleString()}`, icon: "ri-funds-line", color: "text-[#10B981]", bg: "bg-[#10B981]/10" }
+              : { label: "Approved Quotes", value: `£${approvedQuoteTotal.toLocaleString("en-GB")}`, icon: "ri-funds-line", color: "text-[#10B981]", bg: "bg-[#10B981]/10" },
+            { label: "Completed", value: completedJobs.length, icon: "ri-checkbox-circle-line", color: "text-[#8B5CF6]", bg: "bg-[#8B5CF6]/10" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl border border-[#D5D9D5] p-4 flex items-center gap-3">
               <div className={`w-10 h-10 ${stat.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
@@ -258,7 +291,7 @@ export default function ContractorPortalPage() {
                       <div className="px-5 py-6 text-center"><p className="text-sm text-[#94A3B8]">No quotes pending</p></div>
                     ) : (
                       pendingQuotes.map((job) => (
-                        <Link key={job.id} href="/dashboard/contractor/jobs" className="flex items-start gap-3 px-5 py-3.5 hover:bg-[#FBF9F4] transition-colors">
+                        <Link key={job.id} href="/dashboard/contractor?tab=jobs" onClick={() => setActiveTab("jobs")} className="flex items-start gap-3 px-5 py-3.5 hover:bg-[#FBF9F4] transition-colors">
                           <div className="w-8 h-8 bg-[#EF4444]/10 rounded-lg flex items-center justify-center flex-shrink-0">
                             <i className="ri-flag-line text-[#EF4444] text-sm"></i>
                           </div>
@@ -280,14 +313,14 @@ export default function ContractorPortalPage() {
                       </div>
                       <h3 className="font-semibold text-[#3A3F3A]">Active Jobs</h3>
                     </div>
-                    <Link href="/dashboard/contractor/jobs" className="text-sm text-[#C28A78] font-medium hover:underline">View all</Link>
+                    <Link href="/dashboard/contractor?tab=jobs" onClick={() => setActiveTab("jobs")} className="text-sm text-[#C28A78] font-medium hover:underline">View all</Link>
                   </div>
                   <div className="divide-y divide-[#D5D9D5]">
                     {activeJobs.length === 0 ? (
                       <div className="px-5 py-6 text-center"><p className="text-sm text-[#94A3B8]">No active jobs</p></div>
                     ) : (
                       activeJobs.slice(0, 4).map((job) => (
-                        <Link key={job.id} href="/dashboard/contractor/jobs" className="flex items-start gap-3 px-5 py-3.5 hover:bg-[#FBF9F4] transition-colors">
+                        <Link key={job.id} href="/dashboard/contractor?tab=jobs" onClick={() => setActiveTab("jobs")} className="flex items-start gap-3 px-5 py-3.5 hover:bg-[#FBF9F4] transition-colors">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${(statusConfig[job.status] || statusConfig.Assigned).bg}`}>
                             <i className={`${(statusConfig[job.status] || statusConfig.Assigned).icon} ${(statusConfig[job.status] || statusConfig.Assigned).color} text-sm`}></i>
                           </div>
@@ -317,7 +350,7 @@ export default function ContractorPortalPage() {
                   <p className="text-sm text-[#94A3B8] py-4 text-center">No quotes to manage</p>
                 ) : (
                   [...pendingQuotes, ...jobs.filter(j => j.quoteTotal)].slice(0, 6).map((job) => (
-                    <Link key={job.id} href="/dashboard/contractor/jobs" className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5] hover:border-[#C28A78] transition-colors">
+                    <Link key={job.id} href="/dashboard/contractor?tab=jobs" onClick={() => setActiveTab("jobs")} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5] hover:border-[#C28A78] transition-colors">
                       <div>
                         <p className="text-sm font-medium text-[#3A3F3A]">{job.title}</p>
                         <p className="text-xs text-[#687068]">{job.property} · {job.category}</p>
@@ -338,7 +371,7 @@ export default function ContractorPortalPage() {
                   <p className="text-sm text-[#94A3B8] py-4 text-center">No jobs assigned yet</p>
                 ) : (
                   jobs.map((job) => (
-                    <Link key={job.id} href="/dashboard/contractor/jobs" className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5] hover:border-[#C28A78] transition-colors">
+                    <Link key={job.id} href="/dashboard/contractor?tab=jobs" onClick={() => setActiveTab("jobs")} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5] hover:border-[#C28A78] transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${(statusConfig[job.status] || statusConfig.Assigned).bg}`}>
                           <i className={`${(statusConfig[job.status] || statusConfig.Assigned).icon} ${(statusConfig[job.status] || statusConfig.Assigned).color} text-sm`}></i>
@@ -362,7 +395,10 @@ export default function ContractorPortalPage() {
                   <h3 className="text-sm font-semibold text-[#3A3F3A]">Documents</h3>
                 </div>
                 {docs.length === 0 ? (
-                  <p className="text-sm text-[#94A3B8] py-4 text-center">No documents</p>
+                  <p className="text-sm text-[#94A3B8] py-4 text-center">
+                    Manage your insurance, certificates and invoices on the{" "}
+                    <Link href="/dashboard/contractor/documents" className="text-[#C28A78] font-medium hover:underline">Documents page</Link>.
+                  </p>
                 ) : (
                   docs.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#D5D9D5]">

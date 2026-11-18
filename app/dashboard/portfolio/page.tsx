@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchPropertySummaries } from "@/lib/propertySummaries";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
 import { showRlsError } from "@/lib/rlsErrorHandler";
@@ -64,22 +65,6 @@ const statusStyles: Record<string, string> = {
   Vacant: "bg-[#8B5CF6]/10 text-[#8B5CF6]",
   Pending: "bg-[#94A3B8]/10 text-[#94A3B8]",
 };
-
-const propertyImages = [
-  "https://readdy.ai/api/search-image?query=Modern%20UK%20residential%20property%20exterior%2C%20clean%20architectural%20lines%2C%20professional%20real%20estate%20photography%2C%20neutral%20tones%2C%20clean%20simple%20background%20with%20muted%20colours&width=400&height=300&seq=portfolio-img-1&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=British%20suburban%20house%20with%20red%20brick%20facade%2C%20bay%20windows%2C%20well%20maintained%20front%20garden%2C%20professional%20property%20photography%2C%20natural%20daylight%2C%20warm%20tones&width=400&height=300&seq=portfolio-img-2&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=UK%20terraced%20house%20with%20traditional%20Victorian%20style%2C%20white%20window%20frames%2C%20clean%20street%20view%2C%20professional%20real%20estate%20photography%2C%20afternoon%20light&width=400&height=300&seq=portfolio-img-3&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Scottish%20stone%20cottage%20exterior%20with%20slate%20roof%2C%20garden%2C%20gravel%20path%2C%20professional%20property%20photography%2C%20natural%20light%2C%20green%20surroundings&width=400&height=300&seq=portfolio-img-4&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Modern%20waterfront%20apartment%20building%20UK%2C%20glass%20balconies%2C%20riverside%20location%2C%20contemporary%20architecture%2C%20professional%20property%20photography&width=400&height=300&seq=portfolio-img-5&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=British%20semi-detached%20house%20on%20a%20hill%2C%20stone%20facade%2C%20mature%20trees%2C%20classic%20suburban%20architecture%2C%20professional%20real%20estate%20photography&width=400&height=300&seq=portfolio-img-6&orientation=landscape",
-];
-
-const enrichedMock: Partial<Property>[] = [
-  { id: "1", complianceStatus: "Valid", maintenanceOpen: 2, ownerPortal: "active", tenantPortal: "active", status: "Occupied", landlord: "James Richardson", tenant: "John Miller", rentAmount: 950, depositAmount: 1096 },
-  { id: "2", complianceStatus: "Expiring Soon", maintenanceOpen: 0, ownerPortal: "active", tenantPortal: "invited", status: "Occupied", landlord: "Sarah Chen", tenant: "Emily Watson", rentAmount: 1250 },
-  { id: "3", complianceStatus: "Overdue", maintenanceOpen: 3, ownerPortal: "invited", tenantPortal: "active", status: "Occupied", landlord: "David Olu", tenant: "Rachel Green", rentAmount: 1600 },
-  { id: "4", complianceStatus: "Valid", maintenanceOpen: 1, ownerPortal: "not-invited", tenantPortal: "not-invited", status: "Vacant", landlord: "Fiona MacLeod", tenant: undefined, rentAmount: 2200 },
-];
 
 export default function PortfolioPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -153,23 +138,25 @@ export default function PortfolioPage() {
       if (!mountedRef.current) return;
 
       if (data && data.length > 0) {
-        const mapped: Property[] = data.map((p: any, idx: number) => {
-          const enriched = enrichedMock.find((m) => m.id === p.id) || {};
+        const summaries = await fetchPropertySummaries(supabase, data as any[]);
+        if (!mountedRef.current) return;
+        const mapped: Property[] = data.map((p: any) => {
+          const enriched = summaries.get(p.id);
           return {
             id: p.id,
             name: p.line1 || "—",
             address: [p.line1, p.line2].filter(Boolean).join(", "),
             city: p.city || "—",
             postcode: p.postcode || "—",
-            type: "—",
+            type: p.type || "—",
             bedrooms: p.bedrooms ?? 0,
-            bathrooms: 0,
-            rentAmount: (enriched as any).rentAmount || 0,
-            depositAmount: (enriched as any).depositAmount || 0,
-            status: (enriched as any).status || "—",
-            landlord: (enriched as any).landlord || "—",
-            tenant: (enriched as any).tenant || "—",
-            image: propertyImages[idx % propertyImages.length],
+            bathrooms: p.bathrooms ?? 0,
+            rentAmount: enriched?.rentAmount || 0,
+            depositAmount: enriched?.depositAmount || 0,
+            status: enriched?.status || "Vacant",
+            landlord: enriched?.landlord || "—",
+            tenant: enriched?.tenant || "—",
+            image: "",
             archived: false,
             attentionReason: "",
             dateAdded: p.created_at ? new Date(p.created_at).toISOString().split("T")[0] : "—",
@@ -178,10 +165,10 @@ export default function PortfolioPage() {
             isHmo: p.is_hmo || false,
             isFurnished: p.is_furnished || false,
             epcExpiry: p.epc_expiry || "—",
-            complianceStatus: (enriched as any).complianceStatus || "—",
-            maintenanceOpen: (enriched as any).maintenanceOpen || 0,
-            ownerPortal: (enriched as any).ownerPortal || "not-invited",
-            tenantPortal: (enriched as any).tenantPortal || "not-invited",
+            complianceStatus: enriched?.complianceStatus || "Missing",
+            maintenanceOpen: enriched?.maintenanceOpen || 0,
+            ownerPortal: enriched?.ownerPortal || "not-invited",
+            tenantPortal: enriched?.tenantPortal || "not-invited",
           };
         });
         setProperties(mapped);
@@ -545,7 +532,13 @@ export default function PortfolioPage() {
             {filtered.map((p) => (
               <div key={p.id} className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  {p.image ? (
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+                      <i className="ri-building-4-line text-[#C28A78] text-4xl"></i>
+                    </div>
+                  )}
                   <div className="absolute top-3 left-3 flex items-center gap-2">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[p.status] || "bg-[#94A3B8]/10 text-[#94A3B8]"}`}>
                       {p.status}

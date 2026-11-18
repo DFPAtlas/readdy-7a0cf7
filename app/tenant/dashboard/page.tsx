@@ -92,13 +92,17 @@ const demoDocuments: TenancyDocument[] = [
 ];
 
 export default function TenantDashboardPage() {
-  const [tenancy, setTenancy] = useState<TenancyData>(demoTenancy);
-  const [property, setProperty] = useState<PropertyInfo>(demoProperty);
-  const [tickets, setTickets] = useState<MaintenanceTicket[]>(demoTickets);
-  const [payments, setPayments] = useState<any[]>(demoPayments);
-  const [updates, setUpdates] = useState<any[]>(demoUpdates);
-  const [tenantName, setTenantName] = useState("John Miller");
-  const [tenantEmail, setTenantEmail] = useState("john.miller@example.com");
+  const [tenancy, setTenancy] = useState<TenancyData>({
+    ref: "—", startDate: "—", endDate: "—", rentAmount: "—", depositAmount: "—", depositScheme: "—", nextPaymentDue: "—", rentStatus: "—",
+  });
+  const [property, setProperty] = useState<PropertyInfo>({ name: "Your home", address: "", postcode: "" });
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [overdueAmount, setOverdueAmount] = useState(0);
+  const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [updates, setUpdates] = useState<any[]>([]);
+  const [tenantName, setTenantName] = useState("");
+  const [tenantEmail, setTenantEmail] = useState("");
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({ phone: "", emergencyName: "", emergencyPhone: "", emergencyRelation: "" });
   const [profileEditing, setProfileEditing] = useState(false);
@@ -116,7 +120,7 @@ export default function TenantDashboardPage() {
   const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [demoMode, setDemoMode] = useState(false);
-  const [tenancyEndRaw, setTenancyEndRaw] = useState<Date | null>(new Date("2026-10-27"));
+  const [tenancyEndRaw, setTenancyEndRaw] = useState<Date | null>(null);
   const [tenancyId, setTenancyId] = useState<string | null>(null);
   const [petRequests, setPetRequests] = useState<any[]>([]);
   const [showPetForm, setShowPetForm] = useState(false);
@@ -157,6 +161,14 @@ export default function TenantDashboardPage() {
   useEffect(() => {
     if (isDemoAccount()) {
       setDemoMode(true);
+      setTenancy(demoTenancy);
+      setProperty(demoProperty);
+      setTickets(demoTickets);
+      setPayments(demoPayments);
+      setUpdates(demoUpdates);
+      setTenantName("John Miller");
+      setTenantEmail("john.miller@example.com");
+      setTenancyEndRaw(new Date("2026-10-27"));
       setSessionReady(true);
       setLoading(false);
       return;
@@ -224,11 +236,12 @@ export default function TenantDashboardPage() {
           rentAmount: tn.rent_amount ? `£${Number(tn.rent_amount).toLocaleString()}` : "—",
           depositAmount: tn.deposit_amount ? `£${Number(tn.deposit_amount).toLocaleString()}` : "—",
           depositScheme: tn.deposit_scheme || "—",
-          nextPaymentDue: "1st of month",
-          rentStatus: tn.status === "active" ? "Paid" : tn.status || "—",
+          nextPaymentDue: "—",
+          rentStatus: "—",
         });
         if (tn.end_date) setTenancyEndRaw(new Date(tn.end_date));
         setTenancyId(tn.id);
+        setPropertyId(tn.property_id || null);
         const { data: petReqs } = await supabase.from("pet_requests").select("id, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
         if (petReqs) setPetRequests(petReqs);
         const { data: modReqs } = await supabase.from("modification_requests").select("id, modification_type, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
@@ -245,7 +258,7 @@ export default function TenantDashboardPage() {
 
         const [{ data: maintTickets }, { data: rentPmts }, { data: notifs }, { data: tenancyDocs }] = await Promise.all([
           supabase.from("maintenance_jobs").select("id, title, description, status, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false }).limit(10),
-          supabase.from("rent_payments").select("id, amount, payment_date, method").eq("tenancy_id", tn.id).order("payment_date", { ascending: false }).limit(12),
+          supabase.from("rent_payments").select("id, amount, due_date, paid_date, status, method").eq("tenancy_id", tn.id).order("due_date", { ascending: false }).limit(12),
           supabase.from("notifications").select("id, title, body, type, is_read, created_at, related_id, related_table").eq("profile_id", session.user.id).order("created_at", { ascending: false }).limit(10),
           supabase.from("documents").select("id, kind, storage_path, issued_on, expires_on").or(`tenancy_id.eq.${tn.id},property_id.eq.${tn.property_id}`).order("issued_on", { ascending: false }),
         ]);
@@ -262,12 +275,26 @@ export default function TenantDashboardPage() {
         }
 
         if (rentPmts && rentPmts.length > 0) {
+          const rows = rentPmts as any[];
+          const overdueRows = rows.filter((p: any) => p.status === "overdue");
+          const overdueTotal = overdueRows.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+          const upcoming = rows
+            .filter((p: any) => (p.status === "pending" || p.status === "overdue") && p.due_date)
+            .sort((a: any, b: any) => (a.due_date < b.due_date ? -1 : 1))[0];
+          setOverdueAmount(overdueTotal);
+          setTenancy((prev) => ({
+            ...prev,
+            nextPaymentDue: upcoming?.due_date
+              ? new Date(upcoming.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+              : "—",
+            rentStatus: overdueTotal > 0 ? "Overdue" : upcoming ? "Due" : "Up to date",
+          }));
           setPayments((rentPmts as any[]).map((p: any) => ({
-            month: p.payment_date ? new Date(p.payment_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "",
+            month: p.due_date ? new Date(p.due_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "",
             amount: `£${Number(p.amount || 0).toLocaleString()}`,
-            date: p.payment_date ? new Date(p.payment_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
-            method: p.method || "Bank Transfer",
-            status: "Paid",
+            date: p.paid_date ? new Date(p.paid_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+            method: p.method || "—",
+            status: p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : "Pending",
           })));
         }
 
@@ -366,21 +393,46 @@ export default function TenantDashboardPage() {
       return;
     }
 
-    try {
-      const formData = new URLSearchParams();
-      formData.append("title", reportForm.title);
-      formData.append("category", reportForm.category);
-      formData.append("description", reportForm.description);
-      formData.append("priority", reportForm.priority);
-      formData.append("email", reportForm.email || tenantEmail);
-      formData.append("property", property.name);
-      formData.append("tenancy_ref", tenancy.ref);
-      await fetch("https://readdy.ai/api/form/d8vemh04jh3v1cgksf2g", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
-      });
-    } catch {}
+    if (!demoMode) {
+      if (!propertyId) {
+        setReportError("We couldn't find your tenancy. Please contact your letting agent.");
+        setReportLoading(false);
+        return;
+      }
+      const details = [
+        reportForm.description.trim(),
+        `Category: ${reportForm.category}`,
+        `Urgency (tenant's view): ${reportForm.priority}`,
+        reportForm.email ? `Contact email: ${reportForm.email}` : "",
+      ].filter(Boolean).join("\n");
+      const { data: created, error: createError } = await supabase
+        .from("maintenance_jobs")
+        .insert({
+          property_id: propertyId,
+          tenancy_id: tenancyId,
+          title: reportForm.title.trim(),
+          description: details,
+          status: "reported",
+        })
+        .select("id, created_at")
+        .single();
+      if (createError || !created) {
+        setReportError("We couldn't send your report. Please try again or contact your letting agent.");
+        setReportLoading(false);
+        return;
+      }
+      setTickets((prev) => [
+        {
+          id: created.id,
+          title: reportForm.title.trim(),
+          description: reportForm.description.trim(),
+          status: "Reported",
+          priority: reportForm.priority,
+          date: new Date(created.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        } as MaintenanceTicket,
+        ...prev,
+      ]);
+    }
 
     setReportLoading(false);
     setShowReportForm(false);
@@ -720,15 +772,27 @@ export default function TenantDashboardPage() {
         })()}
 
         {/* Arrears Status Banner */}
-        <div className="bg-[#ECFDF5] rounded-xl border border-[#A7F3D0] p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center flex-shrink-0">
-            <i className="ri-check-double-line text-white text-lg"></i>
+        {overdueAmount > 0 ? (
+          <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] p-4 flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#EF4444] rounded-xl flex items-center justify-center flex-shrink-0">
+              <i className="ri-error-warning-line text-white text-lg"></i>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-[#3A3F3A]">£{overdueAmount.toLocaleString("en-GB")} of rent is overdue</p>
+              <p className="text-xs text-[#687068]">Please pay as soon as you can, or contact your letting agent if you need to discuss it.</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-[#3A3F3A]">Your rent account is up to date</p>
-            <p className="text-xs text-[#687068]">No arrears. Next payment due {tenancy.nextPaymentDue}.</p>
+        ) : payments.length > 0 ? (
+          <div className="bg-[#ECFDF5] rounded-xl border border-[#A7F3D0] p-4 flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center flex-shrink-0">
+              <i className="ri-check-double-line text-white text-lg"></i>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-[#3A3F3A]">Your rent account is up to date</p>
+              <p className="text-xs text-[#687068]">No overdue rent.{tenancy.nextPaymentDue !== "—" ? ` Next payment due ${tenancy.nextPaymentDue}.` : ""}</p>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Payment History + Payment Instructions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

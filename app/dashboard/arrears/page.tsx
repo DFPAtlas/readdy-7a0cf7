@@ -15,6 +15,7 @@ import { arrearsData, riskConfig } from "./ArrearsData";
 interface ArrearsRecord {
   id: number;
   caseId: string | null;
+  tenancyId: string | null;
   property: string;
   tenant: string;
   landlord: string;
@@ -87,6 +88,7 @@ export default function ArrearsPage() {
       const mapped = arrearsData.map((a) => ({
         ...a,
         caseId: null,
+        tenancyId: null,
         lastReminderSent: "—",
         riskRating: a.riskRating as ArrearsRisk,
         stage: computeStage(a),
@@ -132,21 +134,24 @@ export default function ArrearsPage() {
 
       const propMap = new Map((properties || []).map((p: any) => [p.id, p]));
       const tenantMap = new Map((tenants || []).map((t: any) => [t.id, t]));
+      const tenancyMap = new Map((tenancies || []).map((t: any) => [t.id, t]));
 
       const mapped: ArrearsRecord[] = [];
       (cases || []).forEach((c: any, idx: number) => {
         const prop = propMap.get(c.property_id);
         const tenant = tenantMap.get(c.tenant_id);
-        const months = Math.max(1, Math.ceil(Number(c.total_owed) / 1000));
+        const monthlyRent = Number(tenancyMap.get(c.tenancy_id)?.rent_amount) || 0;
+        const months = monthlyRent > 0 ? Math.max(1, Math.round(Number(c.total_owed) / monthlyRent)) : 1;
         const risk = computeRisk(months);
         const lastReminder = c.last_reminder_sent ? new Date(c.last_reminder_sent).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
         mapped.push({
           id: idx + 1,
           caseId: c.id,
+          tenancyId: c.tenancy_id || null,
           property: prop ? `${prop.line1}, ${prop.city}` : "Unknown",
           tenant: tenant?.full_name || "Tenant",
           landlord: "Owner",
-          rentAmount: Math.round(Number(c.total_owed) / months),
+          rentAmount: monthlyRent || Math.round(Number(c.total_owed) / months),
           dueDate: "—",
           paidDate: null,
           outstanding: Number(c.total_owed),
@@ -589,29 +594,26 @@ export default function ArrearsPage() {
                     onClick={async () => {
                       setReminderError(null);
                       if (!reminderMessage.trim()) { setReminderError("Please enter a message."); return; }
-                      const recipients: { email: string; name: string; property: string; arrearsAmount: number; arrearsMonths: number; caseId: string | null }[] = [];
+                      const recipients: { caseId: string | null; tenancyId: string | null }[] = [];
                       if (selectedActionTenant) {
-                        recipients.push({ email: selectedActionTenant.tenantEmail, name: selectedActionTenant.tenant, property: selectedActionTenant.property, arrearsAmount: selectedActionTenant.totalArrears, arrearsMonths: selectedActionTenant.arrearsMonths, caseId: selectedActionTenant.caseId });
+                        recipients.push({ caseId: selectedActionTenant.caseId, tenancyId: selectedActionTenant.tenancyId });
                       } else {
-                        data.forEach((r) => { if (r.tenantEmail && r.tenantEmail !== "—") { recipients.push({ email: r.tenantEmail, name: r.tenant, property: r.property, arrearsAmount: r.totalArrears, arrearsMonths: r.arrearsMonths, caseId: r.caseId }); }});
+                        data.forEach((r) => { if (r.tenancyId && r.tenantEmail && r.tenantEmail !== "—") recipients.push({ caseId: r.caseId, tenancyId: r.tenancyId }); });
                       }
-                      if (recipients.length === 0) { setReminderError("No valid tenant emails found."); return; }
+                      if (recipients.length === 0 || recipients.every((r) => !r.tenancyId)) { setReminderError("No tenants with an email address on file."); return; }
+                      if (isDemoAccount()) { setReminderSent(true); showToast("Demo mode — no reminders were sent."); return; }
                       setSendingReminder(true);
                       let failedCount = 0;
-                      const now = new Date().toISOString();
+                      let lastError = "";
                       for (const r of recipients) {
-                        try {
-                          const res = await fetch("https://gejxrnreuafnyzwrchvy.supabase.co/functions/v1/send-rent-reminder", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ tenant_email: r.email, tenant_name: r.name, property_name: r.property, arrears_amount: r.arrearsAmount, arrears_months: r.arrearsMonths, message: reminderMessage }),
-                          });
-                          const result = await res.json();
-                          if (!res.ok || !result.success) { failedCount++; continue; }
-                          if (r.caseId && !isDemoAccount()) {
-                            await supabase.from("arrears_cases").update({ last_reminder_sent: now, last_contact: now }).eq("id", r.caseId);
-                          }
-                        } catch { failedCount++; }
+                        if (!r.tenancyId) { failedCount++; continue; }
+                        const { data: result, error: fnError } = await supabase.functions.invoke("send-rent-reminder", {
+                          body: { tenancy_id: r.tenancyId, arrears_case_id: r.caseId, message: reminderMessage },
+                        });
+                        if (fnError || !result?.success) {
+                          failedCount++;
+                          lastError = result?.error || "";
+                        }
                       }
                       setSendingReminder(false);
                       if (failedCount === 0) {
@@ -621,7 +623,7 @@ export default function ArrearsPage() {
                         setReminderSent(true);
                         showToast(`Reminder sent to ${recipients.length - failedCount} of ${recipients.length} tenants`);
                       } else {
-                        setReminderError("Failed to send reminders. Please try again.");
+                        setReminderError(lastError || "Failed to send reminders. Please try again.");
                       }
                       if (!isDemoAccount()) await fetchData();
                     }}

@@ -742,9 +742,6 @@ export default function ContractorsPage() {
                         >
                           <i className="ri-eye-line text-[#C28A78] text-sm"></i>
                         </button>
-                        <Link href={`/dashboard/contractors/${c.id}`} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] transition-colors" title="View Details">
-                          <i className="ri-arrow-right-s-line text-[#687068] text-sm"></i>
-                        </Link>
                       </div>
                     </td>
                   </tr>

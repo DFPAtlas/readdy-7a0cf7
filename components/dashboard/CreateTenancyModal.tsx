@@ -9,6 +9,7 @@ import {
   SelectableProperty,
   SelectableTenant,
 } from "@/lib/tenancyFlow";
+import { regimeForTenancy } from "@/lib/tenancyRegime";
 
 interface CreateTenancyModalProps {
   open: boolean;
@@ -69,6 +70,8 @@ export default function CreateTenancyModal({
 
   const selectedProperty = properties.find((p) => p.id === propertyId) || null;
   const selectedTenant = tenants.find((t) => t.id === tenantId) || null;
+  const regimeRule = regimeForTenancy(selectedProperty?.nation);
+  const isPeriodic = regimeRule.periodicOnly || periodic;
 
   const submit = async (status: TenancyStatus) => {
     setError(null);
@@ -83,7 +86,7 @@ export default function CreateTenancyModal({
     if (!Number.isFinite(depositValue) || depositValue < 0) {
       return setError("Enter a valid deposit amount.");
     }
-    if (!periodic && endDate && endDate < startDate) {
+    if (!isPeriodic && endDate && endDate < startDate) {
       return setError("End date cannot be before the start date.");
     }
 
@@ -92,11 +95,11 @@ export default function CreateTenancyModal({
       propertyId,
       tenantId,
       startDate,
-      endDate: periodic ? undefined : endDate || undefined,
+      endDate: isPeriodic ? undefined : endDate || undefined,
       rentAmount: rentValue,
       depositAmount: depositValue,
-      termType: periodic ? "periodic" : "fixed_term",
-      regime: "ast_legacy",
+      termType: isPeriodic ? "periodic" : "fixed_term",
+      regime: regimeRule.regime,
       status,
     });
     setSubmitting(false);
@@ -229,8 +232,8 @@ export default function CreateTenancyModal({
                 <label className="block text-sm font-medium text-[#3A3F3A] mb-1.5">End Date</label>
                 <input
                   type="date"
-                  value={periodic ? "" : endDate}
-                  disabled={periodic}
+                  value={isPeriodic ? "" : endDate}
+                  disabled={isPeriodic}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full px-3 py-2.5 border border-[#D5D9D5] rounded-lg text-sm text-[#3A3F3A] outline-none focus:border-[#C28A78] bg-white disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
                 />
@@ -262,16 +265,30 @@ export default function CreateTenancyModal({
               </div>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <button
-                type="button"
-                onClick={() => setPeriodic(!periodic)}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${periodic ? "bg-[#C28A78] border-[#C28A78]" : "border-[#D5D9D5]"}`}
-              >
-                {periodic && <i className="ri-check-line text-white text-xs"></i>}
-              </button>
-              <span className="text-sm text-[#3A3F3A]">Periodic tenancy (rolling, no end date)</span>
-            </label>
+            {selectedProperty && (
+              <div className="flex items-start gap-2 bg-[#FBF9F4] border border-[#D5D9D5] text-sm rounded-lg px-3 py-2.5">
+                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5 text-[#C28A78]">
+                  <i className="ri-scales-3-line"></i>
+                </div>
+                <div>
+                  <p className="font-medium text-[#3A3F3A]">{regimeRule.label}</p>
+                  <p className="text-xs text-[#687068] mt-0.5">{regimeRule.explanation}</p>
+                </div>
+              </div>
+            )}
+
+            {!regimeRule.periodicOnly && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setPeriodic(!periodic)}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${periodic ? "bg-[#C28A78] border-[#C28A78]" : "border-[#D5D9D5]"}`}
+                >
+                  {periodic && <i className="ri-check-line text-white text-xs"></i>}
+                </button>
+                <span className="text-sm text-[#3A3F3A]">Periodic tenancy (rolling, no end date)</span>
+              </label>
+            )}
 
             {error && (
               <div className="flex items-start gap-2 bg-[#EF4444]/10 text-[#EF4444] text-sm rounded-lg px-3 py-2.5">

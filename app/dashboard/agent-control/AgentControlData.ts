@@ -82,4 +82,4 @@ export const groupOrder = [
   "communications", "portfolio", "reporting", "administration",
 ];
 
-export const EDGE_FUNCTION_URL = "https://gejxrnreuafnyzwrchvy.supabase.co/functions/v1/n8n-run-agent";
+export const EDGE_FUNCTION_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/functions/v1/n8n-run-agent`;

@@ -1,5 +1,6 @@
 'use client';
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import DashboardShell from '@/components/DashboardShell';
@@ -196,10 +197,12 @@ export default function DocumentsPage() {
               <p className="text-sm text-[#687068] mt-0.5">{filtered.length} documents in {selectedFolder === 'all' ? 'all folders' : selectedFolder}</p>
             </div>
             <div className="flex items-center gap-2">
+              {isPathInLaunchScope("/dashboard/document-builder") && (
               <Link href="/dashboard/document-builder" className="flex items-center gap-1.5 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap cursor-pointer">
                 <div className="w-4 h-4 flex items-center justify-center"><i className="ri-file-add-line text-sm"></i></div>
                 Create from Template
               </Link>
+              )}
               <button
                 onClick={() => { if (isReadOnly) { alert('Your trial has ended. Upgrade to continue.'); return; } if (demoMode) { showDemoBlockedMessage(); return; } setShowUploadModal(true); }}
                 className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-4 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 cursor-pointer"

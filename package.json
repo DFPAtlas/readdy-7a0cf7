@@ -31,8 +31,10 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "check:ci": "npm run check:repo && npm run check:migrations && npm run typecheck && npm run lint && npm run build",
+    "check:ci": "npm run check:repo && npm run check:migrations && npm run check:queries && npm run typecheck && npm run lint && npm run build",
+    "check:launch": "node scripts/check-launch.mjs",
     "check:migrations": "node scripts/validate-migrations.mjs",
+    "check:queries": "node scripts/validate-query-columns.mjs",
     "check:repo": "node scripts/validate-repository.mjs",
     "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
     "lint": "eslint . --max-warnings=0",

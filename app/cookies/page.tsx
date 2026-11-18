@@ -1,5 +1,6 @@
 "use client";
 
+import { COMPANY } from "@/lib/companyDetails";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -13,7 +14,7 @@ export default function CookiesPage() {
           <div className="mb-12">
             <span className="inline-flex items-center gap-2 text-sm font-medium text-[#C28A78] bg-[#C28A78]/10 px-4 py-1.5 rounded-full mb-6">
               <i className="ri-archive-line"></i>
-              Last updated: 15 June 2025
+              Last updated: {COMPANY.legalPagesLastUpdated}
             </span>
             <h1 className="text-4xl font-bold text-[#3A3F3A] mb-4">Cookie Policy</h1>
             <p className="text-lg text-[#687068]">

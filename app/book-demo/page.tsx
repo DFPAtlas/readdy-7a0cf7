@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { submitWebsiteLead } from "@/lib/websiteLeads";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -25,16 +26,19 @@ export default function BookDemoPage() {
     setSubmitting(true);
     setError("");
     const formData = new FormData(form);
-    formData.set("properties_count", propertyCount);
-    try {
-      const resp = await fetch("https://readdy.ai/api/form/d8vvjv46ci2plld1o9r0", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(formData as unknown as Record<string,string>).toString(),
-      });
-      if (!resp.ok) throw new Error("Failed");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    const field = (name: string) => String(formData.get(name) ?? "");
+    const result = await submitWebsiteLead({
+      formType: "demo",
+      fullName: field("full_name"),
+      email: field("email"),
+      phone: field("phone"),
+      company: field("company"),
+      propertiesCount: propertyCount,
+      message: field("message"),
+      website: field("phone_alt"),
+    });
+    if (!result.ok) {
+      setError(result.error || "Something went wrong. Please try again.");
       setSubmitting(false);
       return;
     }

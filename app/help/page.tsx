@@ -32,7 +32,7 @@ const helpArticles = [
     icon: "ri-shield-check-line",
     articles: [
       { title: "Understanding compliance tracking", description: "How LetHub tracks EPCs, gas safety, EICRs, PAT testing, and other certificates." },
-      { title: "Renters' Rights Bill 2025", description: "What the new legislation means for your agency and how LetHub helps you stay compliant." },
+      { title: "Renters' Rights Act 2025", description: "What the new legislation means for your agency and how LetHub helps you stay compliant." },
       { title: "GDPR and data protection", description: "How LetHub helps you meet your data protection obligations as a data controller." },
       { title: "Right to Rent checks", description: "Managing Right to Rent verification within the platform for England-based tenancies." },
     ],

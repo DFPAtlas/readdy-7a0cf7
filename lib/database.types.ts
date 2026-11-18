@@ -4399,6 +4399,9 @@ export type Database = {
       }
       tenants: {
         Row: {
+          created_by_profile_id: string | null
+          landlord_id: string | null
+          managing_agency_id: string | null
           created_at: string
           email: string | null
           emergency_contact_name: string | null
@@ -4412,6 +4415,9 @@ export type Database = {
           profile_id: string | null
         }
         Insert: {
+          created_by_profile_id?: string | null
+          landlord_id?: string | null
+          managing_agency_id?: string | null
           created_at?: string
           email?: string | null
           emergency_contact_name?: string | null
@@ -4425,6 +4431,9 @@ export type Database = {
           profile_id?: string | null
         }
         Update: {
+          created_by_profile_id?: string | null
+          landlord_id?: string | null
+          managing_agency_id?: string | null
           created_at?: string
           email?: string | null
           emergency_contact_name?: string | null

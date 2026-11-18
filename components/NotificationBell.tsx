@@ -2,13 +2,24 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { NotificationItem, eventIcons, eventColors, seedNotifications } from "@/app/dashboard/notifications/NotificationCentreData";
+import { NotificationItem, eventIcons, eventColors } from "@/app/dashboard/notifications/NotificationCentreData";
+import { loadNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/notificationsData";
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  useEffect(() => {
+    let active = true;
+    loadNotifications(20).then((items) => {
+      if (active) setNotifications(items);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -21,12 +32,14 @@ export default function NotificationBell() {
   }, []);
 
   const markRead = (id: string) => {
+    void markNotificationRead(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
   };
 
   const markAllRead = () => {
+    void markAllNotificationsRead();
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 

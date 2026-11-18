@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isPathInLaunchScope, launchScopeFallback } from "@/lib/launchScope";
+import { DEMO_COOKIE } from "@/lib/supabase/cookies";
 
 // Lightweight IP-based rate limiter for the unauthenticated entry points that
 // matter most: login and registration. This is a stopgap, not a production
@@ -44,7 +46,23 @@ function isRateLimited(key: string): boolean {
   return existing.count > MAX_REQUESTS_PER_WINDOW;
 }
 
+const RATE_LIMITED_PATHS = new Set(["/login", "/register", "/owner/login", "/tenant/login", "/contractor/login"]);
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Prototype modules are switched off for launch (see lib/launchScope.ts).
+  // Demo-mode visitors may still browse them; they only ever show sample data.
+  const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";
+  if (!isDemo && !isPathInLaunchScope(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = launchScopeFallback(pathname);
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (!RATE_LIMITED_PATHS.has(pathname)) return NextResponse.next();
+
   const ip = getClientIp(request);
   const key = `${ip}:${request.nextUrl.pathname}`;
 
@@ -59,5 +77,16 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/register", "/owner/login", "/tenant/login"],
+  matcher: [
+    "/login",
+    "/register",
+    "/owner/login",
+    "/tenant/login",
+    "/contractor/login",
+    "/dashboard/:path*",
+    "/mobile/:path*",
+    "/mobile",
+    "/contractor/dashboard/:path*",
+    "/contractor/dashboard",
+  ],
 };

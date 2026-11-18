@@ -1,59 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { pricingPlans } from "@/app/pricing/PricingData";
 
-const plans = [
-  {
-    name: "Starter",
-    price: "29",
-    description: "For small agencies just getting started",
-    features: [
-      "Up to 5 properties",
-      "2 team members",
-      "Landlord portal",
-      "Tenant portal",
-      "Maintenance workflow",
-      "Compliance tracking",
-      "Email support",
-    ],
-    cta: "Start Free Trial",
-    popular: false,
-  },
-  {
-    name: "Professional",
-    price: "79",
-    description: "For growing agencies with multiple landlords",
-    features: [
-      "Up to 25 properties",
-      "5 team members",
-      "Contractor portal",
-      "Quote approval workflow",
-      "Document management",
-      "Inspection reports",
-      "Priority support",
-      "API access",
-    ],
-    cta: "Start Free Trial",
-    popular: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    description: "For large agencies with complex portfolios",
-    features: [
-      "Unlimited properties",
-      "Unlimited users",
-      "Custom integrations",
-      "White-label options",
-      "Dedicated account manager",
-      "SLA guarantee",
-      "Onboarding training",
-      "Custom reporting",
-    ],
-    cta: "Contact Sales",
-    popular: false,
-  },
-];
+// Single source of truth for prices and plan features: app/pricing/PricingData.ts
+const plans = pricingPlans.map((plan) => ({
+  name: plan.name,
+  price: plan.monthlyPrice === null ? "Custom" : String(plan.monthlyPrice),
+  description: plan.description,
+  features: plan.features.slice(0, 7),
+  cta: plan.ctaText,
+  popular: plan.popular,
+}));
 
 export default function PricingSection() {
   return (
@@ -62,11 +20,11 @@ export default function PricingSection() {
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-[#3A3F3A] mb-4">Simple, Transparent Pricing</h2>
           <p className="text-stone-500 max-w-2xl mx-auto">
-            No hidden fees. No setup costs. Pay monthly or annually and save 20%. Cancel anytime.
+            No hidden fees. No setup costs. Pay monthly, or annually and save up to 17%. Cancel anytime.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -93,7 +51,7 @@ export default function PricingSection() {
                     <span className="text-stone-500 text-sm">/month</span>
                   </div>
                 )}
-                <p className="text-xs text-stone-400 mt-1">Billed monthly. Annual plans save 15%.</p>
+                <p className="text-xs text-stone-400 mt-1">{plan.price === "Custom" ? "Tailored to your portfolio" : "Per month. 14-day free trial."}</p>
               </div>
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((feature) => (

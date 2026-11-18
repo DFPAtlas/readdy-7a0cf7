@@ -1,5 +1,6 @@
 "use client";
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
@@ -118,7 +119,7 @@ export default function RentCollectionPage() {
 
       const { data: payments, error } = await supabase
         .from("rent_payments")
-        .select("id, property_id, amount, due_date, paid_date, status, payment_method")
+        .select("id, property_id, amount, due_date, paid_date, status, method")
         .eq("tenant_id", tenantId)
         .order("paid_date", { ascending: false })
         .limit(50);
@@ -141,7 +142,7 @@ export default function RentCollectionPage() {
         tenant: tenantName,
         amount: p.amount || 0,
         date: p.paid_date ? formatDateStr(p.paid_date) : "—",
-        method: p.payment_method || "—",
+        method: p.method || "—",
         month: p.paid_date ? new Date(p.paid_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—",
       }));
 
@@ -238,37 +239,26 @@ export default function RentCollectionPage() {
         return;
       }
 
-      const { error } = await supabase.from("rent_payments").insert({
-        tenancy_id: recordFormTenant.tenancy_id,
-        tenant_id: recordFormTenant.tenant_id,
-        property_id: recordFormTenant.property_id,
-        amount: amount,
-        due_date: recordFormDate,
-        paid_date: recordFormDate,
-        status: "paid",
-        method: recordFormMethod,
-      });
+      const { data: inserted, error } = await supabase
+        .from("rent_payments")
+        .insert({
+          tenancy_id: recordFormTenant.tenancy_id,
+          tenant_id: recordFormTenant.tenant_id,
+          property_id: recordFormTenant.property_id,
+          amount: amount,
+          due_date: recordFormDate,
+          paid_date: recordFormDate,
+          status: "paid",
+          method: recordFormMethod,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
-      if (recordFormTenant?.tenant_email) {
-        try {
-          await fetch("https://gejxrnreuafnyzwrchvy.supabase.co/functions/v1/send-payment-receipt", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}`,
-            },
-            body: JSON.stringify({
-              tenant_email: recordFormTenant.tenant_email,
-              tenant_name: recordFormTenant.tenant_name,
-              amount: amount,
-              payment_date: recordFormDate,
-              payment_method: recordFormMethod,
-              property_name: recordFormTenant.property_name,
-            }),
-          });
-        } catch (_) {}
+      if (recordFormTenant?.tenant_email && inserted?.id) {
+        // The receipt function looks up the tenant and amount itself.
+        await supabase.functions.invoke("send-payment-receipt", { body: { payment_id: inserted.id } }).catch(() => undefined);
       }
 
       setRecordFormSuccess("Payment recorded successfully!");
@@ -304,7 +294,7 @@ export default function RentCollectionPage() {
         setLoading(true);
         const { data: payments, error: payErr } = await supabase
           .from("rent_payments")
-          .select("id, property_id, tenancy_id, amount, due_date, paid_date, status, payment_method, created_at")
+          .select("id, property_id, tenancy_id, amount, due_date, paid_date, status, method, created_at")
           .order("due_date", { ascending: false })
           .limit(100);
 
@@ -367,7 +357,7 @@ export default function RentCollectionPage() {
             dueDate: formatDateStr(p.due_date),
             paidDate: p.paid_date ? formatDateStr(p.paid_date) : null,
             status: isPaid ? "Paid" : isOverdue ? "Overdue" : "Due Soon",
-            method: p.payment_method || "",
+            method: p.method || "",
             outstanding: isPaid ? 0 : (p.amount || 0),
             arrearsMonths: isOverdue ? 1 : undefined,
           };
@@ -387,7 +377,7 @@ export default function RentCollectionPage() {
               tenant: tenantId ? tenantMap.get(tenantId) || "Unknown" : "—",
               amount: p.amount || 0,
               date: p.paid_date ? formatDateStr(p.paid_date) : "—",
-              method: p.payment_method || "—",
+              method: p.method || "—",
               month: p.paid_date ? new Date(p.paid_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—",
             };
           });
@@ -446,10 +436,12 @@ export default function RentCollectionPage() {
             <p className="text-sm text-[#687068] mt-1">{filtered.length} payments this month · {collectionRate}% collected · {overdueCount} overdue</p>
           </div>
           <div className="flex items-center gap-2">
+            {isPathInLaunchScope("/dashboard/open-banking") && (
             <Link href="/dashboard/open-banking" className="border border-[#D5D9D5] text-[#3A3F3A] font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors hover:bg-[#F1F5F9] flex items-center gap-2">
               <i className="ri-bank-line text-sm"></i>
               Review Bank Transactions
             </Link>
+            )}
             <button
               onClick={() => setShowRecordModal(true)}
               className="bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2"
@@ -473,7 +465,7 @@ export default function RentCollectionPage() {
               onClick={() => {
                 if (stat.label === "Outstanding") setActiveFilter("Overdue");
                 else if (stat.label === "Received") setActiveFilter("Paid");
-                else if (stat.label === "Unmatched") window.location.href = "/dashboard/open-banking";
+                else if (stat.label === "Unmatched" && isPathInLaunchScope("/dashboard/open-banking")) window.location.href = "/dashboard/open-banking";
               }}
               className="bg-white rounded-xl border border-[#D5D9D5] p-4 flex items-center gap-3 cursor-pointer hover:shadow-sm transition-shadow"
             >

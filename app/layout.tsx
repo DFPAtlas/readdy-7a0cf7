@@ -14,8 +14,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "LetHub | Property Management Platform",
-  description: "The UK's most powerful property management platform — for agents, landlords, tenants & contractors. Install our PWA for the best mobile experience.",
+  metadataBase: new URL("https://lethub.uk"),
+  title: "LetHub | Property Management for UK Letting Agents",
+  description: "Property management software for UK letting agents and landlords: tenancies, rent, arrears, maintenance and compliance, built for the Renters' Rights Act.",
+  openGraph: {
+    type: "website",
+    siteName: "LetHub",
+    locale: "en_GB",
+    url: "https://lethub.uk",
+    title: "LetHub | Property Management for UK Letting Agents",
+    description: "Tenancies, rent, arrears, maintenance and compliance in one place, built for the Renters' Rights Act.",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -24,7 +33,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
-    apple: "https://readdy.ai/api/search-image?query=A%20simple%20elegant%20square%20app%20icon%20with%20the%20letter%20L%20in%20white%20on%20a%20dark%20forest%20green%20background%20minimal%20modern%20design%20suitable%20for%20a%20property%20management%20app%20icon%20no%20text%20just%20the%20letter%20mark&width=180&height=180&seq=lethub-apple-touch-icon&orientation=squarish",
+    apple: "/icons/apple-touch-icon.png",
   },
   applicationName: "LetHub",
   formatDetection: {
@@ -38,14 +47,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning={true}>
+    <html lang="en-GB" suppressHydrationWarning={true}>
       <head>
         <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
-        <link rel="preconnect" href="https://readdy.ai" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://readdy.ai" />
-        <link rel="preconnect" href="https://public.readdy.ai" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://public.readdy.ai" />
         <link
           rel="preload"
           href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css"
