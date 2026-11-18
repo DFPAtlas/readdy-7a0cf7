@@ -33,7 +33,13 @@ export default function CompliancePropertyCard({ property, onClick }: Compliance
     >
       <div className="flex items-center gap-3 mb-3">
         <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-          <img src={property.image} alt={property.propertyName} className="w-full h-full object-cover object-top" />
+          {property.image ? (
+            <img src={property.image} alt={property.propertyName} className="w-full h-full object-cover object-top" />
+          ) : (
+            <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+              <i className="ri-building-4-line text-[#C28A78] text-2xl"></i>
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#3A3F3A] truncate">{property.propertyName}</p>

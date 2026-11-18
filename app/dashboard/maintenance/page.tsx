@@ -1,5 +1,6 @@
 "use client";
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
@@ -222,6 +223,7 @@ export default function MaintenancePage() {
               </div>
               View Quotes
             </Link>
+            {isPathInLaunchScope("/dashboard/ai-maintenance-triage") && (
             <Link
               href="/dashboard/ai-maintenance-triage"
               className="bg-white border border-[#D5D9D5] hover:bg-[#FBF9F4] text-[#3A3F3A] font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2"
@@ -231,6 +233,7 @@ export default function MaintenancePage() {
               </div>
               AI Triage
             </Link>
+            )}
             {!isReadOnly && (
               <button
                 onClick={() => { setNewJobError(null); setNewJobSuccess(false); setShowNewJobModal(true); }}

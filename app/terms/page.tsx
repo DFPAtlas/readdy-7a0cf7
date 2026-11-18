@@ -1,5 +1,6 @@
 "use client";
 
+import { COMPANY } from "@/lib/companyDetails";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -13,7 +14,7 @@ export default function TermsPage() {
           <div className="mb-12">
             <span className="inline-flex items-center gap-2 text-sm font-medium text-[#C28A78] bg-[#C28A78]/10 px-4 py-1.5 rounded-full mb-6">
               <i className="ri-file-text-line"></i>
-              Last updated: 15 June 2025
+              Last updated: {COMPANY.legalPagesLastUpdated}
             </span>
             <h1 className="text-4xl font-bold text-[#3A3F3A] mb-4">Terms of Service</h1>
             <p className="text-lg text-[#687068]">
@@ -26,7 +27,7 @@ export default function TermsPage() {
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">1. Definitions</h2>
               <ul className="space-y-2">
                 {[
-                  { term: '"LetHub", "we", "us", "our"', def: "LetHub Ltd, a company registered in England and Wales (Company No. 12345678)." },
+                  { term: '"LetHub", "we", "us", "our"', def: `${COMPANY.legalName}, a company registered in England and Wales (Company No. ${COMPANY.companyNumber}).` },
                   { term: '"Platform"', def: "The LetHub software-as-a-service platform, including all web applications, mobile applications, APIs, and related services." },
                   { term: '"Customer", "you", "your"', def: "The individual or organisation that creates an account and uses the Platform." },
                   { term: '"Subscription"', def: "A paid plan providing access to the Platform for a defined period, as selected during registration or plan change." },
@@ -91,7 +92,7 @@ export default function TermsPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">6. Intellectual property</h2>
               <p className="text-sm text-[#475569] leading-relaxed mb-3">
-                The Platform and all associated software, design, trademarks, and documentation are the exclusive property of LetHub Ltd and are protected by copyright and other intellectual property laws. We grant you a limited, non-exclusive, non-transferable licence to access and use the Platform during your subscription period. You retain all ownership rights in your Content. By uploading Content, you grant us a limited licence to host, store, and process it solely for the purpose of providing the Platform to you.
+                The Platform and all associated software, design, trademarks, and documentation are the exclusive property of {COMPANY.legalName} and are protected by copyright and other intellectual property laws. We grant you a limited, non-exclusive, non-transferable licence to access and use the Platform during your subscription period. You retain all ownership rights in your Content. By uploading Content, you grant us a limited licence to host, store, and process it solely for the purpose of providing the Platform to you.
               </p>
             </div>
 
@@ -148,7 +149,7 @@ export default function TermsPage() {
               <p className="text-sm text-[#475569] leading-relaxed">
                 For questions about these terms:<br />
                 Email: legal@lethub.uk<br />
-                Post: Legal Department, LetHub Ltd, 3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE
+                Post: Legal, {COMPANY.legalName}, {COMPANY.registeredOffice}
               </p>
             </div>
           </div>

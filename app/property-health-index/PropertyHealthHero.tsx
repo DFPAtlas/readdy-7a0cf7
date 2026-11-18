@@ -40,16 +40,6 @@ export default function PropertyHealthHero() {
                 View Demo
               </Link>
             </div>
-            <div className="flex items-center gap-6 mt-10">
-              <div className="flex -space-x-2">
-                {["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6"].map((c, i) => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-[#C28A78] flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: c }}>
-                    {["E", "G", "A", "R"][i]}
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-white/50">Trusted by 500+ property professionals</p>
-            </div>
           </div>
           <div className="relative">
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">

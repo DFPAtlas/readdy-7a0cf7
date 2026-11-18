@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { submitWebsiteLead } from "@/lib/websiteLeads";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -17,31 +19,28 @@ export default function ContactPage() {
       return;
     }
     setSubmitting(true);
+    setError("");
     const formData = new FormData(form);
-    try {
-      await fetch("https://readdy.ai/api/form/d8vdlla181e9e92u8re0", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(formData as unknown as Record<string,string>).toString(),
-      });
-    } catch {}
+    const field = (name: string) => String(formData.get(name) ?? "");
+    const result = await submitWebsiteLead({
+      formType: "contact",
+      fullName: [field("first_name"), field("last_name")].filter(Boolean).join(" "),
+      email: field("email"),
+      phone: field("phone"),
+      company: field("company"),
+      reason: field("reason"),
+      message: field("message"),
+      website: field("website_alt"),
+    });
     setSubmitting(false);
+    if (!result.ok) {
+      setError(result.error || "Something went wrong. Please try again.");
+      return;
+    }
     setSubmitted(true);
     form.reset();
   };
 
-  const offices = [
-    {
-      city: "Manchester",
-      address: "3rd Floor, WeWork, 1 St Peter's Square, Manchester M2 3AE",
-      icon: "ri-building-line",
-    },
-    {
-      city: "London",
-      address: "4th Floor, 71-91 Aldwych, London WC2B 4HN",
-      icon: "ri-building-2-line",
-    },
-  ];
 
   return (
     <main className="min-h-screen">
@@ -196,6 +195,10 @@ export default function ContactPage() {
                   style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
                 />
 
+                {error && (
+                  <p role="alert" className="text-sm text-[#C46868] bg-[#C46868]/10 rounded-lg px-3 py-2">{error}</p>
+                )}
+
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-[#94A3B8]">We'll respond within 1 working day</p>
                   <button
@@ -211,26 +214,25 @@ export default function ContactPage() {
           </div>
 
           <div className="space-y-6">
-            {offices.map((office) => (
-              <div key={office.city} className="bg-white rounded-xl border border-[#E2E8F0] p-6">
-                <div className="w-10 h-10 rounded-lg bg-[#C28A78]/10 flex items-center justify-center mb-4">
-                  <i className={`${office.icon} text-[#C28A78] text-lg`}></i>
-                </div>
-                <h3 className="font-bold text-[#3A3F3A] mb-2">{office.city}</h3>
-                <p className="text-sm text-[#687068] leading-relaxed">{office.address}</p>
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
+              <div className="w-10 h-10 rounded-lg bg-[#C28A78]/10 flex items-center justify-center mb-4">
+                <i className="ri-mail-line text-[#C28A78] text-lg"></i>
               </div>
-            ))}
+              <h3 className="font-bold text-[#3A3F3A] mb-2">Email</h3>
+              <p className="text-sm text-[#687068] leading-relaxed">
+                <a href="mailto:support@lethub.uk" className="text-[#C28A78] font-medium hover:underline">support@lethub.uk</a>
+              </p>
+              <p className="text-xs text-[#94A3B8] mt-1">We reply within one working day.</p>
+            </div>
 
             <div className="bg-[#C28A78] rounded-xl p-6 text-white">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
                 <i className="ri-customer-service-2-line text-white text-lg"></i>
               </div>
-              <h3 className="font-bold mb-2">Need immediate help?</h3>
-              <p className="text-sm text-white/80 leading-relaxed mb-4">
-                Existing customers can reach our support team directly from the dashboard or call us on:
+              <h3 className="font-bold mb-2">Already using LetHub?</h3>
+              <p className="text-sm text-white/80 leading-relaxed">
+                Sign in and use the help link in your dashboard, or email support@lethub.uk with your agency name.
               </p>
-              <p className="text-lg font-bold">0161 234 5678</p>
-              <p className="text-xs text-white/60 mt-1">Mon–Fri, 9am–6pm GMT</p>
             </div>
           </div>
         </div>
@@ -242,11 +244,11 @@ export default function ContactPage() {
           <div className="space-y-4">
             <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
               <h3 className="font-semibold text-[#3A3F3A] mb-2">How quickly will you respond?</h3>
-              <p className="text-sm text-[#687068] leading-relaxed">We aim to reply to every enquiry within one working day. Existing customers using the in-dashboard support channel typically hear back within two hours during business hours.</p>
+              <p className="text-sm text-[#687068] leading-relaxed">We aim to reply to every enquiry within one working day. </p>
             </div>
             <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
               <h3 className="font-semibold text-[#3A3F3A] mb-2">Can I speak to someone directly?</h3>
-              <p className="text-sm text-[#687068] leading-relaxed">Yes. Call our Manchester office on 0161 234 5678, Monday to Friday, 9am&ndash;6pm GMT. For account-specific questions, the dashboard support channel is usually the fastest route.</p>
+              <p className="text-sm text-[#687068] leading-relaxed">Yes. Send us a message with a good time to call and we&apos;ll arrange it, or book a demo and we&apos;ll walk you through LetHub on a video call.</p>
             </div>
             <div className="bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-6">
               <h3 className="font-semibold text-[#3A3F3A] mb-2">I&apos;m a journalist or partner — who should I contact?</h3>

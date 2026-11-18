@@ -45,8 +45,11 @@ A migration file being present in Git does not prove that it has been applied to
 | `012_tenant_notes.sql` | Add free-text `tenants.notes` column | Column observed live; matching migration ledger name not found — reconcile before any replay |
 | `013_user_security_events.sql` | Add per-user security-event storage with own-row read/insert policies | Table, RLS and own-row policies observed live; matching migration ledger name not found — reconcile before any replay |
 | `014_maintenance_job_details.sql` | Add maintenance-job details and constrain priority/status values | Detail columns absent live; this PR preserves `open` and `scheduled`, pending CI and development-branch validation |
+| `015_rra_possession_grounds.sql` | Seed all Schedule 2 grounds for possession as amended by the Renters' Rights Act 2025 (England) | Pending — not applied. Idempotent upsert; tested on a local PostgreSQL 16 scaffold on 18 November 2026 |
+| `016_website_leads.sql` | `website_leads` table for marketing-site forms, written only by the `submit-website-lead` function | Pending — not applied. Tested locally (anon and non-admin access denied) |
+| `017_subscription_access_for_teams_and_portals.sql` | Let agency staff inherit the agency subscription and stop treating landlord/tenant/contractor users as read-only | Pending — not applied. Tested locally against admin, staff, tenant, unsubscribed and expired-trial users |
 
-The next new migration must be numbered `015`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence.
+The next new migration must be numbered `018`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence. Apply `014`–`017` in order after confirming against the live ledger.
 
 ### Production verification on 5 November 2026
 

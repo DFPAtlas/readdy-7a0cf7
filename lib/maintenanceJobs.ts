@@ -22,6 +22,18 @@ interface PropertyRow {
   postcode: string | null;
 }
 
+// Migration 014 adds priority/category/target_date/etc. to maintenance_jobs.
+// Until it is applied in an environment, fall back to the base columns so the
+// maintenance screens keep working instead of failing outright.
+const BASE_COLUMNS = "id, property_id, title, description, status, assigned_contractor_profile_id, created_at";
+const DETAIL_COLUMNS = `${BASE_COLUMNS}, priority, target_date, estimated_cost`;
+
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "42703" || error.code === "PGRST204") return true;
+  return /column .* does not exist|could not find the .* column/i.test(error.message || "");
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function formatDate(value: string | null | undefined): string {
@@ -44,16 +56,30 @@ function capitalise(value: string | null | undefined): string {
 }
 
 export async function fetchMaintenanceJobs(): Promise<MaintenanceJobListItem[]> {
-  const { data, error } = await supabase
+  const detailed = await supabase
     .from("maintenance_jobs")
-    .select(
-      "id, property_id, title, description, status, priority, assigned_contractor_profile_id, target_date, estimated_cost, created_at"
-    )
+    .select(DETAIL_COLUMNS)
     .order("created_at", { ascending: false });
+  let rawRows: unknown[] | null = detailed.data;
+  let error = detailed.error;
+
+  if (isMissingColumnError(error)) {
+    const basic = await supabase
+      .from("maintenance_jobs")
+      .select(BASE_COLUMNS)
+      .order("created_at", { ascending: false });
+    rawRows = basic.data;
+    error = basic.error;
+  }
 
   if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as MaintenanceJobRow[];
+  const rows = ((rawRows ?? []) as Partial<MaintenanceJobRow>[]).map((row) => ({
+    priority: null,
+    target_date: null,
+    estimated_cost: null,
+    ...row,
+  })) as MaintenanceJobRow[];
   if (rows.length === 0) return [];
 
   const propertyIds = Array.from(new Set(rows.map((r) => r.property_id).filter((v): v is string => !!v)));
@@ -145,17 +171,36 @@ export interface NewMaintenanceJobInput {
 }
 
 export async function createMaintenanceJob(input: NewMaintenanceJobInput): Promise<void> {
-  const { error } = await supabase.from("maintenance_jobs").insert({
+  const base = {
     property_id: input.propertyId,
     title: input.title.trim(),
     description: input.description.trim() || null,
+    status: "reported",
+  };
+
+  let { error } = await supabase.from("maintenance_jobs").insert({
+    ...base,
     category: input.category || null,
     priority: input.priority.toLowerCase(),
     reported_by: input.reportedBy || null,
     target_date: input.targetDate || null,
     access_notes: input.accessNotes.trim() || null,
-    status: "reported",
   });
+
+  if (isMissingColumnError(error)) {
+    // Keep the detail in the description until migration 014 is applied.
+    const details = [
+      input.category && `Category: ${input.category}`,
+      input.priority && `Priority: ${input.priority}`,
+      input.reportedBy && `Reported by: ${input.reportedBy}`,
+      input.targetDate && `Target date: ${input.targetDate}`,
+      input.accessNotes.trim() && `Access notes: ${input.accessNotes.trim()}`,
+    ].filter(Boolean);
+    ({ error } = await supabase.from("maintenance_jobs").insert({
+      ...base,
+      description: [base.description, details.join("\n")].filter(Boolean).join("\n\n") || null,
+    }));
+  }
 
   if (error) throw new Error(error.message);
 }

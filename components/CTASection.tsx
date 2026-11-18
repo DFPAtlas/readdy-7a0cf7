@@ -8,7 +8,7 @@ export default function CTASection() {
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
-          backgroundImage: "url('https://readdy.ai/api/search-image?query=Abstract%20modern%20technology%20background%20with%20soft%20gradient%20mesh%2C%20clean%20minimalist%20design%2C%20floating%20geometric%20shapes%2C%20subtle%20blue%20and%20green%20tones%2C%20professional%20SaaS%20product%20background%2C%20clean%20simple%20background%20with%20soft%20neutral%20lighting%2C%20digital%20platform%20aesthetic&width=1920&height=600&seq=cta-bg-1&orientation=landscape')",
+          backgroundImage: "radial-gradient(circle at 20% 20%, rgba(194,138,120,0.45), transparent 55%), radial-gradient(circle at 80% 80%, rgba(122,154,126,0.45), transparent 55%)",
         }}
       />
       <div className="absolute inset-0 bg-[#3A3F3A]/80" />

@@ -73,7 +73,7 @@ export default function ContractorLoginPage() {
     }
 
     if (typeof window !== "undefined") {
-      window.location.href = "/contractor/dashboard";
+      window.location.href = "/dashboard/contractor";
     }
   };
 

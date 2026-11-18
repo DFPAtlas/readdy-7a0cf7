@@ -24,8 +24,8 @@ interface PropertyData {
 }
 
 const demoProperties: PropertyData[] = [
-  { id: "p1", name: "Rose Court Flat 2A", line1: "12 Rose Court", city: "London", postcode: "SW1A 1AA", bedrooms: 2, epc_rating: "C", image: "https://readdy.ai/api/search-image?query=Modern%20UK%20residential%20apartment%20exterior%2C%20clean%20architectural%20lines%2C%20professional%20real%20estate%20photography%2C%20neutral%20tones%2C%20clean%20simple%20background%20with%20muted%20colours%2C%20brick%20facade%20with%20white%20window%20frames&width=400&height=300&seq=owner-prop-1&orientation=landscape", tenant: "John Miller", rentAmount: "£1,850", rentStatus: "Paid", nextInspection: "8 Jul 2026" },
-  { id: "p2", name: "Riverside Court", line1: "3 Riverside Court", city: "Manchester", postcode: "M1 4AL", bedrooms: 2, epc_rating: "B", image: "https://readdy.ai/api/search-image?query=Contemporary%20UK%20city%20apartment%20building%20exterior%2C%20modern%20architecture%2C%20professional%20real%20estate%20photography%2C%20clean%20simple%20background%20with%20muted%20colours&width=400&height=300&seq=owner-prop-2&orientation=landscape", tenant: "Emma Wilson", rentAmount: "£1,950", rentStatus: "Paid", nextInspection: "15 Aug 2026" },
+  { id: "p1", name: "Rose Court Flat 2A", line1: "12 Rose Court", city: "London", postcode: "SW1A 1AA", bedrooms: 2, epc_rating: "C", image: "", tenant: "John Miller", rentAmount: "£1,850", rentStatus: "Paid", nextInspection: "8 Jul 2026" },
+  { id: "p2", name: "Riverside Court", line1: "3 Riverside Court", city: "Manchester", postcode: "M1 4AL", bedrooms: 2, epc_rating: "B", image: "", tenant: "Emma Wilson", rentAmount: "£1,950", rentStatus: "Paid", nextInspection: "15 Aug 2026" },
 ];
 
 const demoPayments = [
@@ -107,7 +107,7 @@ export default function OwnerDashboardPage() {
         supabase.from("tenancies").select("id, property_id, rent_amount, status, start_date, end_date").in("property_id", propIds),
         supabase.from("maintenance_jobs").select("id, property_id, title, status").in("property_id", propIds),
         supabase.from("property_compliance_items").select("id, obligation_code, status, next_due").in("property_id", propIds),
-        supabase.from("rent_payments").select("id, tenancy_id, amount, payment_date, method").in("tenancy_id", propIds.length > 0 ? await supabase.from("tenancies").select("id").in("property_id", propIds).then(r => (r.data || []).map((t: any) => t.id)) : []).order("payment_date", { ascending: false }).limit(8),
+        supabase.from("rent_payments").select("id, tenancy_id, amount, paid_date, due_date, status, method").in("property_id", propIds).order("due_date", { ascending: false }).limit(8),
         supabase.from("inspections").select("id, property_id, title, inspection_type, status, scheduled_date").in("property_id", propIds).order("scheduled_date", { ascending: false }).limit(6),
         supabase.from("notifications").select("id, title, body, type, is_read, created_at").eq("profile_id", session.user.id).order("created_at", { ascending: false }).limit(10),
       ]);
@@ -128,7 +128,7 @@ export default function OwnerDashboardPage() {
           postcode: p.postcode || "",
           bedrooms: p.bedrooms || 0,
           epc_rating: p.epc_rating || "N/A",
-          image: "https://readdy.ai/api/search-image?query=Modern%20residential%20property%20exterior%2C%20professional%20real%20estate%20photography%2C%20clean%20background&width=400&height=300&seq=owner-dash-01&orientation=landscape",
+          image: "",
           tenant: ten ? "Tenant" : "Vacant",
           rentAmount: ten ? `£${Number(ten.rent_amount || 0).toLocaleString()}` : "—",
           rentStatus: ten ? "Active" : "Vacant",
@@ -155,7 +155,7 @@ export default function OwnerDashboardPage() {
           property: prop?.line1 || "Property",
           tenant: "Tenant",
           amount: `£${Number(p.amount || 0).toLocaleString()}`,
-          date: p.payment_date ? new Date(p.payment_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+          date: p.paid_date ? new Date(p.paid_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
           method: p.method || "Bank Transfer",
         };
       });
@@ -376,7 +376,13 @@ export default function OwnerDashboardPage() {
           {properties.map((prop) => (
             <div key={prop.id} className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative h-48">
-                <img src={prop.image} alt={prop.name} className="w-full h-full object-cover object-top" />
+                {prop.image ? (
+                  <img src={prop.image} alt={prop.name} className="w-full h-full object-cover object-top" />
+                ) : (
+                  <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+                    <i className="ri-building-4-line text-[#C28A78] text-3xl"></i>
+                  </div>
+                )}
                 <div className="absolute top-3 left-3">
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${prop.rentStatus === "Active" || prop.rentStatus === "Paid" ? "bg-[#7A9A7E]/10 text-[#7A9A7E]" : "bg-[#F59E0B]/10 text-[#F59E0B]"}`}>
                     {prop.rentStatus === "Vacant" ? "Available" : "Occupied"}

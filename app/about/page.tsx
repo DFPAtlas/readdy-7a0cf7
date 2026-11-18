@@ -42,7 +42,7 @@ export default function AboutPage() {
             Building the future of property management
           </h1>
           <p className="text-lg text-[#687068] max-w-2xl mx-auto leading-relaxed">
-            LetHub was born from a simple frustration: why is property management software still stuck in 2005? We are on a mission to give every letting agent, landlord, and property manager in the UK the tools they deserve — modern, intelligent, and a joy to use.
+            LetHub is a new property management platform for UK letting agents and landlords, launching in 2027. It is built in the UK around the Renters' Rights Act, so tenancies, possession grounds, compliance and portals work the way the law now requires.
           </p>
         </div>
       </section>
@@ -59,31 +59,6 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-lg font-bold text-[#3A3F3A] mb-2">{v.title}</h3>
                 <p className="text-sm text-[#687068] leading-relaxed">{v.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-20 px-6 lg:px-12 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-[#3A3F3A] text-center mb-4">Our journey so far</h2>
-          <p className="text-[#687068] text-center mb-12 max-w-2xl mx-auto">From a shared frustration to a platform trusted by agencies across the UK.</p>
-          <div className="space-y-6">
-            {[
-              { year: "2021", title: "LetHub is founded", desc: "Founded in Manchester by a small team of property and technology professionals who believed legacy software was holding the industry back." },
-              { year: "2022", title: "First agency customers", desc: "We onboarded our first letting agents and landlords, iterating rapidly on real-world feedback from hundreds of properties under management." },
-              { year: "2024", title: "AI and automation", desc: "Launched AI-powered maintenance triage, compliance risk scoring and the Property Health Index to give agencies predictive insight." },
-              { year: "2026", title: "A complete platform", desc: "Today LetHub serves agents, landlords, tenants and contractors across England, Scotland, Wales and Northern Ireland with one connected platform." },
-            ].map((m) => (
-              <div key={m.year} className="flex items-start gap-6">
-                <div className="w-20 flex-shrink-0">
-                  <span className="text-2xl font-bold text-[#C28A78]">{m.year}</span>
-                </div>
-                <div className="flex-1 bg-[#FAFBFC] rounded-xl border border-[#E2E8F0] p-5">
-                  <h3 className="font-bold text-[#3A3F3A] mb-1">{m.title}</h3>
-                  <p className="text-sm text-[#687068] leading-relaxed">{m.desc}</p>
-                </div>
               </div>
             ))}
           </div>

@@ -29,7 +29,7 @@ interface NewPropertyForm {
   postcode: string;
 }
 
-const SUPABASE_URL = "https://gejxrnreuafnyzwrchvy.supabase.co";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 function platformToQR(p: PlatformProperty): QRProperty {
   return { id: p.id, name: p.name, address: p.address, city: p.city, status: p.status };

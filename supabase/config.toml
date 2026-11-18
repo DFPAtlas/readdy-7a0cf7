@@ -26,3 +26,15 @@ verify_jwt = true
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.send-rent-reminder]
+verify_jwt = true
+
+[functions.send-payment-receipt]
+verify_jwt = true
+
+[functions.submit-website-lead]
+verify_jwt = false
+
+[functions.confirm-redirect]
+verify_jwt = false

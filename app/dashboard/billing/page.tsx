@@ -181,7 +181,7 @@ function BillingContent() {
       if (agencyMember.data?.agency_id) {
         const { count: memberCount } = await supabase
           .from("agency_members")
-          .select("id", { count: "exact", head: true })
+          .select("profile_id", { count: "exact", head: true })
           .eq("agency_id", agencyMember.data.agency_id);
         setTeamCount(memberCount || 1);
       } else {

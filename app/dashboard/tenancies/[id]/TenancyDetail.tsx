@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
+import { supabase } from "@/lib/supabaseClient";
+import { isDemoAccount } from "@/lib/demoMode";
+import { sendPortalInvite } from "@/lib/portalInvites";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, portalStatusBadge, portalStatusLabel, TenancyRecord } from "../TenanciesData";
 
 const tabs = [
@@ -16,7 +19,7 @@ const tabs = [
   { id: "portal", label: "Portal Access", icon: "ri-macbook-line" },
 ];
 
-const mockDocuments = [
+const DEMO_DOCUMENTS = [
   { id: "d1", name: "Tenancy Agreement - Signed.pdf", type: "Tenancy", date: "15 Sep 2024", size: "1.2 MB", icon: "ri-file-text-line", color: "bg-[#3B82F6]" },
   { id: "d2", name: "Deposit Protection Certificate.pdf", type: "Deposit", date: "15 Sep 2024", size: "0.3 MB", icon: "ri-bank-card-line", color: "bg-[#10B981]" },
   { id: "d3", name: "Inventory Check-in Report.pdf", type: "Inventory", date: "15 Sep 2024", size: "2.4 MB", icon: "ri-file-list-line", color: "bg-[#F59E0B]" },
@@ -26,7 +29,7 @@ const mockDocuments = [
   { id: "d7", name: "Rent Payment Schedule.pdf", type: "Financial", date: "15 Sep 2024", size: "0.4 MB", icon: "ri-calendar-line", color: "bg-[#D4A574]" },
 ];
 
-const mockMaintenanceJobs = [
+const DEMO_MAINTENANCE_JOBS = [
   { id: "m1", title: "Leaking kitchen tap", status: "In Progress", priority: "Medium", contractor: "GreenPlumb Ltd", reported: "18 May 2026", cost: 114 },
   { id: "m2", title: "Living room radiator not heating", status: "Awaiting Approval", priority: "High", contractor: "HeatFirst Services", reported: "25 May 2026", cost: 222 },
   { id: "m3", title: "Bedroom light switch broken", status: "Scheduled", priority: "Low", contractor: "BrightSpark Electrical", reported: "29 May 2026", cost: 85 },
@@ -34,9 +37,156 @@ const mockMaintenanceJobs = [
   { id: "m5", title: "Front door lock sticking", status: "Completed", priority: "Medium", contractor: "SecureFix", reported: "10 May 2026", cost: 95 },
 ];
 
+type DocRow = { id: string; name: string; type: string; date: string; size: string; icon: string; color: string };
+type JobRow = { id: string; title: string; status: string; priority: string; contractor: string; reported: string; cost: number };
+type PaymentRow = { month: string; amount: number; status: string; date: string };
+type TenancyExtras = { epcRating: string; councilTaxBand: string; regime: string | null };
+
+const REGIME_LABELS: Record<string, string> = {
+  assured_periodic_rra: "Assured periodic (Renters' Rights Act)",
+  ast_legacy: "Assured shorthold (pre-May 2026)",
+  occupation_contract_wales: "Occupation contract (Wales)",
+  prt_scotland: "Private residential tenancy (Scotland)",
+  ni_private_tenancy: "Private tenancy (Northern Ireland)",
+};
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function labelFromCode(value: string | null | undefined): string {
+  if (!value) return "—";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (!bytes) return "—";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function portalStatusFrom(rows: Array<{ user_type: string | null; status: string | null }>, userType: string): string {
+  const row = rows.find((r) => r.user_type === userType);
+  if (!row) return "not_invited";
+  if (row.status === "active") return "active";
+  if (row.status === "disabled" || row.status === "revoked") return "disabled";
+  return "invited";
+}
+
+async function loadLiveTenancy(tenancyId: string) {
+  const { data: t, error } = await supabase
+    .from("tenancies")
+    .select("id, property_id, regime, term_type, status, start_date, end_date, rent_amount, rent_period, deposit_amount, deposit_scheme, is_periodic")
+    .eq("id", tenancyId)
+    .maybeSingle();
+  if (error || !t) return null;
+
+  const [propRes, partiesRes, paymentsRes, docsRes, jobsRes, inspRes, portalRes] = await Promise.all([
+    supabase.from("properties").select("id, line1, line2, city, postcode, landlord_id, type, bedrooms, epc_rating, council_tax_band").eq("id", t.property_id).maybeSingle(),
+    supabase.from("tenancy_parties").select("tenant_id, is_lead, tenants(id, full_name, email, phone)").eq("tenancy_id", t.id),
+    supabase.from("rent_payments").select("id, amount, due_date, paid_date, status").eq("tenancy_id", t.id).order("due_date", { ascending: false }).limit(12),
+    supabase.from("documents").select("id, kind, issued_on, created_at, file_size").eq("tenancy_id", t.id).order("created_at", { ascending: false }),
+    supabase.from("maintenance_jobs").select("id, title, status, created_at").eq("property_id", t.property_id).order("created_at", { ascending: false }).limit(20),
+    supabase.from("inspections").select("scheduled_date, completed_date, status").eq("property_id", t.property_id),
+    supabase.from("portal_access").select("user_type, status").eq("property_id", t.property_id),
+  ]);
+
+  const prop: any = propRes.data;
+  let landlord: any = null;
+  if (prop?.landlord_id) {
+    const { data } = await supabase.from("landlords").select("id, display_name, email").eq("id", prop.landlord_id).maybeSingle();
+    landlord = data;
+  }
+
+  const parties = (partiesRes.data || []) as any[];
+  const leadParty = parties.find((p) => p.is_lead) || parties[0];
+  const tenant = leadParty ? (Array.isArray(leadParty.tenants) ? leadParty.tenants[0] : leadParty.tenants) : null;
+  const inspections = (inspRes.data || []) as any[];
+  const completed = inspections.filter((i) => i.status === "completed" && i.completed_date).map((i) => i.completed_date).sort().reverse();
+  const upcoming = inspections.filter((i) => i.status === "scheduled" && i.scheduled_date).map((i) => i.scheduled_date).sort();
+  const portals = (portalRes.data || []) as Array<{ user_type: string | null; status: string | null }>;
+  const periodic = t.term_type === "periodic" || Boolean(t.is_periodic);
+  const startDay = t.start_date ? new Date(t.start_date).getDate() : 1;
+
+  const record: TenancyRecord = {
+    id: t.id,
+    ref: `TNCY-${t.id.slice(0, 8).toUpperCase()}`,
+    propertyId: t.property_id,
+    propertyName: prop?.line1 || "Unknown property",
+    propertyAddress: prop ? [prop.line2, prop.city, prop.postcode].filter(Boolean).join(", ") : "",
+    tenantId: tenant?.id || "",
+    tenantName: tenant?.full_name || "No tenant linked",
+    tenantEmail: tenant?.email || "",
+    tenantPhone: tenant?.phone || "",
+    ownerId: landlord?.id || "",
+    ownerName: landlord?.display_name || "No landlord linked",
+    ownerEmail: landlord?.email || "",
+    startDate: formatDate(t.start_date),
+    endDate: periodic ? "No fixed end date" : formatDate(t.end_date),
+    periodic,
+    rent: Number(t.rent_amount) || 0,
+    deposit: Number(t.deposit_amount) || 0,
+    depositScheme: t.deposit_scheme || "Not recorded",
+    status: (t.status === "in_possession_process" ? "ending" : t.status) as TenancyRecord["status"],
+    ownerPortalStatus: portalStatusFrom(portals, "owner"),
+    tenantPortalStatus: portalStatusFrom(portals, "tenant"),
+    rentDueDay: startDay,
+    noticeRequired: t.regime === "assured_periodic_rra" ? "Tenant: 2 months" : "Per tenancy agreement",
+    propertyType: labelFromCode(prop?.type),
+    bedrooms: prop?.bedrooms ?? 0,
+    lastInspection: completed[0] ? formatDate(completed[0]) : "None recorded",
+    nextInspection: upcoming[0] ? formatDate(upcoming[0]) : "Not scheduled",
+  };
+
+  const documents: DocRow[] = ((docsRes.data || []) as any[]).map((d) => ({
+    id: d.id,
+    name: labelFromCode(d.kind),
+    type: labelFromCode(d.kind),
+    date: formatDate(d.issued_on || d.created_at),
+    size: formatBytes(d.file_size),
+    icon: "ri-file-text-line",
+    color: "bg-[#3B82F6]",
+  }));
+
+  const jobs: JobRow[] = ((jobsRes.data || []) as any[]).map((j) => ({
+    id: j.id,
+    title: j.title || "Untitled job",
+    status: labelFromCode(j.status),
+    priority: "—",
+    contractor: "—",
+    reported: formatDate(j.created_at),
+    cost: 0,
+  }));
+
+  const payments: PaymentRow[] = ((paymentsRes.data || []) as any[]).map((p) => ({
+    month: p.due_date ? new Date(p.due_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—",
+    amount: Number(p.amount) || 0,
+    status: labelFromCode(p.status),
+    date: formatDate(p.paid_date),
+  }));
+
+  const extras: TenancyExtras = {
+    epcRating: prop?.epc_rating || "—",
+    councilTaxBand: prop?.council_tax_band ? `Band ${prop.council_tax_band}` : "—",
+    regime: t.regime || null,
+  };
+
+  return { record, documents, jobs, payments, extras };
+}
+
 export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [tenancy, setTenancy] = useState<TenancyRecord | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
+  const [documents, setDocuments] = useState<DocRow[]>([]);
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [extras, setExtras] = useState<TenancyExtras>({ epcRating: "—", councilTaxBand: "—", regime: null });
+  const [inviteLinks, setInviteLinks] = useState<{ owner?: string; tenant?: string }>({});
   const [toast, setToast] = useState<string | null>(null);
   const [inviteModal, setInviteModal] = useState<{ type: "owner" | "tenant" } | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -61,16 +211,38 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
   useEffect(() => {
     let active = true;
 
-    const timer = setTimeout(() => {
-      if (active) {
+    const load = async () => {
+      if (isDemoAccount()) {
         const found = tenancies.find((t) => t.id === tenancyId) || tenancies[0];
+        if (!active) return;
+        setIsDemo(true);
         setTenancy(found);
+        setDocuments(DEMO_DOCUMENTS);
+        setJobs(DEMO_MAINTENANCE_JOBS);
+        setPayments(
+          ["Jun 2026", "May 2026", "Apr 2026"].map((month) => ({ month, amount: found.rent, status: "Paid", date: `01 ${month}` })),
+        );
+        setExtras({ epcRating: "C", councilTaxBand: "Band C", regime: "assured_periodic_rra" });
+        return;
       }
-    }, 0);
+
+      const live = await loadLiveTenancy(tenancyId);
+      if (!active) return;
+      if (!live) {
+        setNotFound(true);
+        return;
+      }
+      setTenancy(live.record);
+      setDocuments(live.documents);
+      setJobs(live.jobs);
+      setPayments(live.payments);
+      setExtras(live.extras);
+    };
+
+    load();
 
     return () => {
       active = false;
-      clearTimeout(timer);
     };
   }, [tenancyId]);
 
@@ -84,11 +256,15 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
   };
 
   const handleCopyLink = (tokenType: "owner" | "tenant") => {
-    const token = tokenType === "owner" ? "own-detail-token" : "tnt-detail-token";
-    const link = `${typeof window !== "undefined" ? window.location.origin : ""}/portal/accept-invite?token=${token}`;
+    const link = inviteLinks[tokenType];
+    if (!link) {
+      setInviteModal({ type: tokenType });
+      setInviteEmail(tokenType === "owner" ? tenancy?.ownerEmail || "" : tenancy?.tenantEmail || "");
+      return;
+    }
     navigator.clipboard.writeText(link).then(() => {
       if (!mountedRef.current) return;
-      setCopiedToken(token);
+      setCopiedToken(tokenType);
       showToast("Invite link copied to clipboard");
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = setTimeout(() => {
@@ -96,6 +272,63 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
       }, 2000);
     });
   };
+
+  const handleSendInvite = async () => {
+    if (!tenancy || !inviteModal) return;
+    const portalType = inviteModal.type;
+    if (isDemo) {
+      setInviteModal(null);
+      showToast("Demo mode — no invitation was sent.");
+      return;
+    }
+    setSending(true);
+    const result = await sendPortalInvite(supabase, {
+      portalType,
+      propertyId: tenancy.propertyId,
+      email: inviteEmail.trim(),
+      message: "",
+      tenantId: portalType === "tenant" ? tenancy.tenantId || undefined : undefined,
+    });
+    if (!mountedRef.current) return;
+    setSending(false);
+    if (!result.ok) {
+      showToast(result.message);
+      return;
+    }
+    setInviteModal(null);
+    if (result.link) setInviteLinks((prev) => ({ ...prev, [portalType]: result.link }));
+    setTenancy((prev) =>
+      prev
+        ? {
+            ...prev,
+            ownerPortalStatus: portalType === "owner" && prev.ownerPortalStatus !== "active" ? "invited" : prev.ownerPortalStatus,
+            tenantPortalStatus: portalType === "tenant" && prev.tenantPortalStatus !== "active" ? "invited" : prev.tenantPortalStatus,
+          }
+        : prev,
+    );
+    showToast(result.message);
+  };
+
+  if (notFound) {
+    return (
+      <DashboardShell>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="max-w-md text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#F1F5F9]">
+              <i className="ri-file-search-line text-2xl text-[#94A3B8]"></i>
+            </div>
+            <h1 className="text-xl font-bold text-[#3A3F3A]">Tenancy not found</h1>
+            <p className="mt-2 text-sm leading-6 text-[#687068]">
+              This tenancy does not exist or you do not have access to it.
+            </p>
+            <Link href="/dashboard/tenancies" className="mt-5 inline-flex rounded-lg bg-[#C28A78] px-4 py-2 text-sm font-semibold text-white hover:bg-[#B07A69]">
+              Back to tenancies
+            </Link>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   if (!tenancy) {
     return (
@@ -110,14 +343,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
     );
   }
 
-  const rentPayments = [
-    { month: "Jun 2026", amount: tenancy.rent, status: "Paid", date: "01 Jun 2026" },
-    { month: "May 2026", amount: tenancy.rent, status: "Paid", date: "01 May 2026" },
-    { month: "Apr 2026", amount: tenancy.rent, status: "Paid", date: "01 Apr 2026" },
-    { month: "Mar 2026", amount: tenancy.rent, status: "Paid", date: "01 Mar 2026" },
-    { month: "Feb 2026", amount: tenancy.rent, status: "Paid", date: "01 Feb 2026" },
-    { month: "Jan 2026", amount: tenancy.rent, status: "Paid", date: "01 Jan 2026" },
-  ];
+  const rentPayments = payments;
 
   return (
     <DashboardShell>
@@ -182,7 +408,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                     { label: "Deposit", value: `£${tenancy.deposit.toLocaleString()}`, icon: "ri-bank-card-line", color: "bg-[#3B82F6]/10", text: "text-[#3B82F6]" },
                     { label: "Property Type", value: tenancy.propertyType, icon: "ri-building-4-line", color: "bg-[#8B5CF6]/10", text: "text-[#8B5CF6]" },
                     { label: "Bedrooms", value: tenancy.bedrooms, icon: "ri-hotel-bed-line", color: "bg-[#EC4899]/10", text: "text-[#EC4899]" },
-                    { label: "Rent Due Day", value: `${tenancy.rentDueDay}${["st","nd","rd"][((tenancy.rentDueDay%100)-1)%10] || "th"} of month`, icon: "ri-calendar-check-line", color: "bg-[#F59E0B]/10", text: "text-[#F59E0B]" },
+                    { label: "Rent Due Day", value: `${tenancy.rentDueDay}${[11, 12, 13].includes(tenancy.rentDueDay % 100) ? "th" : ["st","nd","rd"][(tenancy.rentDueDay % 10) - 1] || "th"} of month`, icon: "ri-calendar-check-line", color: "bg-[#F59E0B]/10", text: "text-[#F59E0B]" },
                     { label: "Notice Required", value: tenancy.noticeRequired, icon: "ri-alert-line", color: "bg-[#687068]/10", text: "text-[#687068]" },
                   ].map((item) => (
                     <div key={item.label} className="flex items-start gap-3 p-3 rounded-xl bg-[#FBF9F4]">
@@ -261,7 +487,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                   <h3 className="font-semibold text-[#3A3F3A] text-sm">Tenancy Type</h3>
                 </div>
                 <p className="text-lg font-bold text-[#3A3F3A]">{tenancy.periodic ? "Periodic" : "Fixed Term"}</p>
-                <p className="text-xs text-[#94A3B8] mt-1">{tenancy.periodic ? "Rolling monthly" : `${tenancy.startDate} — ${tenancy.endDate}`}</p>
+                <p className="text-xs text-[#94A3B8] mt-1">{extras.regime ? REGIME_LABELS[extras.regime] || labelFromCode(extras.regime) : tenancy.periodic ? "Rolling" : `${tenancy.startDate} — ${tenancy.endDate}`}</p>
               </div>
             </div>
           </div>
@@ -276,8 +502,8 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                 { label: "Address", value: tenancy.propertyAddress },
                 { label: "Property Type", value: tenancy.propertyType },
                 { label: "Bedrooms", value: tenancy.bedrooms },
-                { label: "EPC Rating", value: "C" },
-                { label: "Council Tax Band", value: "Band C" },
+                { label: "EPC Rating", value: extras.epcRating },
+                { label: "Council Tax Band", value: extras.councilTaxBand },
               ].map((item) => (
                 <div key={item.label} className="p-3 rounded-xl bg-[#FBF9F4]">
                   <p className="text-xs text-[#94A3B8] mb-1">{item.label}</p>
@@ -323,7 +549,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
             <div className="flex gap-3">
               <Link href="/dashboard/tenants" className="px-4 py-2 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">View All Tenants</Link>
               {tenancy.tenantId && (
-                <Link href={`/dashboard/tenant`} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Tenant Portal</Link>
+                <button onClick={() => setActiveTab("portal")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Tenant Portal Access</button>
               )}
             </div>
           </div>
@@ -353,7 +579,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
             </div>
             <div className="flex gap-3">
               <Link href="/dashboard/landlords" className="px-4 py-2 bg-[#C28A78] text-white text-sm font-medium rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">View All Owners</Link>
-              <Link href={`/dashboard/landlord`} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Owner Portal</Link>
+              <button onClick={() => setActiveTab("portal")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Owner Portal Access</button>
             </div>
           </div>
         )}
@@ -395,13 +621,18 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D5D9D5]">
-                    {rentPayments.map((p) => (
-                      <tr key={p.month} className="hover:bg-[#FBF9F4]">
+                    {rentPayments.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-5 py-6 text-center text-sm text-[#94A3B8]">No rent payments recorded yet.</td>
+                      </tr>
+                    )}
+                    {rentPayments.map((p, idx) => (
+                      <tr key={`${p.month}-${idx}`} className="hover:bg-[#FBF9F4]">
                         <td className="px-5 py-3 text-sm font-medium text-[#3A3F3A]">{p.month}</td>
                         <td className="px-5 py-3 text-sm text-[#3A3F3A]">£{p.amount.toLocaleString()}</td>
                         <td className="px-5 py-3 text-sm text-[#687068]">{p.date}</td>
                         <td className="px-5 py-3">
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#10B981]/10 text-[#10B981]">{p.status}</span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.status === "Paid" ? "bg-[#10B981]/10 text-[#10B981]" : p.status === "Overdue" ? "bg-[#EF4444]/10 text-[#EF4444]" : "bg-[#F59E0B]/10 text-[#F59E0B]"}`}>{p.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -424,7 +655,10 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
               </button>
             </div>
             <div className="divide-y divide-[#D5D9D5]">
-              {mockDocuments.map((doc) => (
+              {documents.length === 0 && (
+                <p className="px-5 py-6 text-center text-sm text-[#94A3B8]">No documents linked to this tenancy yet.</p>
+              )}
+              {documents.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-3 px-5 py-4 hover:bg-[#FBF9F4] transition-colors">
                   <div className={`w-10 h-10 ${doc.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
                     <i className={`${doc.icon} text-white text-sm`}></i>
@@ -466,7 +700,12 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D5D9D5]">
-                  {mockMaintenanceJobs.map((job) => (
+                  {jobs.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-6 text-center text-sm text-[#94A3B8]">No maintenance jobs for this property.</td>
+                    </tr>
+                  )}
+                  {jobs.map((job) => (
                     <tr key={job.id} className="hover:bg-[#FBF9F4] transition-colors">
                       <td className="px-5 py-3">
                         <Link href="/dashboard/maintenance" className="text-sm font-medium text-[#3A3F3A] hover:text-[#C28A78]">{job.title}</Link>
@@ -529,8 +768,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                   )}
                   {(tenancy.ownerPortalStatus === "invited" || tenancy.ownerPortalStatus === "active") && (
                     <>
-                      <button onClick={() => handleCopyLink("owner")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Copy Link</button>
-                      <button className="px-4 py-2 text-sm font-medium text-[#EF4444] rounded-lg hover:bg-[#FEE2E2] transition-colors whitespace-nowrap">Disable</button>
+                      <button onClick={() => handleCopyLink("owner")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">{inviteLinks.owner ? (copiedToken === "owner" ? "Copied" : "Copy Link") : "Resend Invite"}</button>
                     </>
                   )}
                 </div>
@@ -563,8 +801,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
                   )}
                   {(tenancy.tenantPortalStatus === "invited" || tenancy.tenantPortalStatus === "active") && (
                     <>
-                      <button onClick={() => handleCopyLink("tenant")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">Copy Link</button>
-                      <button className="px-4 py-2 text-sm font-medium text-[#EF4444] rounded-lg hover:bg-[#FEE2E2] transition-colors whitespace-nowrap">Disable</button>
+                      <button onClick={() => handleCopyLink("tenant")} className="px-4 py-2 border border-[#D5D9D5] text-sm font-medium text-[#687068] rounded-lg hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">{inviteLinks.tenant ? (copiedToken === "tenant" ? "Copied" : "Copy Link") : "Resend Invite"}</button>
                     </>
                   )}
                 </div>
@@ -600,16 +837,7 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
               </div>
               <div className="flex items-center gap-3 pt-2">
                 <button
-                  onClick={() => {
-                    setSending(true);
-                    if (sendingTimerRef.current) clearTimeout(sendingTimerRef.current);
-                    sendingTimerRef.current = setTimeout(() => {
-                      if (!mountedRef.current) return;
-                      setSending(false);
-                      setInviteModal(null);
-                      showToast(`Invite sent to ${inviteEmail}`);
-                    }, 800);
-                  }}
+                  onClick={handleSendInvite}
                   disabled={!inviteEmail || sending}
                   className="flex-1 bg-[#C28A78] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#143828] transition-colors disabled:opacity-50 whitespace-nowrap"
                 >

@@ -1,5 +1,6 @@
 "use client";
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -315,7 +316,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                         { label: 'Contractors', href: '/dashboard/contractors', icon: 'ri-hammer-line', desc: 'Contractor marketplace' },
                         { label: 'Reports', href: '/dashboard/reports', icon: 'ri-bar-chart-line', desc: 'Analytics & exports' },
                         { label: 'Settings', href: '/dashboard/settings', icon: 'ri-settings-3-line', desc: 'Account & preferences' },
-                      ].filter(item =>
+                      ].filter(item => isPathInLaunchScope(item.href)).filter(item =>
                         !searchQuery.trim() ||
                         item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.desc.toLowerCase().includes(searchQuery.toLowerCase())

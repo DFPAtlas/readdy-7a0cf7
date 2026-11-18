@@ -17,7 +17,7 @@ export default function PressPage() {
               <i className="ri-megaphone-line"></i>
               Press &amp; Media
             </span>
-            <h1 className="text-5xl font-bold text-[#3A3F3A] mb-4">LetHub in the news</h1>
+            <h1 className="text-5xl font-bold text-[#3A3F3A] mb-4">Press and media</h1>
             <p className="text-lg text-[#687068] max-w-2xl mx-auto">
               Company information, brand assets, and media contact details.
             </p>

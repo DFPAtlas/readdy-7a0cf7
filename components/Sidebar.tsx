@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import GettingStartedChecklist from "@/components/onboarding/GettingStartedChecklist";
 import AvatarUploader from "@/components/dashboard/AvatarUploader";
 import { isDemoAccount } from "@/lib/demoMode";
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import {
   AppRole,
   canAccessDashboardPath,
@@ -286,10 +287,24 @@ const sampleOnlyPaths = new Set([
   "/dashboard/tenant",
 ]);
 
+function isVisibleNavItem(href: string, showSampleOnlyPages: boolean): boolean {
+  if (showSampleOnlyPages) return true;
+  return !sampleOnlyPaths.has(href) && isPathInLaunchScope(href);
+}
+
+function filterGroups(groups: NavGroup[], showSampleOnlyPages: boolean): NavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isVisibleNavItem(item.href, showSampleOnlyPages)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 function groupsForRole(role: AppRole, showSampleOnlyPages: boolean): NavGroup[] {
-  if (role === "landlord") return landlordGroups;
-  if (role === "tenant") return tenantGroups;
-  if (role === "contractor") return contractorGroups;
+  if (role === "landlord") return filterGroups(landlordGroups, showSampleOnlyPages);
+  if (role === "tenant") return filterGroups(tenantGroups, showSampleOnlyPages);
+  if (role === "contractor") return filterGroups(contractorGroups, showSampleOnlyPages);
 
   const filteredAgencyGroups = agencyGroups
     .map((group) => ({
@@ -297,7 +312,7 @@ function groupsForRole(role: AppRole, showSampleOnlyPages: boolean): NavGroup[] 
       items: group.items.filter(
         (item) =>
           canAccessDashboardPath(role, item.href) &&
-          (showSampleOnlyPages || !sampleOnlyPaths.has(item.href))
+          isVisibleNavItem(item.href, showSampleOnlyPages)
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -307,7 +322,7 @@ function groupsForRole(role: AppRole, showSampleOnlyPages: boolean): NavGroup[] 
   const filteredPlatformGroups = platformGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => showSampleOnlyPages || !sampleOnlyPaths.has(item.href)),
+      items: group.items.filter((item) => isVisibleNavItem(item.href, showSampleOnlyPages)),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -401,10 +416,11 @@ export default function Sidebar({
       <aside className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-[#FBF9F4] text-[#3A3F3A] transition-all duration-300 ${collapsed ? "w-[72px]" : "w-[260px]"} ${headerHidden ? (mobileOpen ? "translate-x-0" : "-translate-x-full") : (mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")}`}>
         <div className="flex h-16 items-center justify-between border-b border-[#EBE5DA] px-4">
           <Link href={home} className={collapsed ? "hidden" : "flex items-center gap-2.5"}>
-            <img src="https://readdy.ai/api/search-image?query=A%20sleek%20modern%20minimalist%20logo%20icon%20for%20a%20property%20management%20SaaS%20platform%20featuring%20an%20abstract%20interlocking%20geometric%20building%20shape%20combined%20with%20a%20key%20silhouette%20in%20a%20sophisticated%20dark%20charcoal%20color%20on%20a%20clean%20warm%20off-white%20cream%20background%20professional%20corporate%20identity%20design%20flat%20vector%20style%20no%20text%20no%20letters%20just%20the%20symbol%20icon%20mark&width=96&height=36&seq=1&orientation=landscape" alt="logo" className="h-8 w-auto object-contain" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#143828] text-sm font-bold text-[#C28A78]">L</span>
+            <span className="font-['Pacifico'] text-xl text-[#C28A78]">LetHub</span>
           </Link>
           <Link href={home} className={`h-8 w-8 items-center justify-center ${collapsed ? "flex" : "hidden"}`}>
-            <img src="https://readdy.ai/api/search-image?query=A%20sleek%20modern%20minimalist%20logo%20icon%20for%20a%20property%20management%20SaaS%20platform%20featuring%20an%20abstract%20interlocking%20geometric%20building%20shape%20combined%20with%20a%20key%20silhouette%20in%20a%20sophisticated%20dark%20charcoal%20color%20on%20a%20clean%20warm%20off-white%20cream%20background%20professional%20corporate%20identity%20design%20flat%20vector%20style%20no%20text%20no%20letters%20just%20the%20symbol%20icon%20mark&width=96&height=36&seq=1&orientation=landscape" alt="logo" className="h-7 w-7 object-contain" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#143828] text-sm font-bold text-[#C28A78]">L</span>
           </Link>
           <button onClick={() => setCollapsed(!collapsed)} className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#EBE5DA] ${collapsed ? "mx-auto" : ""}`} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>
             <i className={collapsed ? "ri-arrow-right-s-line" : "ri-arrow-left-s-line"}></i>

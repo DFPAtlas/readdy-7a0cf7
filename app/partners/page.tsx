@@ -24,7 +24,7 @@ const partners = [
   {
     category: "Service Partners",
     items: [
-      { name: "DocuSign", description: "Industry-standard e-signatures for tenancy agreements, Section 21 notices, and contractor agreements.", logo: "ri-pen-nib-line" },
+      { name: "DocuSign", description: "Industry-standard e-signatures for tenancy agreements, Section 8 notices, and contractor agreements.", logo: "ri-pen-nib-line" },
       { name: "GoCardless", description: "Direct Debit integration for recurring rent collection with automated mandates.", logo: "ri-bank-line" },
       { name: "Slack", description: "Real-time notifications for maintenance requests, arrears alerts, and compliance deadlines.", logo: "ri-slack-line" },
     ],

@@ -1,5 +1,6 @@
 "use client";
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
@@ -159,7 +160,7 @@ export default function CompliancePage() {
             complianceItems: [], overallStatus: overall,
             compliantCount: stats.valid, expiringSoonCount: stats.expiring, expiredCount: stats.expired, totalCount: stats.total,
             lastAuditDate: "—",
-            image: "https://readdy.ai/api/search-image?query=Modern%20UK%20residential%20property%20exterior%2C%20brick%20facade%2C%20well%20maintained%2C%20professional%20real%20estate%20photography%2C%20clean%20simple%20background%20with%20muted%20tones%20and%20warm%20neutral%20colours%2C%20overcast%20British%20sky&width=320&height=200&seq=comp-prop-a1&orientation=landscape",
+            image: "",
           });
         });
         setPropertyCompliance(builtProps);
@@ -218,7 +219,7 @@ export default function CompliancePage() {
               overallStatus: stats.expired > 0 ? "Critical" : stats.expiring > 0 ? "Attention" : "Compliant",
               compliantCount: stats.valid, expiringSoonCount: stats.expiring, expiredCount: stats.expired, totalCount: stats.total,
               lastAuditDate: "—",
-              image: "https://readdy.ai/api/search-image?query=Modern%20UK%20residential%20property%20exterior%2C%20brick%20facade%2C%20well%20maintained%2C%20professional%20real%20estate%20photography%2C%20clean%20simple%20background%20with%20muted%20tones%20and%20warm%20neutral%20colours%2C%20overcast%20British%20sky&width=320&height=200&seq=comp-prop-a1&orientation=landscape",
+              image: "",
             });
           });
           setPropertyCompliance(builtProps);
@@ -334,24 +335,30 @@ export default function CompliancePage() {
             </DemoHelperTip>
           )}
           <div className="flex items-center gap-2">
+            {isPathInLaunchScope("/dashboard/compliance-advisor") && (
             <Link href="/dashboard/compliance-advisor" className="text-sm text-[#8A9FB0] hover:text-[#C28A78] font-medium flex items-center gap-1 whitespace-nowrap px-3 py-2 rounded-lg hover:bg-[#EBE5DA] transition-colors">
               <div className="w-4 h-4 flex items-center justify-center">
                 <i className="ri-brain-line text-sm"></i>
               </div>
               Advisor
             </Link>
+            )}
+            {isPathInLaunchScope("/dashboard/compliance-timeline") && (
             <Link href="/dashboard/compliance-timeline" className="text-sm text-[#8A9FB0] hover:text-[#C28A78] font-medium flex items-center gap-1 whitespace-nowrap px-3 py-2 rounded-lg hover:bg-[#EBE5DA] transition-colors">
               <div className="w-4 h-4 flex items-center justify-center">
                 <i className="ri-calendar-line text-sm"></i>
               </div>
               Timeline
             </Link>
+            )}
+            {isPathInLaunchScope("/dashboard/compliance-marketplace") && (
             <Link href="/dashboard/compliance-marketplace" className="text-sm text-[#8A9FB0] hover:text-[#C28A78] font-medium flex items-center gap-1 whitespace-nowrap px-3 py-2 rounded-lg hover:bg-[#EBE5DA] transition-colors">
               <div className="w-4 h-4 flex items-center justify-center">
                 <i className="ri-store-2-line text-sm"></i>
               </div>
               Marketplace
             </Link>
+            )}
             {isReadOnly ? (
               <div className="flex items-center gap-2 bg-[#FEF2F2] border border-[#FECACA] rounded-lg px-3 py-2 text-sm text-[#DC2626]">
                 <i className="ri-lock-line text-sm"></i>
@@ -622,7 +629,7 @@ export default function CompliancePage() {
           </div>
         )}
 
-        {viewMode === "timeline" && (
+        {viewMode === "timeline" && isPathInLaunchScope("/dashboard/compliance-timeline") && (
           <div className="bg-white rounded-xl border border-[#D5D9D5] p-6 text-center">
             <div className="w-12 h-12 flex items-center justify-center mx-auto mb-3 bg-[#EBE5DA] rounded-full">
               <i className="ri-calendar-line text-[#8A9FB0] text-xl"></i>

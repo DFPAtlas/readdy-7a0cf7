@@ -196,7 +196,7 @@ export default function LandlordPropertiesPage() {
                   </div>
                   <div className="bg-[#F8FAFC] rounded-lg p-4">
                     <p className="text-xs text-[#94A3B8] mb-1">Tenancy Type</p>
-                    <p className="text-sm font-medium text-[#3A3F3A]">Assured Shorthold</p>
+                    <p className="text-sm font-medium text-[#3A3F3A]">Assured Periodic</p>
                   </div>
                   <div className="bg-[#F8FAFC] rounded-lg p-4">
                     <p className="text-xs text-[#94A3B8] mb-1">Deposit Scheme</p>

@@ -87,11 +87,11 @@ export default function MobileAppSection() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/mobile"
+            href="/login"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#7A9A7E] text-white rounded-xl font-semibold text-sm hover:bg-[#6A8A6E] transition-colors whitespace-nowrap"
           >
             <i className="ri-smartphone-line text-lg"></i>
-            Try Mobile App
+            Open LetHub
           </Link>
           <div className="flex items-center gap-4 text-sm text-stone-400">
             <span className="flex items-center gap-1.5">

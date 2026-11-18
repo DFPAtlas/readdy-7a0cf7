@@ -1,5 +1,6 @@
 "use client";
 
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import Link from "next/link";
 
 export interface HealthMetric {
@@ -147,7 +148,7 @@ export default function PortfolioHealthPanel({ overallScore, metrics, isLoading,
 
       <div className="px-5 py-3 border-t border-[#D5D9D5] bg-[#FBF9F4]">
         <Link
-          href={isOwner ? "/dashboard/portfolio" : "/dashboard/business-intelligence"}
+          href={isOwner || !isPathInLaunchScope("/dashboard/business-intelligence") ? "/dashboard/portfolio" : "/dashboard/business-intelligence"}
           className="flex items-center justify-center gap-1.5 text-sm text-[#C28A78] font-medium hover:underline"
         >
           View full portfolio analysis

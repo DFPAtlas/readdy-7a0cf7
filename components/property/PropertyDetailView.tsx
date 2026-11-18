@@ -68,90 +68,219 @@ const portalLabels: Record<string, string> = {
   "not-invited": "Not Set Up",
 };
 
-function getComplianceItems(property: PropertyDetailData) {
+export interface PropertyRelatedData {
+  tenancy: {
+    regime: string | null;
+    termType: string | null;
+    rentPeriod: string | null;
+    depositScheme: string | null;
+    depositProtectedOn: string | null;
+  } | null;
+  maintenance: { id: string; title: string; date: string; status: string }[];
+  inspections: { id: string; type: string; date: string; inspector: string; status: string; hasReport: boolean }[];
+  documents: { id: string; kind: string; date: string; expires: string | null; sizeBytes: number; linkedTo: string }[];
+  compliance: { code: string; status: string; nextDue: string | null; lastCompleted: string | null }[];
+  payments: { id: string; amount: number; dueDate: string | null; paidDate: string | null; status: string }[];
+}
+
+type ComplianceRow = { type: string; rating?: string; expiry: string; status: "valid" | "expiring" | "overdue" | "n-a" };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function todayStart(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function daysFromToday(iso: string): number {
+  return Math.round((new Date(iso).getTime() - todayStart().getTime()) / DAY_MS);
+}
+
+function humanise(code: string): string {
+  const labels: Record<string, string> = {
+    GAS_SAFETY: "Gas Safety (CP12)",
+    EICR: "EICR",
+    EPC: "EPC",
+    RIGHT_TO_RENT: "Right to Rent",
+    DEPOSIT_PROTECTION: "Deposit Protection",
+    RRA_INFO_SHEET: "Renters' Rights Act information sheet",
+    HMO_LICENCE: "HMO Licence",
+    gas_safety: "Gas Safety Certificate",
+    eicr: "EICR Report",
+    epc: "EPC Certificate",
+    pat: "PAT Test",
+    legionella_risk_assessment: "Legionella Risk Assessment",
+    right_to_rent: "Right to Rent Check",
+    deposit_prescribed_info: "Deposit Prescribed Information",
+    how_to_rent_guide: "How to Rent Guide",
+    rra_information_sheet: "Renters' Rights Act Information Sheet",
+    hmo_licence: "HMO Licence",
+    selective_licence: "Selective Licence",
+    tenancy_agreement: "Tenancy Agreement",
+    inventory: "Inventory",
+    epc_exemption: "EPC Exemption",
+    insurance: "Insurance",
+    other: "Other Document",
+  };
+  if (labels[code]) return labels[code];
+  return code.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+}
+
+function titleCase(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return "—";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const REGIME_LABELS: Record<string, string> = {
+  assured_periodic_rra: "Assured periodic tenancy (Renters' Rights Act)",
+  ast_legacy: "Assured shorthold tenancy (pre-May 2026)",
+  occupation_contract_wales: "Occupation contract (Wales)",
+  prt_scotland: "Private residential tenancy (Scotland)",
+  ni_private_tenancy: "Private tenancy (Northern Ireland)",
+};
+
+function statusFromDate(expiry: string | null): ComplianceRow["status"] {
+  if (!expiry) return "n-a";
+  const days = daysFromToday(expiry);
+  if (days < 0) return "overdue";
+  if (days <= 90) return "expiring";
+  return "valid";
+}
+
+function getComplianceItems(property: PropertyDetailData, related: PropertyRelatedData | null): ComplianceRow[] {
+  if (property.isLiveData && related) {
+    const rows: ComplianceRow[] = related.compliance.map((c) => ({
+      type: humanise(c.code),
+      expiry: c.nextDue || "—",
+      status:
+        c.status === "compliant" ? "valid" :
+        c.status === "due_soon" ? "expiring" :
+        c.status === "overdue" || c.status === "missing" ? "overdue" :
+        "n-a",
+    }));
+    if (!related.compliance.some((c) => c.code === "EPC") && property.epcRating !== "—") {
+      rows.push({ type: "EPC", rating: property.epcRating, expiry: "—", status: "valid" });
+    }
+    return rows;
+  }
   return [
-    { type: "Gas Safety (CP12)", expiry: property.gasExpiry || "—", status: property.gasExpiry ? (new Date(property.gasExpiry) < new Date("2026-07-01") ? "overdue" : new Date(property.gasExpiry) < new Date("2026-10-01") ? "expiring" : "valid") : "n-a" },
-    { type: "EICR", expiry: property.eicrExpiry || "—", status: property.eicrExpiry ? (new Date(property.eicrExpiry) < new Date("2026-07-01") ? "overdue" : new Date(property.eicrExpiry) < new Date("2026-10-01") ? "expiring" : "valid") : "n-a" },
-    { type: "EPC", rating: property.epcRating, expiry: "2028-06-10", status: "valid" },
-    { type: "Smoke Alarms", expiry: "2026-12-31", status: "expiring" },
-    { type: "Right to Rent", expiry: property.tenantName ? "2026-08-14" : "—", status: property.tenantName ? "valid" : "n-a" },
-    { type: "Deposit Protection", expiry: property.depositAmount > 0 ? "2026-08-14" : "—", status: property.depositAmount > 0 ? "valid" : "n-a" },
+    { type: "Gas Safety (CP12)", expiry: property.gasExpiry || "—", status: statusFromDate(property.gasExpiry) },
+    { type: "EICR", expiry: property.eicrExpiry || "—", status: statusFromDate(property.eicrExpiry) },
+    { type: "EPC", rating: property.epcRating, expiry: "—", status: "valid" },
   ];
 }
 
-function getMaintenanceDemo(property: PropertyDetailData) {
-  if (!property.isLiveData && property.maintenanceOpen === 0 && property.id !== "1" && property.id !== "3") return [];
+function getMaintenanceItems(property: PropertyDetailData, related: PropertyRelatedData | null) {
+  if (property.isLiveData) {
+    return (related?.maintenance || []).map((m) => ({
+      id: m.id,
+      title: m.title,
+      date: m.date,
+      contractor: "—",
+      cost: 0,
+      status: titleCase(m.status),
+      priority: "—",
+    }));
+  }
   return [
     { id: "m1", title: "Boiler service and inspection", date: "2026-06-18", contractor: "HeatPro Services", cost: 120, status: "Completed", priority: "Routine" },
     { id: "m2", title: "Kitchen tap leak repair", date: "2026-05-03", contractor: "QuickFix Plumbing", cost: 85, status: "Completed", priority: "Urgent" },
-    { id: "m3", title: "Front door lock replacement", date: "2026-06-25", contractor: "SecureLock Ltd", cost: 0, status: "Scheduled", priority: "High" },
-    { id: "m4", title: "Bathroom extractor fan replacement", date: "2026-04-12", contractor: "SparkGen Electric", cost: 195, status: "Completed", priority: "Routine" },
   ];
 }
 
-function getInspectionsDemo() {
+function getInspectionItems(property: PropertyDetailData, related: PropertyRelatedData | null) {
+  if (property.isLiveData) {
+    return (related?.inspections || []).map((i) => ({
+      id: i.id,
+      type: titleCase(i.type),
+      date: i.date,
+      inspector: i.inspector,
+      status: titleCase(i.status),
+      rating: null as string | null,
+      report: i.hasReport,
+    }));
+  }
   return [
-    { id: "i1", type: "Periodic Inspection", date: "2026-05-20", inspector: "Mark Davies", status: "Completed", rating: "Good", report: true },
-    { id: "i2", type: "Check-in Inspection", date: "2025-08-15", inspector: "Sarah Jones", status: "Completed", rating: "Excellent", report: true },
-    { id: "i3", type: "Compliance Check", date: "2026-07-28", inspector: "Mark Davies", status: "Scheduled", rating: null, report: false },
+    { id: "i1", type: "Periodic Inspection", date: "2026-05-20", inspector: "Mark Davies", status: "Completed", rating: "Good" as string | null, report: true },
   ];
 }
 
-function getDocumentsDemo() {
+function getDocumentItems(property: PropertyDetailData, related: PropertyRelatedData | null) {
+  if (property.isLiveData) {
+    return (related?.documents || []).map((d) => ({
+      id: d.id,
+      name: humanise(d.kind),
+      type: humanise(d.kind),
+      date: d.date,
+      size: formatBytes(d.sizeBytes),
+      linkedTo: d.linkedTo,
+    }));
+  }
   return [
     { id: "d1", name: "Tenancy Agreement", type: "Tenancy Agreement", date: "2025-08-14", size: "2.4 MB", linkedTo: "Tenancy" },
-    { id: "d2", name: "Gas Safety Certificate", type: "Gas Safety", date: "2025-10-12", size: "1.1 MB", linkedTo: "Compliance" },
-    { id: "d3", name: "EICR Report", type: "EICR", date: "2025-03-05", size: "3.2 MB", linkedTo: "Compliance" },
-    { id: "d4", name: "EPC Certificate", type: "EPC", date: "2023-06-10", size: "0.8 MB", linkedTo: "Compliance" },
-    { id: "d5", name: "Inventory Report", type: "Inventory", date: "2025-08-14", size: "4.5 MB", linkedTo: "Property" },
-    { id: "d6", name: "Deposit Certificate", type: "Deposit Certificate", date: "2025-08-14", size: "0.6 MB", linkedTo: "Tenancy" },
-    { id: "d7", name: "Right to Rent Check", type: "Right to Rent", date: "2025-08-10", size: "1.8 MB", linkedTo: "Tenant" },
   ];
 }
 
-function getActivityFeed(property: PropertyDetailData) {
-  const items = [];
+function getActivityFeed(property: PropertyDetailData, related: PropertyRelatedData | null) {
+  const items: { icon: string; desc: string; related: string; time: string; color: string }[] = [];
   if (property.tenancyStart) items.push({ icon: "ri-file-text-line", desc: "Tenancy started", related: property.tenantName || "Tenant", time: property.tenancyStart, color: "bg-[#3B82F6]/10 text-[#3B82F6]" });
-  if (property.dateAdded) items.push({ icon: "ri-building-4-line", desc: "Property added to portfolio", related: property.address, time: property.dateAdded, color: "bg-[#8B5CF6]/10 text-[#8B5CF6]" });
-  items.push({ icon: "ri-shield-check-line", desc: "Compliance check completed", related: "Gas Safety CP12", time: "2026-06-15", color: "bg-[#7A9A7E]/10 text-[#7A9A7E]" });
-  items.push({ icon: "ri-money-pound-circle-line", desc: "Rent payment received", related: `£${property.rentAmount.toLocaleString()}`, time: "2026-07-01", color: "bg-[#F59E0B]/10 text-[#F59E0B]" });
-  items.push({ icon: "ri-mail-line", desc: "Monthly statement sent to owner", related: property.landlordName || "Owner", time: "2026-07-05", color: "bg-[#C28A78]/10 text-[#C28A78]" });
-  return items;
-}
-
-function getUpcomingItems(property: PropertyDetailData) {
-  const items: { date: string; label: string; type: string; related: string | null; status: string }[] = [];
-  const today = new Date("2026-07-22");
-  const thisWeek = new Date("2026-07-29");
-  const nextWeek = new Date("2026-08-05");
-
-  if (property.rentAmount > 0) {
-    items.push({ date: "2026-08-01", label: "Rent Due", type: "Rent", related: property.tenantName, status: "upcoming" });
-  }
-  if (property.gasExpiry && new Date(property.gasExpiry) < new Date("2026-10-01")) {
-    items.push({ date: property.gasExpiry, label: "Gas Safety Renewal", type: "Compliance", related: null, status: new Date(property.gasExpiry) < today ? "overdue" : "expiring" });
-  }
-  if (property.eicrExpiry && new Date(property.eicrExpiry) < new Date("2027-01-01")) {
-    items.push({ date: property.eicrExpiry, label: "EICR Renewal", type: "Compliance", related: null, status: "upcoming" });
-  }
-  items.push({ date: "2026-07-28", label: "Compliance Check", type: "Inspection", related: "Mark Davies", status: "scheduled" });
-  if (property.tenancyEnd) {
-    const end = new Date(property.tenancyEnd);
-    if (end < new Date("2026-10-01")) {
-      items.push({ date: property.tenancyEnd, label: "Tenancy Expires", type: "Tenancy", related: property.tenantName, status: end < today ? "overdue" : "expiring" });
+  if (property.dateAdded && property.dateAdded !== "—") items.push({ icon: "ri-building-4-line", desc: "Property added to portfolio", related: property.address, time: property.dateAdded, color: "bg-[#8B5CF6]/10 text-[#8B5CF6]" });
+  for (const payment of related?.payments || []) {
+    if (payment.paidDate) {
+      items.push({ icon: "ri-money-pound-circle-line", desc: "Rent payment received", related: `£${payment.amount.toLocaleString("en-GB")}`, time: payment.paidDate, color: "bg-[#F59E0B]/10 text-[#F59E0B]" });
     }
   }
-  if (property.maintenanceOpen > 0) {
-    items.push({ date: "2026-06-25", label: "Lock replacement", type: "Maintenance", related: "SecureLock Ltd", status: "scheduled" });
+  for (const job of related?.maintenance || []) {
+    items.push({ icon: "ri-tools-line", desc: "Maintenance job logged", related: job.title, time: job.date, color: "bg-[#C28A78]/10 text-[#C28A78]" });
   }
-  return items.slice(0, 6);
+  for (const c of related?.compliance || []) {
+    if (c.lastCompleted) items.push({ icon: "ri-shield-check-line", desc: "Compliance item completed", related: humanise(c.code), time: c.lastCompleted, color: "bg-[#7A9A7E]/10 text-[#7A9A7E]" });
+  }
+  return items.sort((a, b) => (a.time < b.time ? 1 : -1));
 }
 
-function getAttentionItems(property: PropertyDetailData) {
+function getUpcomingItems(property: PropertyDetailData, related: PropertyRelatedData | null) {
+  const items: { date: string; label: string; type: string; related: string | null; status: string }[] = [];
+  const horizonDays = 90;
+
+  const nextRent = (related?.payments || [])
+    .filter((p) => !p.paidDate && p.dueDate)
+    .sort((a, b) => ((a.dueDate as string) < (b.dueDate as string) ? -1 : 1))[0];
+  if (nextRent?.dueDate) {
+    items.push({ date: nextRent.dueDate, label: "Rent Due", type: "Rent", related: property.tenantName, status: daysFromToday(nextRent.dueDate) < 0 ? "overdue" : "upcoming" });
+  }
+  for (const c of related?.compliance || []) {
+    if (c.nextDue && daysFromToday(c.nextDue) <= horizonDays) {
+      items.push({ date: c.nextDue, label: `${humanise(c.code)} renewal`, type: "Compliance", related: null, status: daysFromToday(c.nextDue) < 0 ? "overdue" : "expiring" });
+    }
+  }
+  if (!related) {
+    if (property.gasExpiry && daysFromToday(property.gasExpiry) <= horizonDays) {
+      items.push({ date: property.gasExpiry, label: "Gas Safety Renewal", type: "Compliance", related: null, status: daysFromToday(property.gasExpiry) < 0 ? "overdue" : "expiring" });
+    }
+  }
+  for (const i of related?.inspections || []) {
+    if (i.status === "scheduled" && i.date !== "—" && daysFromToday(i.date) >= 0 && daysFromToday(i.date) <= horizonDays) {
+      items.push({ date: i.date, label: titleCase(i.type), type: "Inspection", related: i.inspector === "—" ? null : i.inspector, status: "scheduled" });
+    }
+  }
+  if (property.tenancyEnd && daysFromToday(property.tenancyEnd) <= horizonDays) {
+    items.push({ date: property.tenancyEnd, label: "Tenancy end date", type: "Tenancy", related: property.tenantName, status: daysFromToday(property.tenancyEnd) < 0 ? "overdue" : "expiring" });
+  }
+  return items.sort((a, b) => (a.date < b.date ? -1 : 1)).slice(0, 6);
+}
+
+function getAttentionItems(property: PropertyDetailData, related: PropertyRelatedData | null) {
   const items: { priority: "Critical" | "High" | "Normal"; title: string; related: string; due: string; action: string }[] = [];
-  if (property.complianceStatus === "Overdue") {
-    if (property.gasExpiry && new Date(property.gasExpiry) < new Date("2026-07-01")) {
-      items.push({ priority: "Critical", title: "Gas Safety Certificate expired", related: property.address, due: property.gasExpiry, action: "Renew certificate" });
+  for (const c of related?.compliance || []) {
+    if (c.status === "overdue" || c.status === "missing") {
+      items.push({ priority: "Critical", title: `${humanise(c.code)} ${c.status === "missing" ? "missing" : "overdue"}`, related: property.address, due: c.nextDue || "—", action: "Update compliance" });
     }
   }
   if (property.maintenanceOpen >= 3) {
@@ -159,6 +288,10 @@ function getAttentionItems(property: PropertyDetailData) {
   }
   if (property.complianceStatus === "Expiring Soon") {
     items.push({ priority: "High", title: "Compliance certificates expiring soon", related: property.address, due: "Within 90 days", action: "Schedule renewal" });
+  }
+  const overdueRent = (related?.payments || []).filter((p) => p.status === "overdue");
+  if (overdueRent.length > 0) {
+    items.push({ priority: "High", title: `${overdueRent.length} overdue rent payment${overdueRent.length > 1 ? "s" : ""}`, related: property.tenantName || property.address, due: overdueRent[0].dueDate || "—", action: "View arrears" });
   }
   if (property.status === "Vacant") {
     items.push({ priority: "High", title: "Property vacant — no rental income", related: property.address, due: "Ongoing", action: "Find tenant" });
@@ -174,10 +307,12 @@ function getAttentionItems(property: PropertyDetailData) {
 
 export default function PropertyDetailView({
   property,
+  related = null,
   loading,
   notFound,
 }: {
   property: PropertyDetailData | null;
+  related?: PropertyRelatedData | null;
   loading: boolean;
   notFound: boolean;
 }) {
@@ -250,13 +385,15 @@ export default function PropertyDetailView({
   const ownerStatus = property.ownerPortal || "not-invited";
   const tenantStatus = property.tenantPortal || "not-invited";
 
-  const attentionItems = getAttentionItems(property);
-  const upcomingItems = getUpcomingItems(property);
-  const activityFeed = getActivityFeed(property);
-  const complianceItems = getComplianceItems(property);
-  const maintenanceJobs = getMaintenanceDemo(property);
-  const inspectionsData = getInspectionsDemo();
-  const documents = getDocumentsDemo();
+  const attentionItems = getAttentionItems(property, related);
+  const upcomingItems = getUpcomingItems(property, related);
+  const activityFeed = getActivityFeed(property, related);
+  const complianceItems = getComplianceItems(property, related);
+  const maintenanceJobs = getMaintenanceItems(property, related);
+  const inspectionsData = getInspectionItems(property, related);
+  const documents = getDocumentItems(property, related);
+  const tenancyInfo = related?.tenancy || null;
+  const rentHistory = related?.payments || [];
 
   const mainAction = (() => {
     if (property.complianceStatus === "Overdue") return { label: "Resolve Compliance", icon: "ri-shield-check-line" };
@@ -293,7 +430,13 @@ export default function PropertyDetailView({
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 hidden sm:block">
-                <img src={property.image} alt={property.address} className="w-full h-full object-cover" />
+                {property.image ? (
+                  <img src={property.image} alt={property.address} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+                    <i className="ri-building-4-line text-[#C28A78] text-2xl"></i>
+                  </div>
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -560,7 +703,13 @@ export default function PropertyDetailView({
             {activeTab === "overview" && (
               <div className="space-y-6">
                 <div className="relative h-64 sm:h-80 rounded-xl overflow-hidden">
+                  {property.image ? (
                   <img src={property.image} alt={property.address} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-[#C28A78]/10 flex items-center justify-center">
+                    <i className="ri-building-4-line text-[#C28A78] text-2xl"></i>
+                  </div>
+                )}
                   <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1.5">
                       <i className="ri-hotel-bed-line text-white text-xs"></i>
@@ -671,10 +820,12 @@ export default function PropertyDetailView({
                       <h3 className="text-sm font-semibold text-[#3A3F3A] mb-4">Tenancy Details</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
-                          ["Status", property.status], ["Type", "Assured Shorthold Tenancy (AST)"],
+                          ["Status", property.status],
+                          ["Type", tenancyInfo?.regime ? REGIME_LABELS[tenancyInfo.regime] || titleCase(tenancyInfo.regime) : "—"],
                           ["Tenant", property.tenantName || "—"], ["Landlord", property.landlordName || "—"],
-                          ["Deposit Scheme", "DPS (Deposit Protection Service)"], ["Deposit Ref", "DPS-2025-08214-A"],
-                          ["Rent Due Date", "15th of each month"], ["Next Review", property.tenancyEnd || "—"],
+                          ["Deposit Scheme", tenancyInfo?.depositScheme || "—"], ["Deposit Protected", tenancyInfo?.depositProtectedOn || "—"],
+                          ["Rent Period", tenancyInfo?.rentPeriod ? titleCase(tenancyInfo.rentPeriod) : "—"],
+                          ["Term", tenancyInfo?.termType === "periodic" ? "Periodic (no fixed end date)" : property.tenancyEnd || "—"],
                         ].map(([label, val]) => (
                           <div key={label as string}>
                             <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>
@@ -699,15 +850,21 @@ export default function PropertyDetailView({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[#D5D9D5]">
-                              {[
-                                { period: "Jul 2026", amount: `£${property.rentAmount.toLocaleString()}`, status: "Paid", paidOn: "2026-07-03" },
-                                { period: "Jun 2026", amount: `£${property.rentAmount.toLocaleString()}`, status: "Paid", paidOn: "2026-06-01" },
-                                { period: "May 2026", amount: `£${property.rentAmount.toLocaleString()}`, status: "Paid", paidOn: "2026-05-04" },
-                              ].map((entry, idx) => (
+                              {rentHistory.length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} className="px-5 py-6 text-center text-sm text-[#94A3B8]">No rent payments recorded yet.</td>
+                                </tr>
+                              ) : null}
+                              {rentHistory.map((p) => ({
+                                period: p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—",
+                                amount: `£${p.amount.toLocaleString("en-GB")}`,
+                                status: titleCase(p.status),
+                                paidOn: p.paidDate || "—",
+                              })).map((entry, idx) => (
                                 <tr key={idx} className="hover:bg-[#FBF9F4] transition-colors">
                                   <td className="px-5 py-3 font-medium text-[#3A3F3A]">{entry.period}</td>
                                   <td className="px-5 py-3 text-[#3A3F3A]">{entry.amount}</td>
-                                  <td className="px-5 py-3"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#7A9A7E]/10 text-[#7A9A7E]">{entry.status}</span></td>
+                                  <td className="px-5 py-3"><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${entry.status === "Paid" ? "bg-[#7A9A7E]/10 text-[#7A9A7E]" : entry.status === "Overdue" ? "bg-[#EF4444]/10 text-[#EF4444]" : "bg-[#F59E0B]/10 text-[#F59E0B]"}`}>{entry.status}</span></td>
                                   <td className="px-5 py-3 text-[#687068]">{entry.paidOn}</td>
                                 </tr>
                               ))}
