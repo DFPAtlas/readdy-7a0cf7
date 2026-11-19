@@ -5,9 +5,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { activateDemoSession, deactivateDemoSession } from "@/lib/demoMode";
-import { getRoleHome, normaliseRole } from "@/lib/rbac";
+import { canAccessDashboardPath, getRoleHome, normaliseRole, type AppRole } from "@/lib/rbac";
+import { safeInternalPath } from "@/lib/auth";
 import EmailOtpLogin from "@/components/auth/EmailOtpLogin";
 import { logSecurityEvent } from "@/lib/securityEvents";
+
+// Return the user to the page they were sent here from (middleware adds
+// ?next=), if their role is allowed to open it.
+function requestedPathFor(role: AppRole): string | null {
+  if (typeof window === "undefined") return null;
+  const next = safeInternalPath(new URLSearchParams(window.location.search).get("next"));
+  if (!next) return null;
+  const path = next.split(/[?#]/)[0];
+  if (path.startsWith("/dashboard")) return canAccessDashboardPath(role, path) && path !== "/dashboard" ? next : null;
+  if (path === "/account/data") return next;
+  return null;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,7 +57,7 @@ export default function LoginPage() {
       return { home: null, error: "This account has been suspended. Please contact a platform administrator." };
     }
 
-    return { home: getRoleHome(role), error: null };
+    return { home: requestedPathFor(role) || getRoleHome(role), error: null };
   };
 
   useEffect(() => {

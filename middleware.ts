@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isPathInLaunchScope, launchScopeFallback } from "@/lib/launchScope";
 import { DEMO_COOKIE } from "@/lib/supabase/cookies";
+import { enforceSession, protectedAreaFor } from "@/lib/supabase/middleware";
 
 // Lightweight IP-based rate limiter for the unauthenticated entry points that
 // matter most: login and registration. This is a stopgap, not a production
@@ -48,7 +49,7 @@ function isRateLimited(key: string): boolean {
 
 const RATE_LIMITED_PATHS = new Set(["/login", "/register", "/owner/login", "/tenant/login", "/contractor/login"]);
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Prototype modules are switched off for launch (see lib/launchScope.ts).
@@ -60,6 +61,9 @@ export function middleware(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
+
+  const area = protectedAreaFor(pathname);
+  if (area) return enforceSession(request, area, isDemo);
 
   if (!RATE_LIMITED_PATHS.has(pathname)) return NextResponse.next();
 
@@ -88,5 +92,8 @@ export const config = {
     "/mobile",
     "/contractor/dashboard/:path*",
     "/contractor/dashboard",
+    "/owner/:path*",
+    "/tenant/:path*",
+    "/account/data",
   ],
 };
