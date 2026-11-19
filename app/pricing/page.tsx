@@ -84,7 +84,7 @@ export default function PricingPage() {
                       </div>
                       {isAnnual && plan.monthlyPrice && (
                         <p className="text-xs text-[#7A9A7E] mt-1">
-                          £{plan.monthlyPrice * 12} billed annually ({plan.annualDiscount}% off)
+                          £{(plan.annualPrice ?? 0) * 12} billed annually ({plan.annualDiscount} off)
                         </p>
                       )}
                       {!isAnnual && (

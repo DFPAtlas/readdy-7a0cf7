@@ -43,7 +43,7 @@ export const pricingPlans = [
       "Maintenance management",
       "Full compliance tracking",
       "Document storage (50GB)",
-      "Email & SMS notifications",
+      "Email notifications",
       "Advanced reporting",
       "AI Property Assistant",
       "Quote workflow",
