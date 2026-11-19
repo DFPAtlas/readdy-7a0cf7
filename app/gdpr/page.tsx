@@ -1,6 +1,7 @@
 "use client";
 
 import { COMPANY } from "@/lib/companyDetails";
+import { SUB_PROCESSORS } from "@/lib/subProcessors";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -106,14 +107,13 @@ export default function GDPRPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">5. International data transfers</h2>
               <p className="text-sm text-[#475569] leading-relaxed mb-3">
-                We store and process data primarily within the United Kingdom. Where we use sub-processors based outside the UK, we ensure appropriate safeguards are in place:
+                Our database and file storage are hosted in the United Kingdom. Some sub-processors (listed below) are based outside the UK. Where personal data is transferred outside the UK, we rely on the safeguards in each provider's data processing terms, such as the UK International Data Transfer Agreement or the UK Addendum to the EU Standard Contractual Clauses, or on UK adequacy regulations where they apply. Our measures include:
               </p>
               <ul className="space-y-2">
                 {[
-                  "UK International Data Transfer Agreement (IDTA) or EU Standard Contractual Clauses (SCCs), as applicable.",
-                  "Transfer Impact Assessments (TIAs) conducted for all international transfers.",
-                  "Supplementary technical measures (encryption at rest and in transit).",
-                  "Regular review of sub-processor security certifications (ISO 27001, SOC 2).",
+                  "Transfer risk assessments for transfers outside the UK.",
+                  "Encryption of data in transit and at rest.",
+                  "Review of each sub-processor's security and data protection terms before use.",
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-[#475569]">
                     <i className="ri-arrow-right-s-line text-[#C28A78] mt-0.5 flex-shrink-0"></i>
@@ -170,7 +170,7 @@ export default function GDPRPage() {
             <div>
               <h2 className="text-xl font-bold text-[#3A3F3A] mb-3">8. Sub-processors</h2>
               <p className="text-sm text-[#475569] leading-relaxed mb-3">
-                We use the following sub-processors to deliver the Platform. All are vetted for GDPR compliance:
+                We use the following sub-processors to deliver the Platform. The same list, with how we notify changes, is in our <a href="/dpa" className="text-[#C28A78] underline">Data Processing Agreement</a>:
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -182,12 +182,7 @@ export default function GDPRPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { name: "Supabase", purpose: "Database hosting and authentication", location: "EU (Ireland)" },
-                      { name: "Vercel", purpose: "Application hosting", location: "US (EU SCCs in place)" },
-                      { name: "Stripe", purpose: "Payment processing", location: "US (EU SCCs in place)" },
-                      { name: "Resend", purpose: "Transactional email delivery", location: "US (EU SCCs in place)" },
-                    ].map((sp) => (
+                    {SUB_PROCESSORS.map((sp) => (
                       <tr key={sp.name} className="border-b border-[#E2E8F0]">
                         <td className="py-2 px-3 text-[#475569] font-medium">{sp.name}</td>
                         <td className="py-2 px-3 text-[#475569]">{sp.purpose}</td>

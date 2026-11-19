@@ -58,14 +58,18 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/40">
-            &copy; 2026 LetHub Ltd. All rights reserved.
+          <p className="text-xs text-white/60">
+            &copy; {new Date().getFullYear()} LetHub. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-xs text-white/40 hover:text-white/60 transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="text-xs text-white/40 hover:text-white/60 transition-colors">Terms of Service</Link>
-            <Link href="/cookies" className="text-xs text-white/40 hover:text-white/60 transition-colors">Cookie Policy</Link>
-            <Link href="/gdpr" className="text-xs text-white/40 hover:text-white/60 transition-colors">GDPR</Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <Link href="/privacy" className="text-xs text-white/60 hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-xs text-white/60 hover:text-white transition-colors">Terms</Link>
+            <Link href="/subscription-terms" className="text-xs text-white/60 hover:text-white transition-colors">Subscriptions</Link>
+            <Link href="/dpa" className="text-xs text-white/60 hover:text-white transition-colors">Data processing</Link>
+            <Link href="/acceptable-use" className="text-xs text-white/60 hover:text-white transition-colors">Acceptable use</Link>
+            <Link href="/cookies" className="text-xs text-white/60 hover:text-white transition-colors">Cookies</Link>
+            <Link href="/gdpr" className="text-xs text-white/60 hover:text-white transition-colors">GDPR</Link>
+            <Link href="/accessibility" className="text-xs text-white/60 hover:text-white transition-colors">Accessibility</Link>
           </div>
         </div>
       </div>

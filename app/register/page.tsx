@@ -62,7 +62,7 @@ function RegisterForm() {
 
   const submit = async () => {
     setError("");
-    if (!agreed) return setError("You must agree to the Terms of Service and Privacy Policy.");
+    if (!agreed) return setError("Please agree to the terms to continue.");
     if (password !== confirmPassword) return setError("Passwords do not match.");
 
     setLoading(true);
@@ -226,7 +226,7 @@ function RegisterForm() {
                 <div className="mt-3 flex justify-between"><span className="text-sm text-[#687068]">Business</span><strong className="text-sm text-[#3A3F3A]">{businessName}</strong></div>
                 <div className="mt-3 flex justify-between"><span className="text-sm text-[#687068]">Plan requested</span><strong className="text-sm text-[#3A3F3A]">{selectedPlan.name} · £{displayedPrice}/month</strong></div>
               </div>
-              <label className="flex items-start gap-3 text-sm text-[#687068]"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} className="mt-1" /><span>I agree to the Terms of Service and Privacy Policy. I understand that subscription access begins only when Stripe confirms Checkout.</span></label>
+              <label className="flex items-start gap-3 text-sm text-[#687068]"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} className="mt-1" /><span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#C28A78] underline">Terms of Service</a>, <a href="/subscription-terms" target="_blank" rel="noopener noreferrer" className="text-[#C28A78] underline">Subscription Terms</a>, <a href="/acceptable-use" target="_blank" rel="noopener noreferrer" className="text-[#C28A78] underline">Acceptable Use Policy</a> and <a href="/dpa" target="_blank" rel="noopener noreferrer" className="text-[#C28A78] underline">Data Processing Agreement</a>, and I have read the <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#C28A78] underline">Privacy Policy</a>. I understand that subscription access begins only when Stripe confirms Checkout.</span></label>
             </div>
           )}
 
