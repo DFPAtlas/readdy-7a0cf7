@@ -32,7 +32,7 @@ export default function CTASection() {
             </button>
           </Link>
         </div>
-        <p className="text-sm text-white/60 mt-6">No credit card required. 14-day free trial. Cancel anytime.</p>
+        <p className="text-sm text-white/60 mt-6">14-day free trial. No charge until it ends. Cancel anytime.</p>
       </div>
     </section>
   );

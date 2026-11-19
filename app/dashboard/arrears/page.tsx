@@ -353,7 +353,7 @@ export default function ArrearsPage() {
                     <h3 className="text-sm font-medium text-[#3A3F3A] mb-3">Quick Actions</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
-                        { label: "Send Reminders", desc: "Email & SMS", icon: "ri-notification-3-line", color: "bg-[#C28A78]", action: () => { setSelectedActionTenant(null); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); } },
+                        { label: "Send Reminders", desc: "By email", icon: "ri-notification-3-line", color: "bg-[#C28A78]", action: () => { setSelectedActionTenant(null); setReminderMessage("This is a friendly reminder that your rent payment is currently overdue. Please arrange payment at your earliest convenience. If you are experiencing difficulties, contact us to discuss options."); setReminderSent(false); setReminderError(null); setShowReminderModal(true); } },
                         { label: "Issue Warning", desc: "Formal letter", icon: "ri-error-warning-line", color: "bg-[#C46868]", action: () => setShowWarningModal(true) },
                         { label: "Create Plan", desc: "Payment plan", icon: "ri-calendar-schedule-line", color: "bg-[#3B82F6]", action: () => setShowPaymentPlanModal(true) },
                         { label: "View Collection", desc: "Rent tracking", icon: "ri-money-pound-circle-line", color: "bg-[#8B5CF6]", action: () => window.location.href = "/dashboard/rent-collection" },

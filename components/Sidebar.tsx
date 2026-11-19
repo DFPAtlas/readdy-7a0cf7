@@ -160,7 +160,7 @@ const agencyGroups: NavGroup[] = [
     items: [
       { icon: "ri-settings-4-line", label: "Settings", href: "/dashboard/settings" },
       { icon: "ri-bank-card-line", label: "Billing", href: "/dashboard/billing" },
-      { icon: "ri-play-circle-line", label: "Help Centre", href: "/help-centre" },
+      { icon: "ri-question-line", label: "Help Centre", href: "/help" },
     ],
   },
 ];

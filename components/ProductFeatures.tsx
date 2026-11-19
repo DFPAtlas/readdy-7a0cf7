@@ -50,7 +50,7 @@ const features = [
     iconBg: "bg-[#7A9A7E]/10",
     iconColor: "text-[#7A9A7E]",
     title: "Rent Collection",
-    description: "Automate rent collection, track arrears, and reconcile payments. Direct debit integration with Stripe and GoCardless built-in.",
+    description: "Record rent payments, track arrears, and send receipts and arrears reminders to tenants by email.",
   },
 ];
 

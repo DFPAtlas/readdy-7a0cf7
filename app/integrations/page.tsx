@@ -12,17 +12,17 @@ const integrations = [
       {
         name: "Xero",
         description: "Sync rent payments, expenses, and financial reports directly to Xero. Automatic reconciliation with bank feeds.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "QuickBooks",
         description: "Automated bookkeeping for property managers. All transactions flow to QuickBooks in real time.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Sage",
         description: "Integration with Sage Accounting for agencies running on Sage's platform.",
-        status: "Available",
+        status: "Planned",
       },
     ],
   },
@@ -32,18 +32,18 @@ const integrations = [
     items: [
       {
         name: "Stripe",
-        description: "Accept rent payments, deposits, and subscription fees securely. PCI DSS Level 1 certified processing.",
+        description: "Pays for your LetHub subscription securely. Taking rent and deposits by card is planned.",
         status: "Available",
       },
       {
         name: "GoCardless",
         description: "Direct Debit integration for recurring rent collection. Reduce late payments with automated mandates.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Plaid",
         description: "Open banking connectivity for real-time bank transaction data and automated reconciliation.",
-        status: "Available",
+        status: "Planned",
       },
     ],
   },
@@ -54,17 +54,17 @@ const integrations = [
       {
         name: "Rightmove",
         description: "Automated listing feed to Rightmove. Properties update in real time as you manage them in LetHub.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Zoopla",
         description: "Push listings directly to Zoopla with one click. Sync property details, images, and availability.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "OnTheMarket",
         description: "Integration with OnTheMarket for instant property listing syndication.",
-        status: "Available",
+        status: "Planned",
       },
     ],
   },
@@ -75,17 +75,17 @@ const integrations = [
       {
         name: "Zapier",
         description: "Connect LetHub to 5,000+ apps. Automate workflows without writing a single line of code.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Slack",
         description: "Get real-time notifications for maintenance requests, arrears alerts, and compliance deadlines in Slack.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Make (Integromat)",
         description: "Advanced workflow automation platform for complex multi-step integrations.",
-        status: "Available",
+        status: "Planned",
       },
     ],
   },
@@ -96,12 +96,12 @@ const integrations = [
       {
         name: "DocuSign",
         description: "Industry-standard e-signatures for tenancy agreements, Section 8 notices, and contractor agreements.",
-        status: "Available",
+        status: "Planned",
       },
       {
         name: "Adobe Sign",
         description: "Adobe's e-signature solution integrated directly into your document workflow.",
-        status: "Available",
+        status: "Planned",
       },
     ],
   },
@@ -118,9 +118,9 @@ export default function IntegrationsPage() {
             <i className="ri-puzzle-line"></i>
             Integrations
           </span>
-          <h1 className="text-5xl font-bold text-[#3A3F3A] mb-4">Connect your entire property stack</h1>
+          <h1 className="text-5xl font-bold text-[#3A3F3A] mb-4">Integrations</h1>
           <p className="text-lg text-[#687068] max-w-2xl mx-auto">
-            LetHub integrates with the tools you already use. Accounting, banking, portals, documents — all connected, all in sync.
+            Here's what LetHub connects to today, and what's on our roadmap. Want one sooner? <a href="/contact" className="text-[#C28A78] underline">Tell us</a>.
           </p>
         </div>
 
