@@ -10,6 +10,10 @@ for (const match of company.matchAll(/^\s+(\w+): "(\[[^\]]*\])",$/gm)) {
   problems.push(`lib/companyDetails.ts: ${match[1]} is still a placeholder (${match[2]})`);
 }
 
+if (/LEGAL_PAGES_REVIEWED = false/.test(company)) {
+  problems.push("lib/companyDetails.ts: LEGAL_PAGES_REVIEWED is false — have the legal pages reviewed, then set it to true");
+}
+
 if (problems.length > 0) {
   console.error("Launch check failed:");
   problems.forEach((p) => console.error(`  - ${p}`));

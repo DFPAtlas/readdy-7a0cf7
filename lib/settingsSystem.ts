@@ -20,6 +20,14 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     requiresAdmin: false,
   },
   {
+    id: 'your-data',
+    label: 'Your data',
+    icon: 'ri-download-cloud-2-line',
+    description: 'Download a copy of your data, or ask us to close your account and delete it',
+    level: 'personal',
+    requiresAdmin: false,
+  },
+  {
     id: 'agency-profile',
     label: 'Agency Profile',
     icon: 'ri-building-line',

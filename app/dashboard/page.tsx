@@ -198,6 +198,12 @@ export default function DashboardPage() {
       setUserName((profile as any)?.full_name || session.user.email || "User");
 
       if (type === "owner") {
+        // Landlords have their own live dashboard; this page's owner view is legacy.
+        window.location.replace("/owner/dashboard");
+        return;
+      }
+
+      if (type === "owner-legacy") {
         const { data: access } = await supabase
           .from("owner_portal_access")
           .select("landlord_id")
@@ -285,9 +291,18 @@ export default function DashboardPage() {
         supabase.from("landlords").select("*", { count: "exact", head: true }),
         supabase.from("tenants").select("*", { count: "exact", head: true }),
         supabase.from("properties").select("id, line1, city, postcode"),
-        supabase.from("tenancies").select("id, property_id, status"),
-        supabase.from("maintenance_jobs").select("id, property_id, status"),
-        supabase.from("property_compliance_items").select("id, obligation_code, status, next_due"),
+        supabase.from("tenancies").select("id, property_id, status, rent_amount, rent_period"),
+        supabase.from("maintenance_jobs").select("id, property_id, status, title, created_at, target_date"),
+        supabase.from("property_compliance_items").select("id, property_id, obligation_code, status, next_due"),
+      ]);
+
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthStartIso = monthStart.toISOString().slice(0, 10);
+      const [{ data: monthPayments }, { data: recentPayments }] = await Promise.all([
+        supabase.from("rent_payments").select("amount, paid_date").gte("paid_date", monthStartIso),
+        supabase.from("rent_payments").select("id, amount, paid_date, property_id, created_at").not("paid_date", "is", null).order("created_at", { ascending: false }).limit(5),
       ]);
 
       if (!mountedRef.current) return;
@@ -314,11 +329,29 @@ export default function DashboardPage() {
       const compPct = totalCompItems > 0 ? Math.round((compliantCount / totalCompItems) * 100) : 100;
 
       const occupancyPct = totalPropCount > 0 ? Math.round((occupiedCount / totalPropCount) * 100) : 0;
+
+      const monthlyEquivalent = (amount: number, period: string | null) => {
+        const p = (period || "month").toLowerCase();
+        if (p.startsWith("week")) return (amount * 52) / 12;
+        if (p.startsWith("fortnight")) return (amount * 26) / 12;
+        if (p.startsWith("quarter")) return amount / 3;
+        if (p.startsWith("year") || p.startsWith("annual")) return amount / 12;
+        return amount;
+      };
+      const rentDue = tenList
+        .filter((t: any) => t.status === "active")
+        .reduce((sum: number, t: any) => sum + monthlyEquivalent(Number(t.rent_amount) || 0, t.rent_period), 0);
+      const rentCollected = ((monthPayments as any[]) || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      const collectedPct = rentDue > 0 ? Math.min(100, Math.round((rentCollected / rentDue) * 100)) : 0;
+      const monthLabel = monthStart.toLocaleDateString("en-GB", { month: "short" });
+      const gbp = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
+
+      const propName = new Map(propList.map((p: any) => [p.id, [p.line1, p.city].filter(Boolean).join(", ") || "Property"]));
       const maintPct = totalPropCount > 0 ? Math.round(((totalPropCount - openMaintCount) / totalPropCount) * 100) : 100;
 
       setSnapshotCards([
         { key: "totalProperties", label: "Total Properties", value: String(kpiData.total_properties || totalPropCount), supporting: "Active", icon: "ri-building-4-line", color: "bg-[#C28A78]", statusColor: "neutral", href: "/dashboard/portfolio" },
-        { key: "rentCollected", label: "Rent Collected (Jul)", value: totalPropCount > 0 ? `£${(occupiedCount * 1850).toLocaleString()}` : "—", supporting: occupancyPct > 0 ? `${occupancyPct}%` : "N/A", icon: "ri-coins-line", color: "bg-[#7A9A7E]", statusColor: occupancyPct >= 90 ? "success" : "warning", href: "/dashboard/rent-collection" },
+        { key: "rentCollected", label: `Rent Collected (${monthLabel})`, value: gbp(rentCollected), supporting: rentDue > 0 ? `${collectedPct}% of ${gbp(rentDue)}` : "No rent due", icon: "ri-coins-line", color: collectedPct >= 90 || rentDue === 0 ? "bg-[#7A9A7E]" : "bg-[#D4A85C]", statusColor: collectedPct >= 90 || rentDue === 0 ? "success" : "warning", href: "/dashboard/rent-collection" },
         { key: "compliance", label: "Compliance Health", value: `${compPct}%`, supporting: totalDue === 0 ? "All clear" : `${totalDue} due`, icon: "ri-shield-check-line", color: compPct >= 90 ? "bg-[#7A9A7E]" : "bg-[#D4A85C]", statusColor: compPct >= 90 ? "success" : "warning", href: "/dashboard/compliance" },
         { key: "maintenance", label: "Open Maintenance", value: String(openMaintCount), supporting: urgentMaintCount > 0 ? `${urgentMaintCount} urgent` : "Clear", icon: "ri-tools-line", color: openMaintCount > 0 ? "bg-[#D4A85C]" : "bg-[#7A9A7E]", statusColor: openMaintCount > 0 ? "warning" : "success", href: "/dashboard/maintenance" },
         { key: "tenancies", label: "Active Tenancies", value: String(kpiData.active_tenancies || occupiedCount), supporting: `${occupancyPct}% occ.`, icon: "ri-file-text-line", color: "bg-[#8A9FB0]", statusColor: "neutral", href: "/dashboard/tenancies" },
@@ -326,10 +359,9 @@ export default function DashboardPage() {
 
       const agencyMetrics: HealthMetric[] = [
         { label: "Compliance", value: compliantCount, maxValue: Math.max(totalCompItems, 1), color: compPct >= 90 ? "#7A9A7E" : "#D4A85C", icon: "ri-shield-check-line", detail: `${compliantCount} of ${totalCompItems} compliant` },
-        { label: "Rent Collection", value: occupancyPct, maxValue: 100, color: occupancyPct >= 90 ? "#7A9A7E" : "#D4A85C", icon: "ri-coins-line", detail: `${occupancyPct}% occupancy` },
+        { label: "Rent Collection", value: rentDue > 0 ? collectedPct : 100, maxValue: 100, color: collectedPct >= 90 || rentDue === 0 ? "#7A9A7E" : "#D4A85C", icon: "ri-coins-line", detail: rentDue > 0 ? `${gbp(rentCollected)} of ${gbp(rentDue)} this month` : "No rent due this month" },
         { label: "Maintenance", value: maintPct, maxValue: 100, color: maintPct >= 90 ? "#7A9A7E" : "#D4A85C", icon: "ri-tools-line", detail: `${openMaintCount} open jobs` },
         { label: "Occupancy", value: occupiedCount, maxValue: Math.max(totalPropCount, 1), color: "#8A9FB0", icon: "ri-home-4-line", detail: `${occupiedCount} of ${totalPropCount} occupied` },
-        { label: "Documents", value: 88, maxValue: 100, color: "#C28A78", icon: "ri-folder-line", detail: "112 of 128 complete" },
       ];
 
       const agencyHealthAvg = Math.round(
@@ -356,8 +388,101 @@ export default function DashboardPage() {
       }
       setPriorityActions(liveActions);
 
-      setOperations(demoOperations);
-      setActivityFeed(demoActivityFeed);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const horizon = new Date(today);
+      horizon.setDate(horizon.getDate() + 30);
+      const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      const statusFor = (d: Date): OperationItem["status"] =>
+        d < today ? "overdue" : d.getTime() === today.getTime() ? "today" : "upcoming";
+      const obligationLabel: Record<string, string> = {
+        gas_safety: "Gas safety certificate due",
+        eicr: "EICR due",
+        epc: "EPC renewal due",
+        smoke_alarm: "Smoke alarm check due",
+      };
+      const upcoming: { when: Date; item: OperationItem }[] = [];
+      compList.forEach((c: any) => {
+        if (!c.next_due) return;
+        const when = new Date(`${c.next_due}T00:00:00`);
+        if (when > horizon) return;
+        upcoming.push({
+          when,
+          item: {
+            id: `comp-${c.id}`,
+            date: fmtDate(when),
+            type: obligationLabel[c.obligation_code] || "Compliance item due",
+            property: propName.get(c.property_id) || "Property",
+            person: "",
+            status: statusFor(when),
+            icon: "ri-shield-check-line",
+            iconColor: when < today ? "#C46868" : "#D4A85C",
+            href: "/dashboard/compliance",
+          },
+        });
+      });
+      maintList.forEach((m: any) => {
+        if (!m.target_date || !(m.status === "open" || m.status === "in_progress")) return;
+        const when = new Date(`${m.target_date}T00:00:00`);
+        if (when > horizon) return;
+        upcoming.push({
+          when,
+          item: {
+            id: `maint-${m.id}`,
+            date: fmtDate(when),
+            type: m.title || "Maintenance job",
+            property: propName.get(m.property_id) || "Property",
+            person: "",
+            status: statusFor(when),
+            icon: "ri-tools-line",
+            iconColor: "#D4A85C",
+            href: "/dashboard/maintenance",
+          },
+        });
+      });
+      upcoming.sort((a, b) => a.when.getTime() - b.when.getTime());
+      setOperations(upcoming.slice(0, 6).map((u) => u.item));
+
+      const ago = (iso: string) => {
+        const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+        if (mins < 60) return `${mins || 1}m ago`;
+        const hrs = Math.round(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.round(hrs / 24)}d ago`;
+      };
+      const events: { at: string; item: ActivityItem }[] = [];
+      ((recentPayments as any[]) || []).forEach((p: any) => {
+        events.push({
+          at: p.created_at,
+          item: {
+            id: `pay-${p.id}`,
+            description: `Rent payment recorded: ${gbp(Number(p.amount) || 0)}`,
+            record: propName.get(p.property_id) || "Property",
+            time: ago(p.created_at),
+            icon: "ri-bank-card-line",
+            iconColor: "#7A9A7E",
+          },
+        });
+      });
+      [...maintList]
+        .filter((m: any) => m.created_at)
+        .sort((a: any, b: any) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 5)
+        .forEach((m: any) => {
+          events.push({
+            at: m.created_at,
+            item: {
+              id: `job-${m.id}`,
+              description: "Maintenance job logged",
+              record: `${m.title || "Job"} · ${propName.get(m.property_id) || "Property"}`,
+              time: ago(m.created_at),
+              icon: "ri-tools-line",
+              iconColor: "#D4A85C",
+            },
+          });
+        });
+      events.sort((a, b) => b.at.localeCompare(a.at));
+      setActivityFeed(events.slice(0, 6).map((e) => e.item));
     } catch (err) {
       if (!mountedRef.current) return;
       setError("Could not load dashboard data. Please try again.");
@@ -471,11 +596,11 @@ export default function DashboardPage() {
   const displayPriorityActions = isOwner ? priorityActions : (priorityActions.length > 0 ? priorityActions : demoMode ? [] : []);
   const displaySnapshotCards = isOwner
     ? (snapshotCards.length > 0 ? snapshotCards : ownerSnapshotCards)
-    : (snapshotCards.length > 0 ? snapshotCards : demoSnapshotCards);
+    : (snapshotCards.length > 0 ? snapshotCards : demoMode ? demoSnapshotCards : []);
   const displayHealthMetrics = isOwner
     ? (healthMetrics.length > 0 ? healthMetrics : ownerHealthMetrics)
-    : (healthMetrics.length > 0 ? healthMetrics : demoHealthMetrics);
-  const displayHealthScore = isOwner ? (overallHealthScore > 0 ? overallHealthScore : 75) : (overallHealthScore > 0 ? overallHealthScore : 82);
+    : (healthMetrics.length > 0 ? healthMetrics : demoMode ? demoHealthMetrics : []);
+  const displayHealthScore = isOwner ? (overallHealthScore > 0 ? overallHealthScore : 75) : (overallHealthScore > 0 ? overallHealthScore : demoMode ? 82 : 0);
   const displayOperations = isOwner ? ownerOperations : operations;
   const displayActivity = isOwner ? ownerActivityFeed : activityFeed;
   const displaySecondaryTabs = isOwner ? ownerSecondaryTabs : secondaryTabs;

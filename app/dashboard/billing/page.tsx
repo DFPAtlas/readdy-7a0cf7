@@ -281,7 +281,7 @@ function BillingContent() {
   const faqs = [
     { q: "When will I be billed?", a: "Monthly plans are billed on the same day each month. Annual plans are billed once per year on the anniversary of your subscription start date. Your first payment is taken immediately after your trial ends (if applicable)." },
     { q: "Can I switch plans later?", a: "Yes. You can upgrade or downgrade at any time through the Stripe billing portal. When upgrading, you'll be charged the prorated difference for the remainder of your billing period. Downgrades take effect at the end of your current billing period." },
-    { q: "Is there a free trial?", a: "All plans come with a 14-day free trial. No credit card is charged until the trial ends. You can cancel anytime during the trial and you won't be charged." },
+    { q: "Is there a free trial?", a: "All plans come with a 14-day free trial, once per agency. You add a card at checkout, but it isn't charged until the trial ends. Cancel in Stripe before then and you won't be charged." },
     { q: "What payment methods do you accept?", a: "We accept all major credit and debit cards including Visa, Mastercard, and American Express. All payments are processed securely through Stripe." },
     { q: "Can I cancel my subscription?", a: "Yes — you can cancel anytime through the Stripe billing portal. Your access will continue until the end of your current billing period. We do not offer refunds for partial months." },
     { q: "Is my payment information secure?", a: "Absolutely. We never store your card details on our servers. All payment processing is handled by Stripe, a PCI DSS Level 1 certified payment processor." },

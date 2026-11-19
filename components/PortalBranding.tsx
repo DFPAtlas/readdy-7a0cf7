@@ -165,6 +165,10 @@ export function PortalBrandingHeader({
 
           <div className="hidden sm:flex items-center gap-3">
             {extra}
+            <Link href="/account/data" className="text-sm text-[#687068] hover:text-[#3A3F3A] transition-colors flex items-center gap-1">
+              <i className="ri-download-cloud-2-line text-xs"></i>
+              Your data
+            </Link>
             <button
               onClick={onLogout}
               className="text-sm text-[#687068] hover:text-[#EF4444] transition-colors flex items-center gap-1"
@@ -179,6 +183,10 @@ export function PortalBrandingHeader({
           <div className="sm:hidden px-4 pb-4 border-t border-[#D5D9D5] bg-white">
             <div className="flex items-center justify-between py-3">
               {extra}
+              <Link href="/account/data" className="text-sm text-[#687068] flex items-center gap-1">
+                <i className="ri-download-cloud-2-line text-xs"></i>
+                Your data
+              </Link>
               <button onClick={onLogout} className="text-sm text-[#EF4444] flex items-center gap-1">
                 <i className="ri-logout-box-r-line text-xs"></i>
                 Sign Out

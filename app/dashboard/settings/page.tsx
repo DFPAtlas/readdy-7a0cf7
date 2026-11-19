@@ -8,6 +8,8 @@ import AgencyProfileCard from "@/components/settings/AgencyProfileCard"
 import PasswordSection from "@/components/settings/PasswordSection"
 import SessionsSection from "@/components/settings/SessionsSection"
 import SecurityActivityLog from "@/components/settings/SecurityActivityLog"
+import YourDataSection from "@/components/settings/YourDataSection"
+import TeamMembersPanel from "@/components/settings/TeamMembersPanel"
 import { SETTINGS_CATEGORIES } from "@/lib/settingsSystem"
 import Link from "next/link"
 
@@ -25,6 +27,11 @@ export default function SettingsPage() {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("view");
+    if (requested && SETTINGS_CATEGORIES.some((c) => c.id === requested && !c.href)) setView(requested);
   }, []);
 
   const showToast = (msg: string) => {
@@ -132,6 +139,35 @@ export default function SettingsPage() {
     )
   }
 
+  if (view === "your-data") {
+    return (
+      <DashboardShell>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView("cards")}
+              aria-label="Back to settings"
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] transition-colors"
+            >
+              <i className="ri-arrow-left-line text-[#687068]"></i>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-[#3A3F3A]">Your data</h1>
+              <p className="text-sm text-[#687068] mt-1">Download a copy of your data or close your account</p>
+            </div>
+          </div>
+          <YourDataSection onToast={showToast} />
+        </div>
+        {saveToast && (
+          <div className="fixed bottom-6 right-6 z-50 bg-[#3A3F3A] text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <i className="ri-check-line text-[#10B981]"></i>
+            {saveToast}
+          </div>
+        )}
+      </DashboardShell>
+    )
+  }
+
   if (view === "agency-profile") {
     return (
       <DashboardShell>
@@ -174,69 +210,11 @@ export default function SettingsPage() {
             </button>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-[#3A3F3A]">Team & Permissions</h1>
-              <p className="text-sm text-[#687068] mt-1">Invite team members and manage access levels</p>
+              <p className="text-sm text-[#687068] mt-1">The people in your agency who can sign in to LetHub</p>
             </div>
-            <button className="flex items-center gap-2 bg-[#C28A78] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#143828] transition-colors whitespace-nowrap">
-              <i className="ri-user-add-line text-sm"></i>
-              Invite Member
-            </button>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#D5D9D5] bg-[#FBF9F4]">
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">User</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Role</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Office scope</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Status</th>
-                    <th className="text-left px-5 py-3 font-medium text-[#687068]">Last active</th>
-                    <th className="text-right px-5 py-3 font-medium text-[#687068]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#D5D9D5]">
-                  {[
-                    { name: "David Chen", email: "david.c@lethub.com", role: "Administrator", office: "All offices", status: "Active", lastActive: "Today" },
-                    { name: "Alex Smith", email: "alex.s@lethub.com", role: "Agent", office: "London", status: "Active", lastActive: "Today" },
-                    { name: "Lisa Patel", email: "lisa.p@lethub.com", role: "Agent", office: "Manchester", status: "Active", lastActive: "Yesterday" },
-                    { name: "Tom Harris", email: "tom.h@lethub.com", role: "Viewer", office: "London", status: "Invited", lastActive: "—" },
-                  ].map((member) => (
-                    <tr key={member.email} className="hover:bg-[#FBF9F4] transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-[#C28A78] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {member.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-[#3A3F3A]">{member.name}</p>
-                            <p className="text-xs text-[#687068]">{member.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-xs text-[#3A3F3A]">{member.role}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-xs text-[#687068]">{member.office}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${member.status === "Active" ? "bg-[#10B981]/10 text-[#10B981]" : "bg-[#F59E0B]/10 text-[#F59E0B]"}`}>
-                          {member.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-xs text-[#687068]">{member.lastActive}</span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <button className="text-xs text-[#C28A78] font-medium hover:underline">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TeamMembersPanel />
         </div>
         {saveToast && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#3A3F3A] text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">

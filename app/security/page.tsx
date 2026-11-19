@@ -10,7 +10,7 @@ const sections = [
     icon: "ri-server-line",
     items: [
       "Application hosted on Vercel, with TLS encryption for all traffic.",
-      "Database hosted by Supabase in the EU, on infrastructure with SOC 2 Type II certification.",
+      "Database and file storage hosted by Supabase in the UK (London), on infrastructure with SOC 2 Type II certification.",
       "Data encrypted at rest and in transit.",
     ],
   },
