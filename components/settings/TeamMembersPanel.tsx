@@ -13,15 +13,106 @@ interface TeamMember {
 function roleLabel(role: string | null): string {
   if (!role) return "Member";
   const r = role.toLowerCase();
-  if (r === "admin" || r === "owner" || r === "agency_admin") return "Administrator";
+  if (r === "admin" || r === "owner" || r === "agency_admin" || r === "property_manager") return "Administrator";
   if (r === "agent" || r === "staff" || r === "agency_staff") return "Agent";
   return role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ");
+}
+
+interface PendingInvite {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  expires_at: string;
+}
+
+interface Seats {
+  members: number;
+  pending: number;
+  limit: number | null;
+}
+
+async function callInvites(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("manage-agency-invites", { body });
+  if (data?.success) return { ok: true as const, data };
+  let message: string | undefined = data?.error;
+  const context = (error as { context?: Response } | null)?.context;
+  if (!message && context && typeof context.json === "function") {
+    try {
+      message = (await context.json())?.error;
+    } catch {
+      // ignore
+    }
+  }
+  return { ok: false as const, error: message || "Something went wrong. Please try again." };
 }
 
 export default function TeamMembersPanel() {
   const [members, setMembers] = useState<TeamMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [seats, setSeats] = useState<Seats | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState("estate_agent_staff");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState<{ kind: "ok" | "error"; text: string; link?: string } | null>(null);
+
+  const loadInvites = async () => {
+    const result = await callInvites({ action: "list" });
+    if (result.ok) {
+      setInvites(result.data.invites || []);
+      setSeats(result.data.seats || null);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
+      const role = String((profile as { role?: string } | null)?.role || "");
+      const admin = role === "estate_agent_admin" || role === "platform_admin";
+      if (cancelled) return;
+      setIsAdmin(admin);
+      if (admin) await loadInvites();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sendInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setInviteBusy(true);
+    setInviteMessage(null);
+    const result = await callInvites({ action: "create", email: inviteEmail, full_name: inviteName, role: inviteRole });
+    setInviteBusy(false);
+    if (!result.ok) {
+      setInviteMessage({ kind: "error", text: result.error });
+      return;
+    }
+    setInviteMessage(
+      result.data.emailed
+        ? { kind: "ok", text: `Invitation sent to ${inviteEmail.trim()}.` }
+        : { kind: "ok", text: "Invitation created, but the email couldn't be sent. Send them this link:", link: result.data.invite_link },
+    );
+    setInviteEmail("");
+    setInviteName("");
+    await loadInvites();
+  };
+
+  const revoke = async (id: string) => {
+    const result = await callInvites({ action: "revoke", invite_id: id });
+    if (!result.ok) {
+      setInviteMessage({ kind: "error", text: result.error });
+      return;
+    }
+    await loadInvites();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -61,16 +152,99 @@ export default function TeamMembersPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#FBF9F4] border border-[#D5D9D5] rounded-xl px-5 py-4 text-sm text-[#3A3F3A] flex items-start gap-3">
-        <i className="ri-information-line text-[#C28A78] mt-0.5" aria-hidden="true"></i>
-        <p>
-          To add or remove a team member, email{" "}
-          <a href="mailto:support@lethub.uk?subject=Team%20member%20request" className="text-[#C28A78] underline">
-            support@lethub.uk
-          </a>{" "}
-          from an administrator&apos;s address with their name, email and role. We aim to set them up within one working day.
-        </p>
-      </div>
+      {isAdmin ? (
+        <form onSubmit={sendInvite} className="bg-white rounded-xl border border-[#D5D9D5] p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#3A3F3A]">Invite a team member</h2>
+              <p className="text-sm text-[#687068] mt-1">They&apos;ll get an email with a link to set up their login. The link works once and lasts 7 days. To remove someone, email support@lethub.uk.</p>
+            </div>
+            {seats && (
+              <p className="text-xs text-[#687068] whitespace-nowrap">
+                {seats.limit === null
+                  ? `${seats.members} members`
+                  : `${seats.members + seats.pending} of ${seats.limit} seats used`}
+              </p>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-[#3A3F3A]">Email</span>
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm outline-none focus:border-[#C28A78]"
+                placeholder="name@agency.co.uk"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-[#3A3F3A]">Name (optional)</span>
+              <input
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                maxLength={160}
+                className="mt-1 w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm outline-none focus:border-[#C28A78]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-[#3A3F3A]">Role</span>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-sm outline-none focus:border-[#C28A78] bg-white"
+              >
+                <option value="estate_agent_staff">Agent</option>
+                <option value="estate_agent_admin">Administrator</option>
+              </select>
+            </label>
+          </div>
+          <p className="text-xs text-[#687068]">Administrators can also manage billing, settings and the team.</p>
+          {inviteMessage && (
+            <div role={inviteMessage.kind === "error" ? "alert" : "status"} className={`text-sm ${inviteMessage.kind === "error" ? "text-[#C46868]" : "text-[#3A3F3A]"}`}>
+              <p>{inviteMessage.text}</p>
+              {inviteMessage.link && (
+                <input readOnly value={inviteMessage.link} onFocus={(e) => e.currentTarget.select()} className="mt-2 w-full px-3 py-2 border border-[#D5D9D5] rounded-lg text-xs bg-[#FBF9F4]" />
+              )}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={inviteBusy || !inviteEmail.trim()}
+            className="bg-[#C28A78] hover:bg-[#B07A69] text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+          >
+            {inviteBusy ? "Sending…" : "Send invitation"}
+          </button>
+        </form>
+      ) : (
+        <div className="bg-[#FBF9F4] border border-[#D5D9D5] rounded-xl px-5 py-4 text-sm text-[#3A3F3A] flex items-start gap-3">
+          <i className="ri-information-line text-[#C28A78] mt-0.5" aria-hidden="true"></i>
+          <p>Ask an administrator in your agency to invite or remove team members.</p>
+        </div>
+      )}
+
+      {isAdmin && invites.length > 0 && (
+        <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
+          <p className="px-5 py-3 text-sm font-medium text-[#3A3F3A] border-b border-[#D5D9D5] bg-[#FBF9F4]">Pending invitations</p>
+          <ul className="divide-y divide-[#D5D9D5]">
+            {invites.map((invite) => (
+              <li key={invite.id} className="px-5 py-3 flex items-center justify-between gap-4 text-sm">
+                <div>
+                  <p className="text-[#3A3F3A]">{invite.full_name ? `${invite.full_name} · ` : ""}{invite.email}</p>
+                  <p className="text-xs text-[#687068]">
+                    {invite.role === "estate_agent_admin" ? "Administrator" : "Agent"} · expires{" "}
+                    {new Date(invite.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </p>
+                </div>
+                <button type="button" onClick={() => revoke(invite.id)} className="text-xs text-[#DC2626] hover:underline">
+                  Cancel invite
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
         {members === null ? (

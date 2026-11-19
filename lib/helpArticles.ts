@@ -61,6 +61,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     related: ["importing-your-portfolio", "creating-a-tenancy-renters-rights-act", "inviting-landlords-and-tenants"],
   },
   {
+    slug: "adding-your-team",
+    category: "getting-started",
+    title: "Adding your team",
+    summary: "Invite colleagues to your agency's LetHub account and choose what they can do.",
+    updated: "2026-11-19",
+    body: [
+      { type: "p", text: "Agency administrators can invite colleagues from Settings → Team. How many people you can add depends on your plan; the Team page shows how many seats are used." },
+      { type: "h2", text: "Invite someone" },
+      { type: "steps", items: [
+        "Go to Settings → Team.",
+        "Enter their work email and, if you like, their name.",
+        "Choose a role. Agents can manage properties, tenancies, rent, maintenance and compliance. Administrators can also manage billing, settings and the team.",
+        "Choose Send invitation. They get an email with a link that works once and lasts 7 days.",
+      ] },
+      { type: "p", text: "When they open the link they set a password and land straight in your agency's dashboard. If they already have a LetHub login with that email, they sign in first and then accept." },
+      { type: "h2", text: "Pending invitations" },
+      { type: "list", items: [
+        "Invitations that haven't been accepted appear under Pending invitations, and count towards your seats.",
+        "Choose Cancel invite to withdraw one, for example if you used the wrong email. The link stops working straight away.",
+        "If an invitation expires, send a new one.",
+      ] },
+      { type: "note", text: "To remove someone from your team, email support@lethub.uk from an administrator's address." },
+    ],
+    related: ["getting-started", "billing-and-your-subscription"],
+  },
+  {
     slug: "importing-your-portfolio",
     category: "getting-started",
     title: "Importing your portfolio from a spreadsheet",
