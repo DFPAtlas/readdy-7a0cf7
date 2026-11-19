@@ -18,7 +18,7 @@ function requestedPathFor(role: AppRole): string | null {
   if (!next) return null;
   const path = next.split(/[?#]/)[0];
   if (path.startsWith("/dashboard")) return canAccessDashboardPath(role, path) && path !== "/dashboard" ? next : null;
-  if (path === "/account/data") return next;
+  if (path === "/account/data" || path === "/join") return next;
   return null;
 }
 
