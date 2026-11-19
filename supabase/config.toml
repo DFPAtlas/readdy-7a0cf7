@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.request-account-deletion]
 verify_jwt = true
+
+[functions.manage-agency-invites]
+verify_jwt = true
+
+[functions.accept-agency-invite]
+verify_jwt = false
