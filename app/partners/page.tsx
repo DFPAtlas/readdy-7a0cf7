@@ -4,29 +4,15 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
+// Services LetHub is built on. Only list companies we actually use; don't
+// describe them as partners without a signed partnership agreement.
 const partners = [
   {
-    category: "Technology Partners",
+    category: "Services we build on",
     items: [
-      { name: "Stripe", description: "Enterprise-grade payment processing for rent collection and subscription billing. PCI DSS Level 1 certified.", logo: "ri-bank-card-line" },
-      { name: "Plaid / Open Banking", description: "Real-time bank data connectivity for automated rent reconciliation and financial health insights.", logo: "ri-exchange-funds-line" },
-      { name: "Google Maps", description: "Property location services, neighbourhood insights, and distance calculations for contractor dispatch.", logo: "ri-map-pin-line" },
-    ],
-  },
-  {
-    category: "Integration Partners",
-    items: [
-      { name: "Xero", description: "Seamless accounting integration — sync rent payments, expenses, and financial reports directly to Xero.", logo: "ri-file-list-3-line" },
-      { name: "QuickBooks", description: "Automated bookkeeping for property managers. All transactions flow to QuickBooks in real time.", logo: "ri-file-text-line" },
-      { name: "Zapier", description: "Connect LetHub to 5,000+ apps. Automate workflows between your property management and the rest of your stack.", logo: "ri-flashlight-line" },
-    ],
-  },
-  {
-    category: "Service Partners",
-    items: [
-      { name: "DocuSign", description: "Industry-standard e-signatures for tenancy agreements, Section 8 notices, and contractor agreements.", logo: "ri-pen-nib-line" },
-      { name: "GoCardless", description: "Direct Debit integration for recurring rent collection with automated mandates.", logo: "ri-bank-line" },
-      { name: "Slack", description: "Real-time notifications for maintenance requests, arrears alerts, and compliance deadlines.", logo: "ri-slack-line" },
+      { name: "Stripe", description: "Handles subscription billing and card payments. LetHub never sees or stores full card details.", logo: "ri-bank-card-line" },
+      { name: "Supabase", description: "Database, sign-in and file storage, hosted in the UK (London).", logo: "ri-database-2-line" },
+      { name: "Resend", description: "Sends LetHub's emails, such as receipts, rent reminders and portal invites.", logo: "ri-mail-send-line" },
     ],
   },
 ];

@@ -32,7 +32,7 @@ export default function PHICTA() {
           </Link>
         </div>
 
-        <p className="text-xs text-[#94A3B8] mt-5">No credit card required. 14-day free trial.</p>
+        <p className="text-xs text-[#94A3B8] mt-5">14-day free trial. No charge until it ends.</p>
       </div>
     </section>
   )

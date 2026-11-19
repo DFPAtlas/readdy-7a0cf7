@@ -43,7 +43,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         "Go to lethub.uk and choose Start free trial.",
         "Enter your name, work email and a password of at least 8 characters.",
         "Choose Letting or estate agent, and enter your agency name.",
-        "Pick a plan and monthly or annual billing, accept the terms, and complete the secure Stripe checkout. Your 14-day free trial starts straight away.",
+        "Pick a plan and monthly or annual billing, accept the terms, and complete the secure Stripe checkout. You add a card, but it isn't charged until your 14-day free trial ends.",
       ] },
       { type: "h2", text: "2. Work through the setup checklist" },
       { type: "p", text: "After you sign in for the first time, LetHub opens the setup checklist (Dashboard → Setup). Each step can be skipped and revisited later. The steps are:" },

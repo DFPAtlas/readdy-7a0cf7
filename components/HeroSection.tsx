@@ -66,7 +66,7 @@ export default function HeroSection() {
             </div>
 
             <p className={`text-sm text-[#8A8F8A] transition-all duration-700 delay-600 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-              No credit card required. 14-day free trial. Cancel anytime.
+              14-day free trial. No charge until it ends. Cancel anytime.
             </p>
           </div>
 

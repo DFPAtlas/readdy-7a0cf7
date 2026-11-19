@@ -65,7 +65,7 @@ export default function FeaturesCTA() {
             </div>
 
             <p className="text-white/40 text-sm mt-6">
-              No credit card required · 14-day free trial · Full access to all features
+              14-day free trial · No charge until it ends · Full access to all features
             </p>
           </div>
         </div>

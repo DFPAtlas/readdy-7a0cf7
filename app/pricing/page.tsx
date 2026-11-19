@@ -25,7 +25,7 @@ export default function PricingPage() {
             Choose the right plan for your portfolio
           </h1>
           <p className="text-lg text-[#687068] max-w-2xl mx-auto">
-            Start with a 14-day free trial. No credit card required. Upgrade, downgrade, or cancel anytime.
+            Start with a 14-day free trial. You add a card at sign-up but aren&apos;t charged until the trial ends. Upgrade, downgrade, or cancel anytime.
           </p>
         </div>
 
@@ -314,7 +314,7 @@ export default function PricingPage() {
           <div className="bg-gradient-to-r from-[#C28A78] to-[#2D5A3D] rounded-2xl p-8 text-white">
             <h2 className="text-2xl font-bold mb-2">Ready to get started?</h2>
             <p className="text-white/80 mb-6">
-              Start your 14-day free trial today. No credit card required.
+              Start your 14-day free trial today. No charge until it ends.
             </p>
             <div className="flex items-center justify-center gap-3">
               <Link

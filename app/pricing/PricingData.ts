@@ -94,7 +94,7 @@ export const pricingPlans = [
     monthlyPrice: null,
     annualPrice: null,
     annualDiscount: null,
-    trialDays: 30,
+    trialDays: 14,
     popular: false,
     features: [
       "Unlimited properties",
@@ -122,7 +122,7 @@ export const billingFAQ = [
   },
   {
     question: "What happens after my free trial?",
-    answer: "After your 14-day free trial, you can choose to subscribe to any plan. If you don't subscribe, your account will be downgraded to a free read-only mode with limited access.",
+    answer: "Your subscription starts automatically on the plan and billing period you chose, and the card you added at checkout is charged. If you cancel before the trial ends, you won't be charged and your account becomes read-only, so you can still sign in and export your data.",
   },
   {
     question: "Is there a discount for annual billing?",
@@ -130,7 +130,7 @@ export const billingFAQ = [
   },
   {
     question: "What payment methods do you accept?",
-    answer: "We accept all major credit and debit cards (Visa, Mastercard, American Express), as well as Direct Debit for UK customers. Enterprise plans also support invoice billing.",
+    answer: "We accept all major credit and debit cards through Stripe. Enterprise plans can also pay by invoice.",
   },
   {
     question: "Are there any setup fees?",

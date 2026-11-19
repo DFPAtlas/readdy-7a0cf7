@@ -33,7 +33,7 @@ export default function SubscriptionTermsPage() {
       <LegalSection heading="2. Free trial">
         <LegalList
           items={[
-            "Starter, Professional and Business plans include a 14-day free trial for new customers. Each organisation can have one free trial.",
+            "All plans include a 14-day free trial for new customers. Each organisation can have one free trial. You add a payment card at checkout to start it.",
             "You won't be charged during the trial. If you don't cancel before it ends, your subscription starts automatically and you'll be charged for the plan and billing period you chose.",
             "You can cancel during the trial from Settings → Billing and you won't be charged.",
           ]}

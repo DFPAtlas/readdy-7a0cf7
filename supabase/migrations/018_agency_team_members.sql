@@ -20,3 +20,8 @@ $$;
 
 REVOKE ALL ON FUNCTION public.agency_team_members() FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.agency_team_members() TO authenticated;
+
+-- Allow request-account-deletion to record its security event.
+ALTER TABLE public.user_security_events DROP CONSTRAINT IF EXISTS user_security_events_type_check;
+ALTER TABLE public.user_security_events ADD CONSTRAINT user_security_events_type_check
+  CHECK (event_type = ANY (ARRAY['sign_in','sign_out','password_changed','email_otp','session_revoked','profile_updated','account_deletion_requested']));
