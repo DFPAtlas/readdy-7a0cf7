@@ -18,7 +18,7 @@ function requestedPathFor(role: AppRole): string | null {
   if (!next) return null;
   const path = next.split(/[?#]/)[0];
   if (path.startsWith("/dashboard")) return canAccessDashboardPath(role, path) && path !== "/dashboard" ? next : null;
-  if (path === "/account/data") return next;
+  if (path === "/account/data" || path === "/join") return next;
   return null;
 }
 
@@ -103,6 +103,22 @@ export default function LoginPage() {
     };
   }, []);
 
+  // A new agency admin who confirmed their email hasn't been through Stripe
+  // Checkout yet (sign-up stops at "confirm your email"). Send them to Billing
+  // with the plan they chose, instead of a read-only dashboard.
+  const startTrialPathFor = async (userId: string): Promise<string | null> => {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if ((profile as { role?: string } | null)?.role !== "estate_agent_admin") return null;
+    const { data: hasPlan, error: planError } = await supabase.rpc("is_subscription_active_or_trialing");
+    if (planError || hasPlan) return null;
+    const { data: auth } = await supabase.auth.getUser();
+    const meta = (auth.user?.user_metadata || {}) as { desired_plan?: string; desired_billing_cycle?: string };
+    const params = new URLSearchParams({ welcome: "1" });
+    if (meta.desired_plan && /^[a-z]+$/.test(meta.desired_plan)) params.set("plan", meta.desired_plan);
+    if (meta.desired_billing_cycle === "annual") params.set("billing", "annual");
+    return `/dashboard/billing?${params.toString()}`;
+  };
+
   const handleOtpVerified = async (userId: string): Promise<string | null> => {
     await completeRegistration();
     const { home, error: homeError } = await resolveTrustedHome(userId);
@@ -113,9 +129,9 @@ export default function LoginPage() {
 
     await logSecurityEvent("sign_in", "Signed in with a one-time email code");
 
-
+    const destination = (await startTrialPathFor(userId)) || home;
     startTransition(() => {
-      router.replace(home);
+      router.replace(destination);
     });
     return null;
   };
@@ -157,7 +173,7 @@ export default function LoginPage() {
 
         <button onClick={handleDemoLogin} disabled={demoLoading} className="w-full bg-gradient-to-r from-[#C28A78]/10 to-[#14B8A6]/10 border border-[#C28A78]/30 text-[#C28A78] font-medium py-3 rounded-lg hover:bg-[#C28A78]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap">
           <i className="ri-eye-line text-sm"></i>
-          {demoLoading ? "Entering demo..." : "Explore Demo Account"}
+          {demoLoading ? "Opening demo..." : "Try the demo — no account needed"}
         </button>
         <p className="text-center text-xs text-[#94A3B8] mt-2">No sign-up required · Estate Agent view</p>
 

@@ -132,11 +132,28 @@ export default function AuthGuard({
   return (
     <>
       {demo && showDemoBanner ? (
-        <div className="flex items-center justify-center gap-2 bg-[#C28A78] px-4 py-1.5 text-xs font-medium text-white">
-          <span className="flex h-4 w-4 items-center justify-center">
-            <i className="ri-eye-line"></i>
+        <div role="status" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-[#3A3F3A] px-4 py-3 text-sm text-white">
+          <span className="flex items-center gap-2 font-semibold">
+            <i className="ri-eye-line" aria-hidden="true"></i>
+            You&apos;re in the demo
           </span>
-          Demo Mode — sample data only. No live customer data is shown.
+          <span className="text-white/80">This is a sample agency. Nothing you do here is saved, and no account has been created.</span>
+          <span className="flex items-center gap-2">
+            <a href="/register" className="rounded-md bg-[#C28A78] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#B07A69]">
+              Create your account
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                const { deactivateDemoSession } = await import("@/lib/demoMode");
+                deactivateDemoSession();
+                window.location.assign("/");
+              }}
+              className="rounded-md border border-white/40 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+            >
+              Exit demo
+            </button>
+          </span>
         </div>
       ) : null}
       {children}
