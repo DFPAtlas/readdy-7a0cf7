@@ -157,7 +157,7 @@ export default function LoginPage() {
 
         <button onClick={handleDemoLogin} disabled={demoLoading} className="w-full bg-gradient-to-r from-[#C28A78]/10 to-[#14B8A6]/10 border border-[#C28A78]/30 text-[#C28A78] font-medium py-3 rounded-lg hover:bg-[#C28A78]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap">
           <i className="ri-eye-line text-sm"></i>
-          {demoLoading ? "Entering demo..." : "Explore Demo Account"}
+          {demoLoading ? "Opening demo..." : "Try the demo — no account needed"}
         </button>
         <p className="text-center text-xs text-[#94A3B8] mt-2">No sign-up required · Estate Agent view</p>
 
