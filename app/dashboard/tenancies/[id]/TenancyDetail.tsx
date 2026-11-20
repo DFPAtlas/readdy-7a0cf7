@@ -211,18 +211,28 @@ export default function TenancyDetail({ tenancyId }: { tenancyId: string }) {
   useEffect(() => {
     let active = true;
 
+    const applyPreview = (found: TenancyRecord) => {
+      setIsDemo(true);
+      setTenancy(found);
+      setDocuments(DEMO_DOCUMENTS);
+      setJobs(DEMO_MAINTENANCE_JOBS);
+      setPayments(
+        ["Jun 2026", "May 2026", "Apr 2026"].map((month) => ({ month, amount: found.rent, status: "Paid", date: `01 ${month}` })),
+      );
+      setExtras({ epcRating: "C", councilTaxBand: "Band C", regime: "assured_periodic_rra" });
+    };
+
     const load = async () => {
-      if (isDemoAccount()) {
-        const found = tenancies.find((t) => t.id === tenancyId) || tenancies[0];
+      const localRecord = tenancies.find((t) => t.id === tenancyId);
+      const looksLikeRecordId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenancyId);
+
+      if (isDemoAccount() || !looksLikeRecordId) {
+        if (!localRecord) {
+          if (active) setNotFound(true);
+          return;
+        }
         if (!active) return;
-        setIsDemo(true);
-        setTenancy(found);
-        setDocuments(DEMO_DOCUMENTS);
-        setJobs(DEMO_MAINTENANCE_JOBS);
-        setPayments(
-          ["Jun 2026", "May 2026", "Apr 2026"].map((month) => ({ month, amount: found.rent, status: "Paid", date: `01 ${month}` })),
-        );
-        setExtras({ epcRating: "C", councilTaxBand: "Band C", regime: "assured_periodic_rra" });
+        applyPreview(localRecord);
         return;
       }
 
