@@ -114,6 +114,8 @@ function BillingContent() {
   const searchParams = useSearchParams();
   const requestedPlan = searchParams.get("plan");
   const checkoutState = searchParams.get("checkout");
+  const welcome = searchParams.get("welcome") === "1";
+  const requestedCycle = searchParams.get("billing");
 
   const [entitlements, setEntitlements] = useState<PlanEntitlements | null>(null);
   const [propertyCount, setPropertyCount] = useState(0);
@@ -121,7 +123,7 @@ function BillingContent() {
   const [storageGB, setStorageGB] = useState<number>(0);
   const [storageLoading, setStorageLoading] = useState(true);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(requestedCycle === "annual" ? "annual" : "monthly");
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -298,6 +300,14 @@ function BillingContent() {
           <button onClick={load} disabled={loading} className="rounded-lg border border-[#D5D9D5] bg-white px-4 py-2 text-sm font-medium text-[#687068] hover:bg-[#F1F5F9] disabled:opacity-50 transition-colors whitespace-nowrap">Refresh</button>
         </div>
 
+        {welcome && !checkoutState && (
+          <div className="rounded-xl border border-[#C28A78]/40 bg-[#C28A78]/10 px-5 py-4">
+            <p className="text-sm font-semibold text-[#3A3F3A]">Welcome to LetHub. One step left.</p>
+            <p className="mt-1 text-sm text-[#687068]">
+              Choose your plan below to start your 14-day free trial. You&apos;ll add a card, but it isn&apos;t charged until the trial ends.
+            </p>
+          </div>
+        )}
         {checkoutState === "success" && (
           <div className="rounded-xl border border-[#A7F3D0] bg-[#ECFDF5] px-5 py-4">
             <div className="flex items-center gap-2">
