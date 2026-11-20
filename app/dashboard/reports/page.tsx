@@ -136,6 +136,10 @@ export default function ReportsPage() {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const demoMode = isDemoAccount();
+  // localStorage isn't readable during server rendering, so anything drawn
+  // from demo mode waits until after mount to avoid a hydration mismatch.
+  const [demoUi, setDemoUi] = useState(false);
+  useEffect(() => { setDemoUi(demoMode); }, [demoMode]);
   const [generateForm, setGenerateForm] = useState({ owner: "", property: "", month: "6", year: "2026" });
 
   useEffect(() => {
@@ -332,7 +336,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               </div>
-              {demoMode && <span className="text-xs text-[#94A3B8] bg-[#F1F5F9] px-2.5 py-1 rounded-full">Demo Mode</span>}
+              {demoUi && <span className="text-xs text-[#94A3B8] bg-[#F1F5F9] px-2.5 py-1 rounded-full">Demo Mode</span>}
             </div>
 
             <div className="bg-white rounded-xl border border-[#D5D9D5] overflow-hidden">
@@ -366,7 +370,7 @@ export default function ReportsPage() {
                               </button>
                             )}
                             {report.status === "ready" && (
-                              <button onClick={() => { if (demoMode) return; }} className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#D5D9D5] transition-colors ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`} title="Mark as Sent">
+                              <button onClick={() => { if (demoMode) return; }} className={`w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#D5D9D5] transition-colors ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`} title="Mark as Sent">
                                 <i className="ri-send-plane-line text-[#3B82F6] text-sm"></i>
                               </button>
                             )}
@@ -513,7 +517,7 @@ export default function ReportsPage() {
               </div>
               <div className="flex items-center gap-3 px-5 py-4 border-t border-[#D5D9D5]">
                 <button onClick={() => setShowGenerateModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">Cancel</button>
-                <button onClick={() => { if (demoMode) return; setShowGenerateModal(false); }} className={`flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Generate Report</button>
+                <button onClick={() => { if (demoMode) return; setShowGenerateModal(false); }} className={`flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Generate Report</button>
               </div>
             </div>
           </div>

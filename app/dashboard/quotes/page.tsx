@@ -184,6 +184,10 @@ export default function QuotesPage() {
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const demoMode = isDemoAccount();
+  // localStorage isn't readable during server rendering, so anything drawn
+  // from demo mode waits until after mount to avoid a hydration mismatch.
+  const [demoUi, setDemoUi] = useState(false);
+  useEffect(() => { setDemoUi(demoMode); }, [demoMode]);
   const { entitlements, loading: entitlementsLoading } = useEntitlements();
 
   const hasQuoteWorkflow = entitlementsLoading || entitlements?.plan?.has_quote_workflow || entitlements?.isDemo;
@@ -319,12 +323,12 @@ export default function QuotesPage() {
             <p className="text-sm text-[#687068] mt-1">Manage maintenance quotes from request to owner approval</p>
           </div>
           <div className="flex items-center gap-2">
-            {demoMode && (
+            {demoUi && (
               <span className="text-xs font-medium text-[#F59E0B] bg-[#F59E0B]/10 px-3 py-1.5 rounded-full">Demo Mode — preview only</span>
             )}
             <button
               onClick={() => { if (demoMode) return; setShowRequestModal(true); }}
-              className={`bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`bg-[#C28A78] hover:bg-[#143828] text-white font-medium px-5 py-2.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div className="w-4 h-4 flex items-center justify-center"><i className="ri-add-line text-sm"></i></div>
               Request Quote
@@ -479,12 +483,12 @@ export default function QuotesPage() {
                       <div className="flex items-center gap-2 pt-2 border-t border-[#D5D9D5]">
                         {quote.status === "requested" && <span className="text-xs text-[#3B82F6] font-medium flex items-center gap-1"><i className="ri-time-line"></i> Awaiting contractor response</span>}
                         {quote.status === "submitted" && (<>
-                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 bg-[#C28A78] text-white rounded-lg text-xs font-medium hover:bg-[#143728] transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Send to Owner</button>
-                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 border border-[#F59E0B] text-[#F59E0B] rounded-lg text-xs font-medium hover:bg-[#F59E0B]/10 transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Request Revision</button>
+                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 bg-[#C28A78] text-white rounded-lg text-xs font-medium hover:bg-[#143728] transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Send to Owner</button>
+                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 border border-[#F59E0B] text-[#F59E0B] rounded-lg text-xs font-medium hover:bg-[#F59E0B]/10 transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Request Revision</button>
                         </>)}
                         {quote.status === "owner_review" && (<>
-                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Approve</button>
-                          <button onClick={() => { if (demoMode) return; setShowRejectModal(quote.id); }} className={`px-3 py-1.5 border border-[#EF4444] text-[#EF4444] rounded-lg text-xs font-medium hover:bg-[#EF4444]/10 transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Reject</button>
+                          <button onClick={() => { if (demoMode) return; }} className={`px-3 py-1.5 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Approve</button>
+                          <button onClick={() => { if (demoMode) return; setShowRejectModal(quote.id); }} className={`px-3 py-1.5 border border-[#EF4444] text-[#EF4444] rounded-lg text-xs font-medium hover:bg-[#EF4444]/10 transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Reject</button>
                         </>)}
                         {quote.status === "approved" && <span className="text-xs text-[#10B981] font-medium flex items-center gap-1"><i className="ri-check-double-line"></i> Approved — work in progress</span>}
                         {quote.status === "rejected" && <span className="text-xs text-[#EF4444] font-medium flex items-center gap-1"><i className="ri-close-circle-line"></i> Rejected</span>}
@@ -532,7 +536,7 @@ export default function QuotesPage() {
             </div>
             <div className="flex items-center gap-3 px-5 py-4 border-t border-[#D5D9D5]">
               <button onClick={() => setShowRequestModal(false)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">Cancel</button>
-              <button onClick={() => { if (demoMode) return; setShowRequestModal(false); }} className={`flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Request Quote</button>
+              <button onClick={() => { if (demoMode) return; setShowRequestModal(false); }} className={`flex-1 px-4 py-2.5 bg-[#C28A78] text-white rounded-lg text-sm font-medium hover:bg-[#143828] transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Request Quote</button>
             </div>
           </div>
         </div>
@@ -551,7 +555,7 @@ export default function QuotesPage() {
             </div>
             <div className="flex items-center gap-3 px-5 py-4 border-t border-[#D5D9D5]">
               <button onClick={() => setShowRejectModal(null)} className="flex-1 px-4 py-2.5 border border-[#D5D9D5] rounded-lg text-sm font-medium text-[#687068] hover:bg-[#FBF9F4] transition-colors whitespace-nowrap">Cancel</button>
-              <button onClick={() => { if (demoMode) return; setShowRejectModal(null); setRejectionReason(""); }} className={`flex-1 px-4 py-2.5 bg-[#EF4444] text-white rounded-lg text-sm font-medium hover:bg-[#DC2626] transition-colors whitespace-nowrap ${demoMode ? "opacity-50 cursor-not-allowed" : ""}`}>Reject Quote</button>
+              <button onClick={() => { if (demoMode) return; setShowRejectModal(null); setRejectionReason(""); }} className={`flex-1 px-4 py-2.5 bg-[#EF4444] text-white rounded-lg text-sm font-medium hover:bg-[#DC2626] transition-colors whitespace-nowrap ${demoUi ? "opacity-50 cursor-not-allowed" : ""}`}>Reject Quote</button>
             </div>
           </div>
         </div>

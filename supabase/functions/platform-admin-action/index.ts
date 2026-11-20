@@ -71,10 +71,13 @@ serve(async (req: Request) => {
     switch (action) {
       case "suspend_user": {
         if (!target_id) throw new Error("Missing target_id");
-        const { error: updateErr } = await serviceClient
-          .from("profiles")
-          .update({ role: "suspended" })
-          .eq("id", target_id);
+        if (target_id === user.id) throw new Error("You cannot suspend your own account");
+        // "suspended" is not a value of the user_role enum, so suspension is an
+        // Auth ban: the person can no longer sign in or refresh a session, and
+        // their role is kept for when they are reactivated.
+        const { error: updateErr } = await serviceClient.auth.admin.updateUserById(target_id, {
+          ban_duration: "876000h",
+        });
 
         if (updateErr) throw new Error(updateErr.message);
 
@@ -90,10 +93,11 @@ serve(async (req: Request) => {
 
       case "reactivate_user": {
         if (!target_id) throw new Error("Missing target_id");
-        const { error: updateErr } = await serviceClient
-          .from("profiles")
-          .update({ role: "tenant" })
-          .eq("id", target_id);
+        // Lift the Auth ban. The role is left unchanged (previously this reset
+        // every reactivated account, agency admins included, to "tenant").
+        const { error: updateErr } = await serviceClient.auth.admin.updateUserById(target_id, {
+          ban_duration: "none",
+        });
 
         if (updateErr) throw new Error(updateErr.message);
 

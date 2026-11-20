@@ -49,8 +49,9 @@ A migration file being present in Git does not prove that it has been applied to
 | `016_website_leads.sql` | `website_leads` table for marketing-site forms, written only by the `submit-website-lead` function | Applied live 18 November 2026 (ledger name `016_website_leads`) |
 | `017_subscription_access_for_teams_and_portals.sql` | Let agency staff inherit the agency subscription and stop treating landlord/tenant/contractor users as read-only | Applied live 18 November 2026 (ledger name `017_subscription_access_for_teams_and_portals`) |
 | `018_agency_team_members.sql` | `agency_team_members()` for the Team settings page; allow the `account_deletion_requested` security event | Applied live 19 November 2026 (ledger name `018_agency_team_members`) |
+| `019_foreign_key_indexes.sql` | Indexes for unindexed foreign keys and Stripe lookup columns; drops two duplicate `processed_stripe_events` indexes | **Not yet applied** — awaiting approval |
 
-The next new migration must be numbered `019`. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence. Migrations `014`–`017` were applied to production on 18 November 2026 and `018` on 19 November 2026, under their file names.
+The next new migration must be numbered `020` (`019` is written but not yet applied). Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence. Migrations `014`–`017` were applied to production on 18 November 2026 and `018` on 19 November 2026, under their file names.
 
 ### Production verification on 5 November 2026
 

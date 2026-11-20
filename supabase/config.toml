@@ -1,43 +1,88 @@
 project_id = "lethub"
 
+# verify_jwt must match what is deployed. Functions marked false check the
+# caller themselves (supabase.auth.getUser) or are public by design (Stripe
+# webhook, website lead form, email-confirmation redirect, invite acceptance).
+# Note: verify_jwt = true only proves a valid JWT, and the public anon key is
+# one, so every function that changes data must also check the user itself.
+
+[functions.accept-agency-invite]
+verify_jwt = false
+
+[functions.accept-portal-invite]
+verify_jwt = false
+
+[functions.api-security-admin]
+verify_jwt = true
+
+[functions.check-secrets]
+verify_jwt = true
+
+[functions.complete-onboarding]
+verify_jwt = true
+
 [functions.complete-registration]
 verify_jwt = true
 
-[functions.accept-portal-invite]
-verify_jwt = true
+[functions.confirm-redirect]
+verify_jwt = false
+
+[functions.create-billing-portal-session]
+verify_jwt = false
 
 [functions.create-portal-invite]
+verify_jwt = true
+
+[functions.create-property]
+verify_jwt = false
+
+[functions.create-subscription-checkout]
+verify_jwt = false
+
+[functions.create-tenancy]
 verify_jwt = true
 
 [functions.create-tenant]
 verify_jwt = true
 
-[functions.create-tenancy]
+[functions.import-commit]
 verify_jwt = true
 
-[functions.create-subscription-checkout]
+[functions.import-undo]
 verify_jwt = true
 
-[functions.create-billing-portal-session]
-verify_jwt = true
-
-[functions.api-security-admin]
-verify_jwt = true
-
-[functions.stripe-webhook]
+[functions.list-properties]
 verify_jwt = false
 
-[functions.send-rent-reminder]
+[functions.manage-agency-invites]
+verify_jwt = true
+
+[functions.n8n-run-agent]
+verify_jwt = false
+
+[functions.platform-admin-action]
+verify_jwt = false
+
+[functions.platform-admin-health]
+verify_jwt = false
+
+[functions.platform-admin-settings]
+verify_jwt = false
+
+[functions.request-account-deletion]
 verify_jwt = true
 
 [functions.send-payment-receipt]
 verify_jwt = true
 
+[functions.send-rent-reminder]
+verify_jwt = true
+
+[functions.setup-stripe-products]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
 [functions.submit-website-lead]
 verify_jwt = false
-
-[functions.confirm-redirect]
-verify_jwt = false
-
-[functions.request-account-deletion]
-verify_jwt = true

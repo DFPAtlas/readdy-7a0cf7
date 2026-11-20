@@ -48,8 +48,6 @@ export default function TenantRequestCentre() {
   const [refuseReason, setRefuseReason] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const showDemo = process.env.NEXT_PUBLIC_DEMO === "true" || typeof window !== "undefined";
-
   useEffect(() => {
     fetchRequests();
   }, []);

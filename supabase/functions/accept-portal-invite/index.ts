@@ -122,106 +122,170 @@ serve(async (req: Request) => {
     const password = String(body.password || "");
     const fullName = String(body.full_name || "").trim().slice(0, 160);
 
-    if (!email || !password) {
-      return fail(req, "missing_fields", "Email and password are required.");
+    // Someone who already has a LetHub login can accept while signed in.
+    let signedInUser: { id: string; email: string } | null = null;
+    const authorization = req.headers.get("authorization") || "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (anonKey && /^bearer\s+\S+$/i.test(authorization)) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user?.email) signedInUser = { id: user.id, email: user.email.toLowerCase() };
     }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return fail(req, "weak_password", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-    }
-    if (trustedEmail && trustedEmail !== email) {
+
+    const acceptingEmail = signedInUser ? signedInUser.email : email;
+    if (!acceptingEmail) return fail(req, "missing_fields", "Email and password are required.");
+    if (trustedEmail && trustedEmail !== acceptingEmail) {
       return fail(req, "email_mismatch", "This invitation was issued to a different email address.");
     }
-
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName || email },
-    });
-    if (createError || !created?.user) {
-      const message = createError?.message || "Unable to create the account.";
-      if (/already|exists|registered/i.test(message)) {
-        return fail(req, "already_registered",
-          "An account already exists for this email. Please sign in instead.");
-      }
-      return fail(req, "account_failed", message);
-    }
-
-    const userId = created.user.id;
-
-    const accountType = role === "landlord" ? "owner" : "tenant";
-    const { error: profileError } = await admin
-      .from("profiles")
-      .upsert({
-        id: userId,
-        email,
-        full_name: fullName || email,
-        role,
-        account_type: accountType,
-      }, { onConflict: "id" });
-    if (profileError) throw profileError;
-
-    if (role === "landlord") {
-      const { data: property } = await admin
-        .from("properties")
-        .select("landlord_id")
-        .eq("id", access.property_id)
-        .maybeSingle();
-      const landlordId = property?.landlord_id;
-      if (landlordId) {
-        const { data: existingGrant } = await admin
-          .from("owner_portal_access")
-          .select("id")
-          .eq("landlord_id", landlordId)
-          .maybeSingle();
-        if (existingGrant) {
-          await admin.from("owner_portal_access")
-            .update({ profile_id: userId, is_active: true })
-            .eq("id", existingGrant.id);
-        } else {
-          await admin.from("owner_portal_access")
-            .insert({ landlord_id: landlordId, profile_id: userId, is_active: true });
-        }
-      }
-    } else {
-      const { data: tenant } = await admin
-        .from("tenants")
-        .select("id")
-        .ilike("email", email)
-        .maybeSingle();
-      if (tenant?.id) {
-        const { data: existingGrant } = await admin
-          .from("tenant_portal_access")
-          .select("id")
-          .eq("tenant_id", tenant.id)
-          .maybeSingle();
-        if (existingGrant) {
-          await admin.from("tenant_portal_access")
-            .update({ profile_id: userId, is_active: true })
-            .eq("id", existingGrant.id);
-        } else {
-          await admin.from("tenant_portal_access")
-            .insert({ tenant_id: tenant.id, profile_id: userId, is_active: true });
-        }
+    if (!signedInUser) {
+      if (!password) return fail(req, "missing_fields", "Email and password are required.");
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        return fail(req, "weak_password", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       }
     }
 
-    const { data: marked, error: markError } = await admin
+    // Claim the invite before creating anything, so one link can only ever
+    // produce one account even if it is submitted twice at the same time.
+    const { data: claimed, error: claimError } = await admin
       .from("portal_invites")
       .update({ accepted_at: new Date().toISOString() })
       .eq("id", invite.id)
       .is("accepted_at", null)
       .select("id");
-    if (markError) throw markError;
-    if (!marked || marked.length === 0) {
+    if (claimError) throw claimError;
+    if (!claimed || claimed.length === 0) {
       return fail(req, "already_used", "This invitation has already been used.");
     }
+    const releaseClaim = () =>
+      admin.from("portal_invites").update({ accepted_at: null }).eq("id", invite.id);
 
-    await admin.from("portal_access")
+    let userId: string;
+    if (signedInUser) {
+      const { data: existingProfile, error: existingProfileError } = await admin
+        .from("profiles")
+        .select("role")
+        .eq("id", signedInUser.id)
+        .maybeSingle();
+      if (existingProfileError) {
+        await releaseClaim();
+        throw existingProfileError;
+      }
+      const currentRole = String(existingProfile?.role || "");
+      // Never turn an agency, contractor or admin login into a portal login.
+      if (currentRole && currentRole !== role && currentRole !== "client") {
+        await releaseClaim();
+        return fail(req, "role_conflict",
+          "This email is already used for a different kind of LetHub account. Ask your agency to invite a different email.", 409);
+      }
+      userId = signedInUser.id;
+      if (!currentRole || currentRole === "client") {
+        const { error: roleError } = await admin
+          .from("profiles")
+          .update({ role, account_type: role === "landlord" ? "owner" : "tenant" })
+          .eq("id", userId);
+        if (roleError) {
+          await releaseClaim();
+          throw roleError;
+        }
+      }
+    } else {
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: acceptingEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName || acceptingEmail },
+      });
+      if (createError || !created?.user) {
+        await releaseClaim();
+        const message = createError?.message || "Unable to create the account.";
+        if (/already|exists|registered/i.test(message)) {
+          return fail(req, "already_registered",
+            "An account already exists for this email. Sign in, then open this invitation link again to accept it.");
+        }
+        return fail(req, "account_failed", message);
+      }
+      userId = created.user.id;
+
+      const { error: profileError } = await admin
+        .from("profiles")
+        .upsert({
+          id: userId,
+          email: acceptingEmail,
+          full_name: fullName || acceptingEmail,
+          role,
+          account_type: role === "landlord" ? "owner" : "tenant",
+        }, { onConflict: "id" });
+      if (profileError) throw profileError;
+    }
+
+    if (role === "landlord") {
+      const { data: property, error: propertyError } = await admin
+        .from("properties")
+        .select("landlord_id")
+        .eq("id", access.property_id)
+        .maybeSingle();
+      if (propertyError) throw propertyError;
+      const landlordId = property?.landlord_id;
+      if (landlordId) {
+        // Add access for this person; never move someone else's existing access.
+        const { data: ownGrant, error: grantLookupError } = await admin
+          .from("owner_portal_access")
+          .select("id")
+          .eq("landlord_id", landlordId)
+          .eq("profile_id", userId)
+          .limit(1)
+          .maybeSingle();
+        if (grantLookupError) throw grantLookupError;
+        const { error: grantError } = ownGrant
+          ? await admin.from("owner_portal_access").update({ is_active: true }).eq("id", ownGrant.id)
+          : await admin.from("owner_portal_access").insert({ landlord_id: landlordId, profile_id: userId, is_active: true });
+        if (grantError) throw grantError;
+      }
+    } else {
+      // Find the tenant through this property's tenancies, not by email across
+      // every agency.
+      const { data: tenancies, error: tenancyError } = await admin
+        .from("tenancies")
+        .select("id, tenancy_parties(tenant_id, tenants(id, email))")
+        .eq("property_id", access.property_id);
+      if (tenancyError) throw tenancyError;
+      const tenantIds = new Set<string>();
+      for (const tenancy of tenancies || []) {
+        for (const party of (tenancy as any).tenancy_parties || []) {
+          const tenant = Array.isArray(party.tenants) ? party.tenants[0] : party.tenants;
+          if (tenant?.id && String(tenant.email || "").trim().toLowerCase() === acceptingEmail) {
+            tenantIds.add(tenant.id);
+          }
+        }
+      }
+      for (const tenantId of tenantIds) {
+        const { data: ownGrant, error: grantLookupError } = await admin
+          .from("tenant_portal_access")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("profile_id", userId)
+          .limit(1)
+          .maybeSingle();
+        if (grantLookupError) throw grantLookupError;
+        const { error: grantError } = ownGrant
+          ? await admin.from("tenant_portal_access").update({ is_active: true }).eq("id", ownGrant.id)
+          : await admin.from("tenant_portal_access").insert({ tenant_id: tenantId, profile_id: userId, is_active: true });
+        if (grantError) throw grantError;
+      }
+      if (tenantIds.size === 0) {
+        console.warn("accept-portal-invite: no tenant on this property matches the invited email", access.id);
+      }
+    }
+
+    const { error: accessUpdateError } = await admin.from("portal_access")
       .update({ status: "active", user_id: userId })
       .eq("id", access.id);
+    if (accessUpdateError) throw accessUpdateError;
 
-    return reply(req, { role, portal_type: portalType, profile_ready: true });
+    return reply(req, { role, portal_type: portalType, profile_ready: true, existing_account: Boolean(signedInUser) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "We could not accept this invitation.";
     return fail(req, "server_error", message, 500);

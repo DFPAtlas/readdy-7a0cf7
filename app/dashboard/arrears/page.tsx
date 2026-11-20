@@ -10,6 +10,7 @@ import { useEntitlements } from "@/lib/useEntitlements";
 import { isDemoAccount } from "@/lib/demoMode";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { arrearsData, riskConfig } from "./ArrearsData";
 
 interface ArrearsRecord {
@@ -113,11 +114,15 @@ export default function ArrearsPage() {
 
       if (caseErr) throw caseErr;
 
-      const { data: overduePayments, error: payErr } = await supabase
-        .from("rent_payments")
-        .select("*")
-        .eq("status", "overdue")
-        .order("due_date", { ascending: false });
+      const { data: overduePayments, error: payErr } = await fetchAllPages((from, to) =>
+        supabase
+          .from("rent_payments")
+          .select("*")
+          .eq("status", "overdue")
+          .order("due_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
 
       if (payErr) throw payErr;
 

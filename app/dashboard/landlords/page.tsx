@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
+import { sendPortalInvite } from "@/lib/portalInvites";
 import LandlordCard from "@/components/dashboard/LandlordCard";
 import LandlordQuickView from "@/components/dashboard/LandlordQuickView";
 import { owners, portalStatusBadge, portalStatusLabel, Owner } from "./LandlordsData";
@@ -236,27 +237,46 @@ export default function LandlordsPage() {
     if (isDemoAccount()) { showDemoBlockedMessage(); return; }
     setSending(true);
 
-    try {
-      const accessCode = `own-${Math.random().toString(36).slice(2, 10)}`;
-      const { error: insertErr } = await supabase
-        .from("owner_portal_access")
-        .insert({ landlord_id: inviteModalOpen.id, is_active: false, access_code: accessCode });
-
-      if (insertErr) throw insertErr;
-    } catch (err: any) {
+    // Owner invites are created by the create-portal-invite function, which
+    // checks the agency, stores a hashed one-time token and emails the link.
+    const property = inviteModalOpen.linkedProperties[0];
+    if (!property) {
       setSending(false);
-      showToast("Failed to send invite: " + (err.message || "Unknown error"));
+      showToast("Add a property for this landlord before inviting them to the portal.");
       return;
     }
 
+    const result = await sendPortalInvite(supabase, {
+      portalType: "owner",
+      propertyId: property.id,
+      email: inviteEmail.trim(),
+      message: "",
+    });
+
     setSending(false);
+    if (!result.ok) {
+      showToast(result.message);
+      return;
+    }
     setInviteModalOpen(null);
-    showToast(`Invite sent to ${inviteEmail}`);
+    showToast(result.message);
     loadLandlords(true);
   };
 
-  const handleResendInvite = (owner: Owner) => {
-    showToast(`Invite resent to ${owner.email}`);
+  const handleResendInvite = async (owner: Owner) => {
+    if (isDemoAccount()) { showDemoBlockedMessage(); return; }
+    const property = owner.linkedProperties[0];
+    if (!property || !owner.email || owner.email === "-") {
+      showToast("Add an email address and a property for this landlord before resending.");
+      return;
+    }
+    const result = await sendPortalInvite(supabase, {
+      portalType: "owner",
+      propertyId: property.id,
+      email: owner.email,
+      message: "",
+    });
+    showToast(result.message);
   };
 
   const handleDisablePortal = async (owner: Owner) => {

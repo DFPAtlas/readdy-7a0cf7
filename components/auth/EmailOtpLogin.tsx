@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { deactivateDemoSession } from "@/lib/demoMode";
 
 // Accept shorter codes too, in case the Supabase OTP length setting changes.
 const MIN_CODE_LENGTH = 6;
@@ -133,6 +134,9 @@ export default function EmailOtpLogin({
         }
 
         const user = data.user ?? data.session?.user ?? null;
+        // A real sign-in ends any demo session left on this device; otherwise
+        // isDemoAccount() would keep showing sample data to a real user.
+        if (user) deactivateDemoSession();
         if (!user) {
           setError("We couldn't complete sign in. Please try again.");
           setOtp("");

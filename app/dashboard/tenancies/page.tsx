@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, TenancyRecord } from "./TenanciesData";
@@ -114,10 +115,14 @@ export default function TenanciesPage() {
         if (landErr) throw landErr;
         if (!active) return;
 
-        const { data: payments, error: payErr } = await supabase
-          .from("rent_payments")
-          .select("tenancy_id, amount, status")
-          .in("tenancy_id", tenancyIds);
+        const { data: payments, error: payErr } = await fetchAllPages((from, to) =>
+          supabase
+            .from("rent_payments")
+            .select("tenancy_id, amount, status")
+            .in("tenancy_id", tenancyIds)
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
 
         if (payErr) throw payErr;
         if (!active) return;
@@ -268,10 +273,14 @@ export default function TenanciesPage() {
       if (landErr) throw landErr;
       if (!mountedRef.current) return;
 
-      const { data: payments, error: payErr } = await supabase
-        .from("rent_payments")
-        .select("tenancy_id, amount, status")
-        .in("tenancy_id", tenancyIds);
+      const { data: payments, error: payErr } = await fetchAllPages((from, to) =>
+        supabase
+          .from("rent_payments")
+          .select("tenancy_id, amount, status")
+          .in("tenancy_id", tenancyIds)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
 
       if (payErr) throw payErr;
       if (!mountedRef.current) return;

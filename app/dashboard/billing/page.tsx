@@ -217,6 +217,22 @@ function BillingContent() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Access is granted only by the Stripe webhook, which can land a few seconds
+  // after the customer returns from Checkout. Re-check briefly so the page
+  // doesn't keep showing the old status until someone presses Refresh.
+  const confirmAttempts = useRef(0);
+  const subscriptionStatus = entitlements?.subscription?.status;
+  useEffect(() => {
+    if (checkoutState !== "success" || loading) return;
+    if (subscriptionStatus === "trialing" || subscriptionStatus === "active") return;
+    if (confirmAttempts.current >= 10) return;
+    const timer = setTimeout(() => {
+      confirmAttempts.current += 1;
+      void load();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [checkoutState, loading, subscriptionStatus, load]);
+
   const startCheckout = async (planSlug: string) => {
     if (isDemoAccount()) { showToast("Billing actions are disabled in the demo account."); return; }
 
