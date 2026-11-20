@@ -60,7 +60,11 @@ serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const metadata = user.user_metadata || {};
-    const requestedRole = String(body.role || "").trim();
+    // The login page calls this with an empty body after a user confirms their
+    // email, so fall back to the role chosen at sign-up (stored in user
+    // metadata). Either source is limited to selfRegistrationRoles below and
+    // only ever applied to a placeholder profile.
+    const requestedRole = String(body.role || metadata.requested_role || metadata.role || "").trim();
     const fullName = String(body.full_name || metadata.full_name || "").trim().slice(0, 160);
 
     const { data: existing, error: existingError } = await admin
