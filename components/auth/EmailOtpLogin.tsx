@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+// Accept shorter codes too, in case the Supabase OTP length setting changes.
+const MIN_CODE_LENGTH = 6;
 const COOLDOWN_SECONDS = 60;
 
 interface EmailOtpLoginProps {
@@ -32,7 +34,7 @@ export default function EmailOtpLogin({
   primaryHover = "#B07A69",
   emailPlaceholder = "you@company.com",
   submitLabel = "Send login code",
-  codeLength = 6, // must match Supabase Auth "Email OTP length"
+  codeLength = 8, // boxes shown; Supabase Auth "Email OTP length" is 8
 }: EmailOtpLoginProps) {
   const [email, setEmail] = useState("");
   const [otpEmail, setOtpEmail] = useState("");
@@ -229,7 +231,7 @@ export default function EmailOtpLogin({
   };
 
   const handleVerifyClick = () => {
-    if (otp.length !== codeLength || verifying) return;
+    if (otp.length < MIN_CODE_LENGTH || verifying) return;
     void verifyOtp(otp);
   };
 
@@ -247,7 +249,7 @@ export default function EmailOtpLogin({
         <div className="text-center mb-6">
           <h2 className="text-lg font-semibold text-[#3A3F3A]">Check your email</h2>
           <p className="text-sm text-[#687068] mt-1">
-            We&apos;ve sent a {codeLength}-digit login code to <strong className="text-[#3A3F3A]">{maskEmail(otpEmail)}</strong>
+            We&apos;ve sent a login code to <strong className="text-[#3A3F3A]">{maskEmail(otpEmail)}</strong>
           </p>
         </div>
 
@@ -262,7 +264,7 @@ export default function EmailOtpLogin({
             <label className="block text-sm font-medium text-[#3A3F3A] mb-2 text-center">
               Enter your code
             </label>
-            <div className="flex justify-center gap-1.5 sm:gap-3" role="group" aria-label={`${codeLength}-digit login code`}>
+            <div className="flex justify-center gap-1.5 sm:gap-3" role="group" aria-label="Login code">
               {Array.from({ length: codeLength }).map((_, index) => (
                 <input
                   key={index}
@@ -294,11 +296,11 @@ export default function EmailOtpLogin({
           <button
             type="button"
             onClick={handleVerifyClick}
-            disabled={otp.length !== codeLength || verifying}
+            disabled={otp.length < MIN_CODE_LENGTH || verifying}
             className="w-full text-white text-sm font-medium py-3 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
             style={primaryBtnStyle}
             onMouseEnter={(e) => {
-              if (otp.length === codeLength && !verifying) e.currentTarget.style.backgroundColor = primaryHover;
+              if (otp.length >= MIN_CODE_LENGTH && !verifying) e.currentTarget.style.backgroundColor = primaryHover;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = primary;
