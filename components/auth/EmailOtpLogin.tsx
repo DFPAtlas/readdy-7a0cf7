@@ -32,7 +32,7 @@ export default function EmailOtpLogin({
   primaryHover = "#B07A69",
   emailPlaceholder = "you@company.com",
   submitLabel = "Send login code",
-  codeLength = 8,
+  codeLength = 6, // must match Supabase Auth "Email OTP length"
 }: EmailOtpLoginProps) {
   const [email, setEmail] = useState("");
   const [otpEmail, setOtpEmail] = useState("");
