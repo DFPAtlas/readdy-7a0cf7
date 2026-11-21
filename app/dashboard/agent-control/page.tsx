@@ -12,6 +12,7 @@ import {
   EDGE_FUNCTION_URL,
 } from "./AgentControlData";
 import type { N8nAgent, N8nAgentRun } from "./AgentControlData";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function AgentControlPage() {
   const [agents, setAgents] = useState<N8nAgent[]>([]);
@@ -93,7 +94,8 @@ export default function AgentControlPage() {
     setActionLoading(agent.agent_key);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session, error: sessionLoadError } = await supabase.auth.getSession();
+      reportLoadError("agent-control:session", sessionLoadError);
       const userId = session?.session?.user?.id || null;
 
       const res = await fetch(EDGE_FUNCTION_URL, {

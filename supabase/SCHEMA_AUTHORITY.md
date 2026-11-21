@@ -53,8 +53,9 @@ A migration file being present in Git does not prove that it has been applied to
 | `020_rate_limits.sql` | `rate_limit_buckets` table and service-role-only `consume_rate_limit()` used by public Edge Functions | Applied live 21 November 2026 (ledger name `020_rate_limits`) |
 | `021_agency_invites.sql` | `agency_invites` table for Settings → Team invitations (hashed tokens; admins read their own agency's invites) | Applied live 21 November 2026 (ledger name `021_agency_invites`) |
 | `022_inspection_app.sql` | Inspection app fields: room checklist/order/template, overall rating, start time, signature, photo time; room photos cascade with their room | Applied live 21 November 2026 (ledger name `022_inspection_app`) |
+| `023_revoke_anon_helper_functions.sql` | Revoke anon EXECUTE on ten SECURITY DEFINER helpers that no RLS policy uses | Applied live 21 November 2026 (ledger name `023_revoke_anon_helper_functions`) |
 
-The next new migration must be numbered `023`. Migrations `019`–`022` were applied to production on 21 November 2026. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence. Migrations `014`–`017` were applied to production on 18 November 2026 and `018` on 19 November 2026, under their file names.
+The next new migration must be numbered `024`. Migrations `019`–`023` were applied to production on 21 November 2026. Do not replay migrations `001`–`008`, or treat `009`–`014` as pending, based only on the filename sequence. Migrations `014`–`017` were applied to production on 18 November 2026 and `018` on 19 November 2026, under their file names.
 
 ### Production verification on 5 November 2026
 

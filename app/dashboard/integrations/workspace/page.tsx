@@ -14,6 +14,7 @@ import {
   connectionSetupSteps,
   futureFeatures,
 } from "./WorkspaceConnectorData";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function WorkspaceConnectorPage() {
   const [connections, setConnections] = useState<WorkspaceConnection[]>([]);
@@ -80,12 +81,13 @@ export default function WorkspaceConnectorPage() {
 
     if (mapped.length > 0) {
       const connIds = mapped.map((c) => c.id);
-      const { data: logData } = await supabase
+      const { data: logData, error: logDataLoadError } = await supabase
         .from("workspace_sync_logs")
         .select("*")
         .in("connection_id", connIds)
         .order("started_at", { ascending: false })
         .limit(50);
+      reportLoadError("workspace:logData", logDataLoadError);
 
       setSyncLogs((logData || []) as unknown as WorkspaceSyncLogEntry[]);
     }
