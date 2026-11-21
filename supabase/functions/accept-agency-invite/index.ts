@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 // Accepts an agency team invitation from /join.
 //
@@ -43,6 +43,32 @@ async function sha256Hex(input: string): Promise<string> {
 const likeExact = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 const memberRoleFor = (role: string) => (role === "estate_agent_admin" ? "admin" : "agent");
 
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim() || "unknown";
+  return req.headers.get("cf-connecting-ip") || "unknown";
+}
+
+// Shared limiter (migration 020). Fails open: if the check itself errors we
+// let the request through rather than lock real users out.
+async function underRateLimit(
+  admin: SupabaseClient,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("rate limit check failed", error.message);
+    return true;
+  }
+  return data !== false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   if (req.method !== "POST") return fail(req, "method_not_allowed", "Use POST.", 405);
@@ -52,6 +78,12 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SB_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !anonKey || !serviceKey) return fail(req, "not_configured", "Server is not configured.", 500);
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+  // 30 checks per 10 minutes per IP is plenty for a real person and stops
+  // anyone hammering the endpoint with guessed tokens.
+  if (!(await underRateLimit(admin, `agency-invite-accept:ip:${clientIp(req)}`, 30, 600))) {
+    return fail(req, "rate_limited", "Too many attempts. Please wait a few minutes and try again.", 429);
+  }
 
   try {
     const body = await req.json().catch(() => ({}));

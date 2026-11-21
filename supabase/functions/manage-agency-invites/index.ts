@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@4.1.2";
 
 // Agency admins invite, list and revoke team members.
@@ -52,6 +52,26 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Exact, case-insensitive match for ilike (escape its wildcards).
 const likeExact = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Shared limiter (migration 020). Fails open: if the check itself errors we
+// let the request through rather than lock real users out.
+async function underRateLimit(
+  admin: SupabaseClient,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("rate limit check failed", error.message);
+    return true;
+  }
+  return data !== false;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
@@ -148,6 +168,11 @@ Deno.serve(async (req) => {
     }
 
     if (action !== "create") return fail(req, "bad_action", "Unknown action.");
+
+    // Each invite sends an email, so cap how many one account can send.
+    if (!(await underRateLimit(admin, `agency-invite-send:user:${user.id}`, 30, 3600))) {
+      return fail(req, "rate_limited", "You've sent a lot of invitations in the last hour. Please wait a little and try again.", 429);
+    }
 
     const email = String(body.email || "").trim().toLowerCase();
     const fullName = String(body.full_name || "").trim().slice(0, 160) || null;
