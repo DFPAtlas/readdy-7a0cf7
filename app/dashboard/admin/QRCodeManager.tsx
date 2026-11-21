@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
 import { platformProperties, type PlatformProperty } from "./AdminData";
+import { reportLoadError } from "@/lib/loadError";
 
 interface SupabaseProperty {
   id: string;
@@ -65,7 +66,8 @@ export default function QRCodeManager() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: session } = await supabase.auth.getSession();
+        const { data: session, error: sessionLoadError } = await supabase.auth.getSession();
+        reportLoadError("QRCodeManager:session", sessionLoadError);
         const user = session?.session?.user;
         const demo = isDemoAccount(user ?? null);
         setDemoMode(demo);
@@ -136,7 +138,8 @@ export default function QRCodeManager() {
     setSaving(true);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session, error: sessionLoadError } = await supabase.auth.getSession();
+      reportLoadError("QRCodeManager:session", sessionLoadError);
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-property`, {
         method: "POST",
         headers: {

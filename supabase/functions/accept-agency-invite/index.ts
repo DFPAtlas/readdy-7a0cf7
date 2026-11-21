@@ -112,6 +112,25 @@ Deno.serve(async (req) => {
       .ilike("email", likeExact(invitedEmail))
       .maybeSingle();
 
+    // Who is calling, if anyone is signed in.
+    const authorization = req.headers.get("authorization") || "";
+    let signedIn: { id: string; email: string; name: string } | null = null;
+    if (/^bearer\s+\S+$/i.test(authorization)) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user) {
+        const metaName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : "";
+        signedIn = { id: user.id, email: String(user.email || "").toLowerCase(), name: metaName };
+      }
+    }
+    // A login can exist without a profile row (for example if sign-up stopped
+    // part-way). Treat a signed-in caller with the invited email as that account,
+    // otherwise they'd be told to sign in again and again.
+    const loginWithoutProfile = !existingProfile && signedIn?.email === invitedEmail;
+
     if (mode === "verify") {
       return reply(req, {
         success: true,
@@ -119,27 +138,25 @@ Deno.serve(async (req) => {
         email: invitedEmail,
         full_name: invite.full_name,
         role: invite.role,
-        account_exists: Boolean(existingProfile),
+        account_exists: Boolean(existingProfile) || loginWithoutProfile,
       });
     }
     if (mode !== "accept") return fail(req, "bad_mode", "Unknown request.");
 
     let userId: string;
     let existingRoleUpdate: string | null = null;
+    let missingProfileName: string | null = null;
 
-    if (existingProfile) {
+
+    if (existingProfile || loginWithoutProfile) {
       // Existing account: must be signed in as the invited email.
-      const authorization = req.headers.get("authorization") || "";
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authorization } },
-        auth: { persistSession: false },
-      });
-      const { data: { user } } = await userClient.auth.getUser();
+      const user = signedIn;
       if (!user) return fail(req, "sign_in_required", "You already have a LetHub account. Sign in to accept this invitation.", 401);
-      if (String(user.email || "").toLowerCase() !== invitedEmail || user.id !== existingProfile.id) {
+      if (user.email !== invitedEmail || (existingProfile && user.id !== existingProfile.id)) {
         return fail(req, "email_mismatch", `This invitation is for ${invitedEmail}. Sign in with that email to accept it.`, 403);
       }
-      const currentRole = String(existingProfile.role || "");
+      if (!existingProfile) missingProfileName = user.name || invite.full_name || invitedEmail;
+      const currentRole = String(existingProfile?.role || "");
       if (!JOINABLE_ROLES.has(currentRole)) {
         return fail(req, "role_conflict",
           "This email is already used for a different kind of LetHub account. Ask your agency to invite a different email, or contact support@lethub.uk.", 409);
@@ -191,7 +208,13 @@ Deno.serve(async (req) => {
     if (claimError) throw claimError;
     if (!claimed?.length) return fail(req, "already_used", "This invitation has already been used. Sign in instead.");
 
-    if (existingRoleUpdate) {
+    if (missingProfileName !== null) {
+      const { error: profileError } = await admin.from("profiles").upsert(
+        { id: userId, email: invitedEmail, full_name: missingProfileName, role: invite.role, account_type: "agency" },
+        { onConflict: "id" },
+      );
+      if (profileError) throw profileError;
+    } else if (existingRoleUpdate) {
       const { error: roleError } = await admin
         .from("profiles")
         .update({ role: existingRoleUpdate, account_type: "agency" })

@@ -44,6 +44,7 @@ import {
   statusStyles,
   type OverviewKpi,
 } from "./SupaAdminData";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function SupaAdminClient({
   activeTab,
@@ -122,11 +123,12 @@ export default function SupaAdminClient({
           setIsAdmin(false);
           setCurrentRole("unknown");
         } else {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileLoadError } = await supabase
             .from("profiles")
             .select("role, id")
             .eq("id", session.user.id)
             .maybeSingle();
+          reportLoadError("SupaAdminClient:profile", profileLoadError);
 
           if (!active) return;
 
