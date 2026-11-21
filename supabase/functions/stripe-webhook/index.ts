@@ -1,7 +1,15 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@13";
+
+// Pinned to the API version this stripe-node release is built for, so the
+// objects we read (subscription.current_period_*, invoice.subscription) have
+// the shape the code expects. Webhook payloads may use the account's newer
+// default version, so invoice events read the subscription id defensively and
+// every handler re-fetches the subscription through this client.
+const STRIPE_API_VERSION = "2023-08-16";
+
+type AdminClient = SupabaseClient;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -28,15 +36,39 @@ function normaliseStatus(status: string): string {
   return known.has(status) ? status : "incomplete";
 }
 
-async function claimEvent(admin: ReturnType<typeof createClient>, event: Stripe.Event) {
-  const { data: existing } = await admin
+// Older API versions put the subscription on invoice.subscription; from
+// 2025-03-31 it moved to invoice.parent.subscription_details.subscription.
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const legacy = invoice.subscription;
+  if (typeof legacy === "string") return legacy;
+  if (legacy && typeof legacy === "object" && "id" in legacy) return legacy.id;
+  const parent = (invoice as Stripe.Invoice & {
+    parent?: { subscription_details?: { subscription?: string | { id: string } | null } | null } | null;
+  }).parent;
+  const nested = parent?.subscription_details?.subscription;
+  if (typeof nested === "string") return nested;
+  if (nested && typeof nested === "object") return nested.id;
+  return null;
+}
+
+const STALE_PROCESSING_MS = 5 * 60 * 1000;
+
+async function claimEvent(admin: AdminClient, event: Stripe.Event) {
+  const { data: existing, error: lookupError } = await admin
     .from("processed_stripe_events")
-    .select("id, status, attempt_count")
+    .select("id, status, attempt_count, updated_at, created_at")
     .eq("stripe_event_id", event.id)
     .maybeSingle();
+  if (lookupError) throw lookupError;
 
   if (existing?.status === "processed") return { process: false, reason: "duplicate" };
-  if (existing?.status === "processing") return { process: false, reason: "in_progress" };
+  if (existing?.status === "processing") {
+    // A run that died part-way (timeout, crash) would otherwise leave the event
+    // "processing" forever and every Stripe retry would be acknowledged
+    // without doing anything. Take it over once it is clearly stale.
+    const lastTouched = new Date(existing.updated_at || existing.created_at || 0).getTime();
+    if (Date.now() - lastTouched < STALE_PROCESSING_MS) return { process: false, reason: "in_progress" };
+  }
 
   if (existing) {
     const { error } = await admin
@@ -71,7 +103,7 @@ async function claimEvent(admin: ReturnType<typeof createClient>, event: Stripe.
 }
 
 async function markEvent(
-  admin: ReturnType<typeof createClient>,
+  admin: AdminClient,
   eventId: string,
   status: "processed" | "failed",
   errorMessage?: string,
@@ -86,7 +118,7 @@ async function markEvent(
 }
 
 async function resolvePlan(
-  admin: ReturnType<typeof createClient>,
+  admin: AdminClient,
   subscription: Stripe.Subscription,
 ) {
   const price = subscription.items.data[0]?.price;
@@ -110,7 +142,7 @@ async function resolvePlan(
 }
 
 async function projectSubscription(
-  admin: ReturnType<typeof createClient>,
+  admin: AdminClient,
   subscription: Stripe.Subscription,
   fallbackUserId?: string,
 ) {
@@ -188,7 +220,7 @@ serve(async (req: Request) => {
   const signature = req.headers.get("stripe-signature");
   if (!signature) return json({ error: "Missing stripe-signature header" }, 400);
 
-  const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-16.basil" });
+  const stripe = new Stripe(stripeKey, { apiVersion: STRIPE_API_VERSION });
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   let event: Stripe.Event | null = null;
 
@@ -220,15 +252,19 @@ serve(async (req: Request) => {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        await projectSubscription(admin, event.data.object as Stripe.Subscription);
+        // Events can arrive out of order, so project Stripe's current state
+        // rather than the snapshot inside this (possibly older) event.
+        const snapshot = event.data.object as Stripe.Subscription;
+        const current = await stripe.subscriptions.retrieve(snapshot.id);
+        await projectSubscription(admin, current);
         break;
       }
 
       case "invoice.payment_succeeded":
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        if (typeof invoice.subscription === "string") {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+        const subscriptionId = invoiceSubscriptionId(event.data.object as Stripe.Invoice);
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           await projectSubscription(admin, subscription);
         }
         break;

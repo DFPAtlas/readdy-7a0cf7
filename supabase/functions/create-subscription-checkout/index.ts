@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@13";
@@ -91,13 +90,9 @@ serve(async (req: Request) => {
       return reply(req, { error: "A valid request_id is required" }, 400);
     }
 
-    const priceColumn = billingCycle === "annual"
-      ? "stripe_annual_price_id"
-      : "stripe_monthly_price_id";
-
     const { data: plan, error: planError } = await admin
       .from("subscription_plans")
-      .select(`slug, name, trial_days, is_active, is_enterprise, ${priceColumn}`)
+      .select("slug, name, trial_days, is_active, is_enterprise, stripe_monthly_price_id, stripe_annual_price_id")
       .eq("slug", planSlug)
       .eq("is_active", true)
       .maybeSingle();
@@ -107,12 +102,14 @@ serve(async (req: Request) => {
       return reply(req, { error: "Enterprise subscriptions are arranged through LetHub sales" }, 400);
     }
 
-    const stripePriceId = String(plan[priceColumn] || "");
+    const stripePriceId = String(
+      (billingCycle === "annual" ? plan.stripe_annual_price_id : plan.stripe_monthly_price_id) || "",
+    );
     if (!stripePriceId.startsWith("price_")) {
       return reply(req, { error: `Stripe pricing is not configured for ${plan.name} ${billingCycle}` }, 503);
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-16.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-08-16" });
 
     const { data: existingSubscription, error: existingError } = await admin
       .from("account_subscriptions")

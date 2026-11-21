@@ -1,40 +1,12 @@
-// @ts-nocheck
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-};
+// Disabled. The previous version listed which secrets were configured to any caller.
+// Kept as a stub (rather than deleted) so a deploy from this repo can never
+// bring the old, unauthenticated version back.
 
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" };
 
-  const secrets = [
-    "SB_SERVICE_ROLE_KEY",
-    "STRIPE_SECRET_KEY",
-    "STRIPE_WEBHOOK_SECRET",
-    "STRIPE_PRICE_STARTER_MONTHLY",
-    "STRIPE_PRICE_STARTER_ANNUAL",
-    "STRIPE_PRICE_PROFESSIONAL_MONTHLY",
-    "STRIPE_PRICE_PROFESSIONAL_ANNUAL",
-    "STRIPE_PRICE_BUSINESS_MONTHLY",
-    "STRIPE_PRICE_BUSINESS_ANNUAL",
-  ];
-
-  const results: Record<string, boolean> = {};
-  const missing: string[] = [];
-
-  for (const s of secrets) {
-    const val = Deno.env.get(s);
-    results[s] = !!val;
-    if (!val) missing.push(s);
-  }
-
-  return new Response(
-    JSON.stringify({ results, all_present: missing.length === 0, missing }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-});
+Deno.serve(() => new Response(JSON.stringify({
+  error: "Secret diagnostics are disabled in production.",
+  code: "ENDPOINT_DISABLED",
+}), { status: 503, headers }));

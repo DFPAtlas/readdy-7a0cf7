@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { reportLoadError } from "@/lib/loadError";
 
 interface PetRequest {
   id: string;
@@ -48,8 +49,6 @@ export default function TenantRequestCentre() {
   const [refuseReason, setRefuseReason] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const showDemo = process.env.NEXT_PUBLIC_DEMO === "true" || typeof window !== "undefined";
-
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -63,15 +62,17 @@ export default function TenantRequestCentre() {
         return;
       }
 
-      const { data: petData } = await supabase
+      const { data: petData, error: petDataLoadError } = await supabase
         .from("pet_requests")
         .select("id, status, description, created_at, decided_on, refusal_reason, tenancy_id")
         .order("created_at", { ascending: false });
+      reportLoadError("TenantRequestCentre:petData", petDataLoadError);
 
-      const { data: modData } = await supabase
+      const { data: modData, error: modDataLoadError } = await supabase
         .from("modification_requests")
         .select("id, status, modification_type, description, created_at, decided_on, refusal_reason, tenancy_id")
         .order("created_at", { ascending: false });
+      reportLoadError("TenantRequestCentre:modData", modDataLoadError);
 
       const tenancyIds = new Set<string>();
       (petData || []).forEach((p: any) => tenancyIds.add(p.tenancy_id));
@@ -80,35 +81,40 @@ export default function TenantRequestCentre() {
       const tenancyMap: Record<string, { ref: string; property_name: string; tenant_name: string; tenant_email: string; tenant_profile_id: string }> = {};
 
       if (tenancyIds.size > 0) {
-        const { data: tenancies } = await supabase
+        const { data: tenancies, error: tenanciesLoadError } = await supabase
           .from("tenancies")
           .select("id, property_id")
           .in("id", Array.from(tenancyIds));
+        reportLoadError("TenantRequestCentre:tenancies", tenanciesLoadError);
 
-        const { data: parties } = await supabase
+        const { data: parties, error: partiesLoadError } = await supabase
           .from("tenancy_parties")
           .select("tenancy_id, tenant_id")
           .in("tenancy_id", Array.from(tenancyIds))
           .eq("is_lead", true);
+        reportLoadError("TenantRequestCentre:parties", partiesLoadError);
 
         const tenantIds = [...new Set((parties || []).map((p: any) => p.tenant_id))];
         const propertyIds = [...new Set((tenancies || []).map((t: any) => t.property_id))];
 
-        const { data: tenants } = await supabase
+        const { data: tenants, error: tenantsLoadError } = await supabase
           .from("tenants")
           .select("id, full_name, email")
           .in("id", tenantIds);
+        reportLoadError("TenantRequestCentre:tenants", tenantsLoadError);
 
-        const { data: properties } = await supabase
+        const { data: properties, error: propertiesLoadError } = await supabase
           .from("properties")
           .select("id, line1, city, postcode")
           .in("id", propertyIds);
+        reportLoadError("TenantRequestCentre:properties", propertiesLoadError);
 
-        const { data: portalAccess } = await supabase
+        const { data: portalAccess, error: portalAccessLoadError } = await supabase
           .from("tenant_portal_access")
           .select("tenant_id, profile_id")
           .in("tenant_id", tenantIds)
           .eq("is_active", true);
+        reportLoadError("TenantRequestCentre:portalAccess", portalAccessLoadError);
 
         const profileMap: Record<string, string> = {};
         (portalAccess || []).forEach((pa: any) => {

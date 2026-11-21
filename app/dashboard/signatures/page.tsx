@@ -17,6 +17,7 @@ import {
   SignatureDocument,
   SignatureParty,
 } from './SignatureData';
+import { reportLoadError } from "@/lib/loadError";
 
 const statusFilterOptions = ['All', 'Draft', 'Sent', 'Viewed', 'Signed', 'Completed'];
 
@@ -65,7 +66,8 @@ export default function SignaturesPage() {
         if (sigErr) throw sigErr;
         if (!sigs || sigs.length === 0) { setDocuments([]); setProperties([]); setLoading(false); return; }
         const propIds = [...new Set(sigs.map((s: any) => s.property_id).filter(Boolean))];
-        const { data: props } = await supabase.from('properties').select('id, line1, city, postcode').in('id', propIds);
+        const { data: props, error: propsLoadError } = await supabase.from('properties').select('id, line1, city, postcode').in('id', propIds);
+        reportLoadError("signatures:props", propsLoadError);
         const propMap = new Map<string, any>(); (props || []).forEach((p: any) => propMap.set(p.id, p));
         const builtProps = [{ id: 'all', name: 'All Properties' }]; propMap.forEach(p => builtProps.push({ id: p.id, name: p.line1 || p.id.slice(0, 8) })); setProperties(builtProps);
         const typeSet = new Set<string>(); typeSet.add('All');

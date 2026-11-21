@@ -8,6 +8,7 @@ import { isDemoAccount } from "@/lib/demoMode";
 import { contractorJobs as mockJobs, contractorDocs as mockDocs, contractorProfile as mockProfile, performanceStats as mockStats } from "./ContractorData";
 import { JOB_ASSIGNMENT_STATUS, getStatusConfig } from "@/lib/contractorSystem";
 import ContractorActionCentre from "@/components/dashboard/ContractorActionCentre";
+import { reportLoadError } from "@/lib/loadError";
 
 const statusConfig: Record<string, { color: string; bg: string; icon: string }> = {
   Assigned: { color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10", icon: "ri-flag-line" },
@@ -84,11 +85,12 @@ export default function ContractorPortalPage() {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: contractorProfile } = await supabase
+          const { data: contractorProfile, error: contractorProfileLoadError } = await supabase
             .from("contractor_profiles")
             .select("business_name, trade, rating")
             .eq("profile_id", user.id)
             .maybeSingle();
+          reportLoadError("contractor:contractorProfile", contractorProfileLoadError);
           if (contractorProfile) {
             setProfile({
               companyName: contractorProfile.business_name || "Your business",
@@ -110,14 +112,16 @@ export default function ContractorPortalPage() {
         const propertyIds = [...new Set(mJobs.map((j: any) => j.property_id))];
         const contractorIds = [...new Set(mJobs.map((j: any) => j.assigned_contractor_profile_id).filter(Boolean))];
 
-        const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+        const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+        reportLoadError("contractor:properties", propertiesLoadError);
         const propMap = new Map<string, any>();
         (properties || []).forEach((p: any) => propMap.set(p.id, p));
 
-        const { data: cQuotes } = await supabase
+        const { data: cQuotes, error: cQuotesLoadError } = await supabase
           .from("contractor_quotes")
           .select("maintenance_action_id, total_amount, status, created_at")
           .in("maintenance_action_id", mJobs.map((j: any) => j.id));
+        reportLoadError("contractor:cQuotes", cQuotesLoadError);
 
         const quoteMap = new Map<string, any>();
         (cQuotes || []).forEach((q: any) => {

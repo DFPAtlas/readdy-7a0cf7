@@ -5,6 +5,7 @@ import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount } from "@/lib/demoMode";
+import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useEntitlements } from "@/lib/useEntitlements";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
@@ -21,6 +22,10 @@ import {
   Observation,
   RoomCheck,
 } from "./InspectionData";
+import { reportLoadError } from "@/lib/loadError";
+
+// The on-site inspection app is switched off until it saves to the database.
+const inspectionAppEnabled = isPathInLaunchScope("/mobile/property-check");
 
 interface LiveInspection {
   id: string;
@@ -124,10 +129,11 @@ export default function InspectionsPage() {
 
         const propertyIds = [...new Set(inspData.map((i: any) => i.property_id))];
 
-        const { data: properties } = await supabase
+        const { data: properties, error: propertiesLoadError } = await supabase
           .from("properties")
           .select("id, line1, city, postcode")
           .in("id", propertyIds);
+        reportLoadError("inspections:properties", propertiesLoadError);
 
         const propMap = new Map<string, any>();
         (properties || []).forEach((p: any) => propMap.set(p.id, p));
@@ -212,12 +218,14 @@ export default function InspectionsPage() {
       if (demoMode) return;
       async function refetch() {
         try {
-          const { data: inspData } = await supabase
+          const { data: inspData, error: inspDataLoadError } = await supabase
             .from("inspections")
             .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, created_by, created_at, updated_at");
+          reportLoadError("inspections:inspData", inspDataLoadError);
           if (!inspData || inspData.length === 0) { setInspections([]); return; }
           const propertyIds = [...new Set(inspData.map((i: any) => i.property_id))];
-          const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+          const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+          reportLoadError("inspections:properties", propertiesLoadError);
           const propMap = new Map<string, any>();
           (properties || []).forEach((p: any) => propMap.set(p.id, p));
           const built: LiveInspection[] = (inspData || []).map((i: any) => {
@@ -489,7 +497,7 @@ export default function InspectionsPage() {
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {item.status === "Scheduled" && (
+                            {item.status === "Scheduled" && inspectionAppEnabled && (
                               <Link
                                 href={`/mobile/property-check?inspection_id=${item.id}`}
                                 className="text-xs font-medium text-[#C28A78] hover:underline"
@@ -497,7 +505,7 @@ export default function InspectionsPage() {
                                 Start
                               </Link>
                             )}
-                            {item.status === "In Progress" && (
+                            {item.status === "In Progress" && inspectionAppEnabled && (
                               <Link
                                 href={`/mobile/property-check?inspection_id=${item.id}`}
                                 className="text-xs font-medium text-[#D4A85C] hover:underline"

@@ -26,6 +26,7 @@ import {
   ComplianceItem,
   PropertyCompliance,
 } from "./ComplianceData";
+import { reportLoadError } from "@/lib/loadError";
 
 function daysUntil(dateStr: string | null): number {
   if (!dateStr) return 999;
@@ -179,11 +180,14 @@ export default function CompliancePage() {
       if (demoMode) return;
       async function refetch() {
         try {
-          const { data: items } = await supabase.from("property_compliance_items").select("id, property_id, obligation_code, status, last_completed, next_due, document_id, exemption_ref");
+          const { data: items, error: itemsLoadError } = await supabase.from("property_compliance_items").select("id, property_id, obligation_code, status, last_completed, next_due, document_id, exemption_ref");
+          reportLoadError("compliance:items", itemsLoadError);
           if (!items || items.length === 0) { setComplianceItems([]); setPropertyCompliance([]); return; }
           const propertyIds = [...new Set(items.map((i: any) => i.property_id))];
-          const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode, is_hmo").in("id", propertyIds);
-          const { data: compDocs } = await supabase.from("compliance_documents").select("id, property_id, document_type, certificate_number, issued_date, expiry_date, uploaded_file_url, verification_status, notes").in("property_id", propertyIds);
+          const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city, postcode, is_hmo").in("id", propertyIds);
+          reportLoadError("compliance:properties", propertiesLoadError);
+          const { data: compDocs, error: compDocsLoadError } = await supabase.from("compliance_documents").select("id, property_id, document_type, certificate_number, issued_date, expiry_date, uploaded_file_url, verification_status, notes").in("property_id", propertyIds);
+          reportLoadError("compliance:compDocs", compDocsLoadError);
           const propMap = new Map<string, any>(); (properties || []).forEach((p: any) => propMap.set(p.id, p));
           const docsByProp = new Map<string, any[]>(); (compDocs || []).forEach((d: any) => { if (!docsByProp.has(d.property_id)) docsByProp.set(d.property_id, []); docsByProp.get(d.property_id)!.push(d); });
           const builtItems: ComplianceItem[] = [];

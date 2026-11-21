@@ -225,7 +225,7 @@ export default function PricingPage() {
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
                 </tr>
                 <tr className="border-t border-[#D5D9D5]">
-                  <td className="px-6 py-3 text-[#475569]">Contractor management</td>
+                  <td className="px-6 py-3 text-[#475569]">Contractor management <span className="text-xs text-[#94A3B8]">(coming soon)</span></td>
                   <td className="text-center px-4 py-3"><i className="ri-close-line text-[#94A3B8]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
@@ -256,14 +256,14 @@ export default function PricingPage() {
                   </td>
                 </tr>
                 <tr className="border-t border-[#D5D9D5]">
-                  <td className="px-6 py-3 text-[#475569]">AI Property Assistant</td>
+                  <td className="px-6 py-3 text-[#475569]">AI Property Assistant <span className="text-xs text-[#94A3B8]">(coming soon)</span></td>
                   <td className="text-center px-4 py-3"><i className="ri-close-line text-[#94A3B8]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>
                 </tr>
                 <tr className="border-t border-[#D5D9D5]">
-                  <td className="px-6 py-3 text-[#475569]">API access</td>
+                  <td className="px-6 py-3 text-[#475569]">API access <span className="text-xs text-[#94A3B8]">(coming soon)</span></td>
                   <td className="text-center px-4 py-3"><i className="ri-close-line text-[#94A3B8]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-close-line text-[#94A3B8]"></i></td>
                   <td className="text-center px-4 py-3"><i className="ri-check-line text-[#7A9A7E]"></i></td>

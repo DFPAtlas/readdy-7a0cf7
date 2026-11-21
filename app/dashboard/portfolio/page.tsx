@@ -9,6 +9,7 @@ import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount, showDemoBlockedMessage } from "@/lib/demoMode";
 import { showRlsError } from "@/lib/rlsErrorHandler";
 import PropertyHealthScoreCard from "@/components/property/PropertyHealthScoreCard";
+import { reportLoadError } from "@/lib/loadError";
 
 interface Property {
   id: string;
@@ -116,11 +117,12 @@ export default function PortfolioPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileLoadError } = await supabase
           .from("profiles")
           .select("account_type")
           .eq("id", session.user.id)
           .maybeSingle();
+        reportLoadError("portfolio:profile", profileLoadError);
         if (profile && mountedRef.current) {
           setAccountType((profile as any).account_type || null);
         }
@@ -130,10 +132,11 @@ export default function PortfolioPage() {
 
   const fetchProperties = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error: dataLoadError } = await supabase
         .from("properties")
         .select("*")
         .order("created_at", { ascending: false });
+      reportLoadError("portfolio:data", dataLoadError);
 
       if (!mountedRef.current) return;
 
@@ -248,11 +251,12 @@ export default function PortfolioPage() {
         setSaving(false);
         return;
       }
-      const { data: landlord } = await supabase
+      const { data: landlord, error: landlordLoadError } = await supabase
         .from("landlords")
         .select("id")
         .eq("owner_profile_id", session.user.id)
         .maybeSingle();
+      reportLoadError("portfolio:landlord", landlordLoadError);
       if (!landlord) {
         showToast("No landlord record found. Please contact support.");
         setSaving(false);
@@ -298,11 +302,12 @@ export default function PortfolioPage() {
         setSaving(false);
         return;
       }
-      const { data: landlord } = await supabase
+      const { data: landlord, error: landlordLoadError } = await supabase
         .from("landlords")
         .select("id")
         .eq("owner_profile_id", session.user.id)
         .maybeSingle();
+      reportLoadError("portfolio:landlord", landlordLoadError);
       const { error } = await supabase
         .from("properties")
         .update({

@@ -7,6 +7,8 @@ import { isDemoAccount } from "@/lib/demoMode";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
 import PropertyHealthScoreCard from "@/components/property/PropertyHealthScoreCard";
 import { usePortalBranding, PortalBrandingHeader } from "@/components/PortalBranding";
+import { reportLoadError } from "@/lib/loadError";
+import LoadErrorBanner from "@/components/LoadErrorBanner";
 
 interface PropertyData {
   id: string;
@@ -78,12 +80,13 @@ export default function OwnerDashboardPage() {
         return;
       }
 
-      const { data: access } = await supabase
+      const { data: access, error: accessLoadError } = await supabase
         .from("owner_portal_access")
         .select("id, landlord_id, is_active")
         .eq("profile_id", session.user.id)
         .eq("is_active", true)
         .maybeSingle();
+      reportLoadError("dashboard:access", accessLoadError);
 
       if (!access) {
         await supabase.auth.signOut();
@@ -93,13 +96,15 @@ export default function OwnerDashboardPage() {
 
       const landlordId = (access as any).landlord_id;
 
-      const { data: landlord } = await supabase.from("landlords").select("display_name, email").eq("id", landlordId).maybeSingle();
+      const { data: landlord, error: landlordLoadError } = await supabase.from("landlords").select("display_name, email").eq("id", landlordId).maybeSingle();
+      reportLoadError("dashboard:landlord", landlordLoadError);
       if (landlord) {
         setOwnerName((landlord as any).display_name || "");
         setOwnerEmail((landlord as any).email || "");
       }
 
-      const { data: props } = await supabase.from("properties").select("id, line1, city, postcode, bedrooms, epc_rating").eq("landlord_id", landlordId);
+      const { data: props, error: propsLoadError } = await supabase.from("properties").select("id, line1, city, postcode, bedrooms, epc_rating").eq("landlord_id", landlordId);
+      reportLoadError("dashboard:props", propsLoadError);
       const propList = (props || []) as any[];
       const propIds = propList.map((p: any) => p.id);
 
@@ -247,6 +252,7 @@ export default function OwnerDashboardPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <LoadErrorBanner />
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

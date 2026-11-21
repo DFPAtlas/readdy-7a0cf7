@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
 import { sendPortalInvite } from "@/lib/portalInvites";
 import { tenancies, tenancyStatusBadge, tenancyStatusLabel, portalStatusBadge, portalStatusLabel, TenancyRecord } from "../TenanciesData";
+import { reportLoadError } from "@/lib/loadError";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: "ri-dashboard-line" },
@@ -97,7 +98,8 @@ async function loadLiveTenancy(tenancyId: string) {
   const prop: any = propRes.data;
   let landlord: any = null;
   if (prop?.landlord_id) {
-    const { data } = await supabase.from("landlords").select("id, display_name, email").eq("id", prop.landlord_id).maybeSingle();
+    const { data, error: dataLoadError } = await supabase.from("landlords").select("id, display_name, email").eq("id", prop.landlord_id).maybeSingle();
+    reportLoadError("TenancyDetail:data", dataLoadError);
     landlord = data;
   }
 

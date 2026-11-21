@@ -9,6 +9,8 @@ import { useEntitlements } from "@/lib/useEntitlements"
 import { isDemoAccount } from "@/lib/demoMode"
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient"
+import { fetchAllPages } from "@/lib/fetchAllPages"
+import { reportLoadError } from "@/lib/loadError"
 import { payments, PaymentRecord } from "./PaymentsData"
 
 const demoFinancialActions: FinancialActionItem[] = [
@@ -79,14 +81,18 @@ export default function PaymentsPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data: rp, error: rpErr } = await supabase
+      // Read every page; a single request stops silently at 1,000 rows.
+      const { data: rp, error: rpErr } = await fetchAllPages((from, to) => supabase
         .from("rent_payments")
         .select("*")
         .order("due_date", { ascending: false })
+        .order("id")
+        .range(from, to))
 
       if (rpErr) throw rpErr
 
-      const { data: props } = await supabase.from("properties").select("id, line1, city")
+      const { data: props, error: propsErr } = await supabase.from("properties").select("id, line1, city")
+      if (propsErr) throw propsErr
       const propMap = new Map((props || []).map((p: any) => [p.id, p]))
 
       const mapped: PaymentRecord[] = (rp || []).map((r: any) => {
@@ -115,7 +121,8 @@ export default function PaymentsPage() {
 
       setPaymentList(mapped)
 
-      const { data: be } = await supabase.from("billing_events").select("*").order("created_at", { ascending: false }).limit(20)
+      const { data: be, error: beErr } = await supabase.from("billing_events").select("*").order("created_at", { ascending: false }).limit(20)
+      reportLoadError("payments:billing_events", beErr)
       if (be) setBillingList(be)
     } catch (e: any) {
       setError(e.message || "Failed to load payments")

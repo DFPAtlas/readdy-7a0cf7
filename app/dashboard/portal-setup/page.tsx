@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getPortalStatus, portalTypeConfig, portalDisclaimer, PortalIssue } from "@/lib/portalStatus";
 import { portalProperties, PortalProperty, statusBadge as oldStatusBadge, statusLabel as oldStatusLabel } from "./PortalSetupData";
 import { fetchInviteTargets, sendPortalInvite, InviteTargets } from "@/lib/portalInvites";
+import { reportLoadError } from "@/lib/loadError";
 
 interface FlatPortalUser {
   id: string
@@ -87,10 +88,11 @@ export default function PortalSetupPage() {
       }
 
       const propertyIds = [...new Set((access || []).map((a: any) => a.property_id))];
-      const { data: props } = await supabase
+      const { data: props, error: propsLoadError } = await supabase
         .from("properties")
         .select("id, line1, city, postcode, landlord_id")
         .in("id", propertyIds);
+      reportLoadError("portal-setup:props", propsLoadError);
 
       const propMap = new Map((props || []).map((p: any) => [p.id, p]));
 

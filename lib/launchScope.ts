@@ -56,8 +56,13 @@ const DASHBOARD_LAUNCH_EXACT = [
 /** Non-dashboard app areas that are prototypes and switched off at launch. */
 const OTHER_DISABLED_PREFIXES = ["/mobile", "/contractor/dashboard"];
 
-/** Prototype routes inside an otherwise-disabled area that do use live data. */
-const OTHER_ENABLED_EXCEPTIONS = ["/mobile/property-check"];
+/**
+ * Prototype routes inside an otherwise-disabled area that do use live data.
+ * /mobile/property-check was here, but it lists hard-coded sample properties
+ * and discards completed inspections without saving them, so it stays off
+ * until it reads and writes the inspections table.
+ */
+const OTHER_ENABLED_EXCEPTIONS: string[] = [];
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);

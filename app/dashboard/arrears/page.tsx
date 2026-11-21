@@ -10,7 +10,9 @@ import { useEntitlements } from "@/lib/useEntitlements";
 import { isDemoAccount } from "@/lib/demoMode";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { arrearsData, riskConfig } from "./ArrearsData";
+import { reportLoadError } from "@/lib/loadError";
 
 interface ArrearsRecord {
   id: number;
@@ -113,11 +115,15 @@ export default function ArrearsPage() {
 
       if (caseErr) throw caseErr;
 
-      const { data: overduePayments, error: payErr } = await supabase
-        .from("rent_payments")
-        .select("*")
-        .eq("status", "overdue")
-        .order("due_date", { ascending: false });
+      const { data: overduePayments, error: payErr } = await fetchAllPages((from, to) =>
+        supabase
+          .from("rent_payments")
+          .select("*")
+          .eq("status", "overdue")
+          .order("due_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
 
       if (payErr) throw payErr;
 
@@ -128,9 +134,12 @@ export default function ArrearsPage() {
       (cases || []).forEach((c: any) => { propertyIds.add(c.property_id); tenantIds.add(c.tenant_id); tenancyIds.add(c.tenancy_id); });
       (overduePayments || []).forEach((p: any) => { propertyIds.add(p.property_id); tenantIds.add(p.tenant_id); tenancyIds.add(p.tenancy_id); });
 
-      const { data: properties } = await supabase.from("properties").select("id, line1, city").in("id", Array.from(propertyIds));
-      const { data: tenants } = await supabase.from("tenants").select("id, full_name, email, phone").in("id", Array.from(tenantIds));
-      const { data: tenancies } = await supabase.from("tenancies").select("id, rent_amount, start_date").in("id", Array.from(tenancyIds));
+      const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city").in("id", Array.from(propertyIds));
+      reportLoadError("arrears:properties", propertiesLoadError);
+      const { data: tenants, error: tenantsLoadError } = await supabase.from("tenants").select("id, full_name, email, phone").in("id", Array.from(tenantIds));
+      reportLoadError("arrears:tenants", tenantsLoadError);
+      const { data: tenancies, error: tenanciesLoadError } = await supabase.from("tenancies").select("id, rent_amount, start_date").in("id", Array.from(tenancyIds));
+      reportLoadError("arrears:tenancies", tenanciesLoadError);
 
       const propMap = new Map((properties || []).map((p: any) => [p.id, p]));
       const tenantMap = new Map((tenants || []).map((t: any) => [t.id, t]));

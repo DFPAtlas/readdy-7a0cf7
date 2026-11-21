@@ -273,18 +273,22 @@ Deno.serve(async (req: Request) => {
         }
         landlordId = landlord.id;
       } else {
+        // Only infer the landlord when there is exactly one; otherwise the
+        // property would silently be assigned to an arbitrary landlord.
         const { data: landlords, error: listError } = await admin
           .from("landlords")
           .select("id")
           .eq("managing_agency_id", agencyId)
-          .order("created_at", { ascending: false })
-          .limit(1);
+          .limit(2);
 
         if (listError) {
           return fail(req, 500, "LANDLORD_LOOKUP_FAILED", "Unable to resolve a landlord for your agency.");
         }
         if (!landlords || landlords.length === 0) {
           return fail(req, 403, "LANDLORD_REQUIRED", "Your agency has no landlords to assign this property to.");
+        }
+        if (landlords.length > 1) {
+          return fail(req, 400, "LANDLORD_REQUIRED", "Choose which landlord owns this property. You can add it from Properties, where you can pick the landlord.");
         }
         landlordId = landlords[0].id;
       }
@@ -331,10 +335,26 @@ Deno.serve(async (req: Request) => {
     }
 
     if (role !== "platform_admin") {
+      // Agency staff don't hold their own subscription: they use the agency's,
+      // which belongs to whichever member started it (same rule as
+      // current_account_subscription() in migration 017).
+      let subscriberIds: string[] = [user.id];
+      if ((role === "estate_agent_admin" || role === "estate_agent_staff") && accountId) {
+        const { data: members, error: membersError } = await admin
+          .from("agency_members")
+          .select("profile_id")
+          .eq("agency_id", accountId);
+        if (membersError) {
+          return fail(req, 500, "SUBSCRIPTION_LOOKUP_FAILED", "Unable to resolve your agency's subscription.");
+        }
+        subscriberIds = Array.from(new Set([user.id, ...(members || []).map((m) => m.profile_id as string)]));
+      }
+
       const { data: subscription, error: subError } = await admin
         .from("account_subscriptions")
         .select("plan_slug, status")
-        .eq("user_id", user.id)
+        .in("user_id", subscriberIds)
+        .in("status", Array.from(CREATION_STATUSES))
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();

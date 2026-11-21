@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
 import { usePortalBranding, PortalBrandingHeader } from "@/components/PortalBranding";
+import { reportLoadError } from "@/lib/loadError";
+import LoadErrorBanner from "@/components/LoadErrorBanner";
 
 interface TenancyData {
   ref: string;
@@ -181,12 +183,13 @@ export default function TenantDashboardPage() {
         return;
       }
 
-      const { data: access } = await supabase
+      const { data: access, error: accessLoadError } = await supabase
         .from("tenant_portal_access")
         .select("id, tenant_id, is_active")
         .eq("profile_id", session.user.id)
         .eq("is_active", true)
         .maybeSingle();
+      reportLoadError("dashboard:access", accessLoadError);
 
       if (!access) {
         await supabase.auth.signOut();
@@ -196,7 +199,8 @@ export default function TenantDashboardPage() {
 
       const tenantId = (access as any).tenant_id;
 
-      const { data: tenant } = await supabase.from("tenants").select("id, full_name, email, phone, emergency_contact_name, emergency_contact_phone, emergency_contact_relation").eq("id", tenantId).maybeSingle();
+      const { data: tenant, error: tenantLoadError } = await supabase.from("tenants").select("id, full_name, email, phone, emergency_contact_name, emergency_contact_phone, emergency_contact_relation").eq("id", tenantId).maybeSingle();
+      reportLoadError("dashboard:tenant", tenantLoadError);
       if (tenant) {
         const t = tenant as any;
         setTenantName(t.full_name || "");
@@ -210,19 +214,21 @@ export default function TenantDashboardPage() {
         });
       }
 
-      const { data: parties } = await supabase
+      const { data: parties, error: partiesLoadError } = await supabase
         .from("tenancy_parties")
         .select("tenancy_id, tenant_id, is_lead")
         .eq("tenant_id", tenantId);
+      reportLoadError("dashboard:parties", partiesLoadError);
 
       const partyTenancyIds = (parties || []).map((p: any) => p.tenancy_id).filter(Boolean);
 
       let ten: any = null;
       if (partyTenancyIds.length > 0) {
-        const { data: tenancyRows } = await supabase
+        const { data: tenancyRows, error: tenancyRowsLoadError } = await supabase
           .from("tenancies")
           .select("id, property_id, rent_amount, rent_period, deposit_amount, deposit_scheme, start_date, end_date, status, regime, term_type, is_periodic, assured_type, last_rent_increase_date")
           .in("id", partyTenancyIds);
+        reportLoadError("dashboard:tenancyRows", tenancyRowsLoadError);
         const rows = (tenancyRows || []) as any[];
         ten = rows.find((row) => row.status === "active") || rows[0] || null;
       }
@@ -242,12 +248,15 @@ export default function TenantDashboardPage() {
         if (tn.end_date) setTenancyEndRaw(new Date(tn.end_date));
         setTenancyId(tn.id);
         setPropertyId(tn.property_id || null);
-        const { data: petReqs } = await supabase.from("pet_requests").select("id, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
+        const { data: petReqs, error: petReqsLoadError } = await supabase.from("pet_requests").select("id, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
+        reportLoadError("dashboard:petReqs", petReqsLoadError);
         if (petReqs) setPetRequests(petReqs);
-        const { data: modReqs } = await supabase.from("modification_requests").select("id, modification_type, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
+        const { data: modReqs, error: modReqsLoadError } = await supabase.from("modification_requests").select("id, modification_type, description, status, decided_on, refusal_reason, created_at").eq("tenancy_id", tn.id).order("created_at", { ascending: false });
+        reportLoadError("dashboard:modReqs", modReqsLoadError);
         if (modReqs) setModRequests(modReqs);
 
-        const { data: prop } = await supabase.from("properties").select("line1, city, postcode").eq("id", tn.property_id).maybeSingle();
+        const { data: prop, error: propLoadError } = await supabase.from("properties").select("line1, city, postcode").eq("id", tn.property_id).maybeSingle();
+        reportLoadError("dashboard:prop", propLoadError);
         if (prop) {
           setProperty({
             name: (prop as any).line1 || "Property",
@@ -671,6 +680,7 @@ export default function TenantDashboardPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <LoadErrorBanner />
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#3A3F3A]">Welcome, {tenantName.split(" ")[0]}</h1>

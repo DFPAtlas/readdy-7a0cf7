@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@4.1.2";
 
 const INVITE_TTL_DAYS = 7;
@@ -39,6 +39,26 @@ function corsHeaders(req: Request): Record<string, string> {
 
 function reply(req: Request, body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(req) });
+}
+
+// Shared limiter (migration 020). Fails open: if the check itself errors we
+// let the request through rather than lock real users out.
+async function underRateLimit(
+  admin: SupabaseClient,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("rate limit check failed", error.message);
+    return true;
+  }
+  return data !== false;
 }
 
 function fail(req: Request, status: number, code: string, error: string) {
@@ -137,6 +157,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+    // Each invite sends an email, so cap how many one account can send.
+    if (!(await underRateLimit(admin, `portal-invite-send:user:${user.id}`, 30, 3600))) {
+      return fail(req, 429, "RATE_LIMITED", "You've sent a lot of invitations in the last hour. Please wait a little and try again.");
+    }
 
     const { data: profile, error: profileError } = await admin
       .from("profiles")

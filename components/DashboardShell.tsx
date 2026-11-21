@@ -3,6 +3,7 @@
 import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import LoadErrorBanner from "@/components/LoadErrorBanner";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import EnsureLandlordRecord from "@/components/EnsureLandlordRecord";
@@ -382,6 +383,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         <main className="flex-1 p-4 lg:p-6">
           <NewDeviceSignInBanner />
+          <LoadErrorBanner />
           {routeAllowed ? children : <RoleAccessDenied role={role} />}
         </main>
       </div>
