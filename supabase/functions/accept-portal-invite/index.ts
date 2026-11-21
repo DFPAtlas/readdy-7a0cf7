@@ -108,7 +108,13 @@ serve(async (req: Request) => {
         "Contractor access needs a trusted invitation that is not available yet. Please contact your agency.");
     }
 
-    const trustedEmail = access.email ? String(access.email).trim().toLowerCase() : null;
+    const trustedEmail = access.email ? String(access.email).trim().toLowerCase() : "";
+    // Every invite is tied to one person's email. Without one, anyone holding
+    // the link could claim the portal, so such invites are refused outright.
+    if (!trustedEmail) {
+      return fail(req, "email_required",
+        "This invitation isn't linked to an email address. Please ask your agency to send a new invitation.");
+    }
 
     if (mode === "verify") {
       return reply(req, {
@@ -137,7 +143,7 @@ serve(async (req: Request) => {
 
     const acceptingEmail = signedInUser ? signedInUser.email : email;
     if (!acceptingEmail) return fail(req, "missing_fields", "Email and password are required.");
-    if (trustedEmail && trustedEmail !== acceptingEmail) {
+    if (trustedEmail !== acceptingEmail) {
       return fail(req, "email_mismatch", "This invitation was issued to a different email address.");
     }
     if (!signedInUser) {

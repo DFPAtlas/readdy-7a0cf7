@@ -108,6 +108,33 @@ export default function LandlordsPage() {
       if (portalErr) throw portalErr;
       if (!isActive) return;
 
+      // Owner invites live in portal_access (per property) until accepted;
+      // owner_portal_access only gets a row once the landlord signs up.
+      const allPropertyIds = (propertyCounts || []).map((p) => p.id);
+      const { data: ownerInvites, error: invitesErr } = allPropertyIds.length > 0
+        ? await supabase
+            .from("portal_access")
+            .select("property_id, status, last_invite_sent_at, created_at")
+            .eq("user_type", "owner")
+            .in("property_id", allPropertyIds)
+        : { data: [], error: null };
+
+      if (invitesErr) throw invitesErr;
+      if (!isActive) return;
+
+      const landlordByProperty: Record<string, string> = {};
+      (propertyCounts || []).forEach((p) => { landlordByProperty[p.id] = p.landlord_id; });
+      const latestInviteByLandlord: Record<string, string> = {};
+      (ownerInvites || []).forEach((invite) => {
+        if (invite.status === "active" || invite.status === "revoked") return;
+        const landlordId = landlordByProperty[invite.property_id];
+        const sentAt = invite.last_invite_sent_at || invite.created_at;
+        if (!landlordId || !sentAt) return;
+        if (!latestInviteByLandlord[landlordId] || sentAt > latestInviteByLandlord[landlordId]) {
+          latestInviteByLandlord[landlordId] = sentAt;
+        }
+      });
+
       const propsByLandlord: Record<string, { id: string; name: string; address: string }[]> = {};
       const propCountByLandlord: Record<string, number> = {};
 
@@ -133,9 +160,12 @@ export default function LandlordsPage() {
 
       const mapped: Owner[] = landlords.map((l) => {
         const portal = portalByLandlord[l.id];
+        const pendingInviteAt = latestInviteByLandlord[l.id];
         let portalStatus: Owner["portalStatus"] = "not_invited";
         if (portal) {
           portalStatus = portal.is_active ? "active" : "invited";
+        } else if (pendingInviteAt) {
+          portalStatus = "invited";
         }
 
         return {
@@ -151,7 +181,9 @@ export default function LandlordsPage() {
           lastLogin: portal?.last_login
             ? new Date(portal.last_login).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
             : undefined,
-          inviteDate: portal ? new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined,
+          inviteDate: pendingInviteAt
+            ? new Date(pendingInviteAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+            : undefined,
           linkedProperties: propsByLandlord[l.id] || [],
           totalProperties: propCountByLandlord[l.id] || 0,
           dateAdded: l.created_at
