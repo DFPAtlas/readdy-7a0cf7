@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { supabase } from "@/lib/supabaseClient";
 import { LEGAL_DISCLAIMER } from "@/lib/complianceStatus";
+import { reportLoadError } from "@/lib/loadError";
 
 interface ComplianceItem {
   id: string;
@@ -76,10 +77,11 @@ export default function ComplianceAdvisorPage() {
       const landlordMap: Record<string, { display_name: string; email: string }> = {};
 
       if (landlordIds.length > 0) {
-        const { data: landlords } = await supabase
+        const { data: landlords, error: landlordsLoadError } = await supabase
           .from("landlords")
           .select("id, display_name, email")
           .in("id", landlordIds);
+        reportLoadError("compliance-advisor:landlords", landlordsLoadError);
         (landlords || []).forEach((l: any) => {
           landlordMap[l.id] = { display_name: l.display_name || "Unknown", email: l.email || "" };
         });

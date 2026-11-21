@@ -23,6 +23,7 @@ import {
   ImportFailedRow,
   PreviewProperty,
 } from "./ImportData";
+import { reportLoadError } from "@/lib/loadError";
 
 type Nation = "england" | "wales" | "scotland" | "northern_ireland";
 
@@ -109,7 +110,8 @@ export default function ImportPage() {
 
     let dbOk = false;
     try {
-      const { data } = await supabase.from("landlords").select("id").limit(1);
+      const { data, error: dataLoadError } = await supabase.from("landlords").select("id").limit(1);
+      reportLoadError("import:data", dataLoadError);
       dbOk = !!data;
     } catch {
       dbOk = false;
@@ -146,12 +148,13 @@ export default function ImportPage() {
             rent_pcm: p.rent, deposit_amount: p.deposit, status: p.status,
             nation: normalizeNation(p.nation), is_hmo: false, is_furnished: false,
           };
-          const { data: existing } = await supabase
+          const { data: existing, error: existingLoadError } = await supabase
             .from("properties")
             .select("id")
             .eq("line1", p.address)
             .eq("postcode", p.postcode)
             .maybeSingle();
+          reportLoadError("import:existing", existingLoadError);
           if (existing?.id) {
             await supabase.from("properties").update(payload).eq("id", existing.id);
           } else {

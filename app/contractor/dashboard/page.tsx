@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
 import { usePortalBranding, PortalBrandingHeader } from "@/components/PortalBranding";
 import { contractorJobs, contractorDocs, contractorProfile, performanceStats } from "@/app/dashboard/contractor/ContractorData";
+import { reportLoadError } from "@/lib/loadError";
 
 const statusConfig: Record<string, { color: string; bg: string; icon: string }> = {
   Assigned: { color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10", icon: "ri-flag-line" },
@@ -50,11 +51,12 @@ export default function ContractorDashboardPage() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileLoadError } = await supabase
         .from("contractor_profiles")
         .select("id, business_name, status")
         .eq("profile_id", session.user.id)
         .maybeSingle();
+      reportLoadError("dashboard:profile", profileLoadError);
 
       if (!profile) {
         await supabase.auth.signOut();

@@ -14,6 +14,7 @@ import {
   getScoreRingColor,
   getScoreTier,
 } from "./ContractorPerformanceData";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function ContractorPerformancePage() {
   const [contractors, setContractors] = useState<ContractorPerformance[]>([]);
@@ -26,10 +27,11 @@ export default function ContractorPerformancePage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data } = await supabase
+      const { data, error: dataLoadError } = await supabase
         .from("contractor_performance")
         .select("*")
         .order("combined_score", { ascending: false });
+      reportLoadError("contractor-performance:data", dataLoadError);
 
       if (data) setContractors(data as ContractorPerformance[]);
       setLoading(false);

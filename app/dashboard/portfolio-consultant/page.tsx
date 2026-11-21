@@ -12,6 +12,7 @@ import {
   calculateRiskLevel,
   calculateRiskColor,
 } from "./PortfolioConsultantData";
+import { reportLoadError } from "@/lib/loadError";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -56,10 +57,11 @@ export default function PortfolioConsultantPage() {
       const landlordInfoMap = new Map<string, { display_name: string; email: string }>();
 
       if (landlordIds.length > 0) {
-        const { data: landlords } = await supabase
+        const { data: landlords, error: landlordsLoadError } = await supabase
           .from("landlords")
           .select("id, display_name, email")
           .in("id", landlordIds);
+        reportLoadError("portfolio-consultant:landlords", landlordsLoadError);
         (landlords || []).forEach((l: any) => {
           landlordInfoMap.set(l.id, { display_name: l.display_name || "Unknown", email: l.email || "" });
         });

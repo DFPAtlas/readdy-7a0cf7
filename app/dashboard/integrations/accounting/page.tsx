@@ -13,6 +13,7 @@ import {
   syncStats,
   connectionSetupSteps,
 } from "./AccountingConnectorData";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function AccountingConnectorPage() {
   const [connections, setConnections] = useState<AccountingConnection[]>([]);
@@ -77,12 +78,13 @@ export default function AccountingConnectorPage() {
 
     if (mapped.length > 0) {
       const connIds = mapped.map((c) => c.id);
-      const { data: logData } = await supabase
+      const { data: logData, error: logDataLoadError } = await supabase
         .from("accounting_sync_logs")
         .select("*")
         .in("connection_id", connIds)
         .order("started_at", { ascending: false })
         .limit(50);
+      reportLoadError("accounting:logData", logDataLoadError);
 
       setSyncLogs((logData || []) as unknown as SyncLogEntry[]);
     }
