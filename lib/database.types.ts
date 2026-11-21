@@ -1,6 +1,6 @@
 // Authoritative Supabase database types for LetHub.
 // Base source: live Supabase project `gejxrnreuafnyzwrchvy` (PostgREST), schema as of migrations 001-008.
-// Forward-only additions from tracked migrations 012-014 are represented below. This is not a fresh
+// Forward-only additions from tracked migrations 012-014 and 022 (inspection columns) are represented below. This is not a fresh
 // live schema export; regenerate from the live project and reconcile its migration ledger before deployment.
 // Regenerate after every accepted schema migration with:
 //   npx supabase gen types typescript --project-id gejxrnreuafnyzwrchvy --schema public > lib/database.types.ts
@@ -1865,6 +1865,7 @@ export type Database = {
           inspection_id: string
           room_id: string | null
           storage_path: string
+          taken_at: string | null
         }
         Insert: {
           caption?: string | null
@@ -1873,6 +1874,7 @@ export type Database = {
           inspection_id: string
           room_id?: string | null
           storage_path: string
+          taken_at?: string | null
         }
         Update: {
           caption?: string | null
@@ -1881,6 +1883,7 @@ export type Database = {
           inspection_id?: string
           room_id?: string | null
           storage_path?: string
+          taken_at?: string | null
         }
         Relationships: [
           {
@@ -1907,6 +1910,10 @@ export type Database = {
           inspection_id: string
           notes: string | null
           room_name: string
+          checklist: Json
+          sort_order: number
+          template_id: string | null
+          updated_at: string
         }
         Insert: {
           condition_rating?: number | null
@@ -1915,6 +1922,10 @@ export type Database = {
           inspection_id: string
           notes?: string | null
           room_name: string
+          checklist?: Json
+          sort_order?: number
+          template_id?: string | null
+          updated_at?: string
         }
         Update: {
           condition_rating?: number | null
@@ -1923,6 +1934,10 @@ export type Database = {
           inspection_id?: string
           notes?: string | null
           room_name?: string
+          checklist?: Json
+          sort_order?: number
+          template_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1950,6 +1965,11 @@ export type Database = {
           tenancy_id: string | null
           title: string
           updated_at: string
+          overall_rating: string | null
+          started_at: string | null
+          signature_path: string | null
+          signed_by_name: string | null
+          signed_at: string | null
         }
         Insert: {
           completed_date?: string | null
@@ -1966,6 +1986,11 @@ export type Database = {
           tenancy_id?: string | null
           title: string
           updated_at?: string
+          overall_rating?: string | null
+          started_at?: string | null
+          signature_path?: string | null
+          signed_by_name?: string | null
+          signed_at?: string | null
         }
         Update: {
           completed_date?: string | null
@@ -1982,6 +2007,11 @@ export type Database = {
           tenancy_id?: string | null
           title?: string
           updated_at?: string
+          overall_rating?: string | null
+          started_at?: string | null
+          signature_path?: string | null
+          signed_by_name?: string | null
+          signed_at?: string | null
         }
         Relationships: [
           {
