@@ -9,6 +9,7 @@ import RentPaymentCard from "@/components/dashboard/RentPaymentCard";
 import { paymentStatusConfig, FinancialActionItem } from "@/lib/financialStatus";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
+import { reportLoadError } from "@/lib/loadError";
 
 interface RentRecord {
   id: string;
@@ -132,7 +133,8 @@ export default function RentCollectionPage() {
       }
 
       const propertyIds = [...new Set(payments.map((p: any) => p.property_id))];
-      const { data: properties } = await supabase.from("properties").select("id, line1").in("id", propertyIds);
+      const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1").in("id", propertyIds);
+      reportLoadError("rent-collection:properties", propertiesLoadError);
       const propMap = new Map<string, string>();
       (properties || []).forEach((p: any) => propMap.set(p.id, p.line1));
 
@@ -169,14 +171,17 @@ export default function RentCollectionPage() {
 
   async function fetchTenantsForDropdown() {
     try {
-      const { data: tenancies } = await supabase.from("tenancies").select("id, property_id, status").eq("status", "active");
+      const { data: tenancies, error: tenanciesLoadError } = await supabase.from("tenancies").select("id, property_id, status").eq("status", "active");
+      reportLoadError("rent-collection:tenancies", tenanciesLoadError);
       if (!tenancies || tenancies.length === 0) {
         setRecordFormTenants([]);
         return;
       }
       const propertyIds = [...new Set(tenancies.map((t: any) => t.property_id))];
-      const { data: properties } = await supabase.from("properties").select("id, line1, city").in("id", propertyIds);
-      const { data: tenancyParties } = await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_lead").in("tenancy_id", tenancies.map((t: any) => t.id));
+      const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city").in("id", propertyIds);
+      reportLoadError("rent-collection:properties", propertiesLoadError);
+      const { data: tenancyParties, error: tenancyPartiesLoadError } = await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_lead").in("tenancy_id", tenancies.map((t: any) => t.id));
+      reportLoadError("rent-collection:tenancyParties", tenancyPartiesLoadError);
       const tenantIds = tenancyParties ? [...new Set(tenancyParties.map((tp: any) => tp.tenant_id))] : [];
       const { data: tenants } = tenantIds.length > 0 ? await supabase.from("tenants").select("id, full_name, email").in("id", tenantIds) : { data: [] };
 
@@ -311,7 +316,8 @@ export default function RentCollectionPage() {
         const propertyIds = [...new Set(payments.map((p: any) => p.property_id))];
         const tenancyIds = [...new Set(payments.map((p: any) => p.tenancy_id).filter(Boolean))];
 
-        const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+        const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+        reportLoadError("rent-collection:properties", propertiesLoadError);
         const { data: tenancies } = tenancyIds.length > 0 ? await supabase.from("tenancies").select("id, property_id, status").in("id", tenancyIds) : { data: [] };
         const { data: tenancyParties } = tenancyIds.length > 0 ? await supabase.from("tenancy_parties").select("tenancy_id, tenant_id, is_lead").in("tenancy_id", tenancyIds) : { data: [] };
 

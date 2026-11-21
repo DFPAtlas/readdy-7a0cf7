@@ -8,6 +8,7 @@ import { isDemoAccount } from "@/lib/demoMode";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { CONTRACTOR_STATUS, getStatusConfig, isExpiringSoon, isExpired, PRIORITY_CONFIG, type ContractorAction } from "@/lib/contractorSystem";
 import ContractorActionCentre from "@/components/dashboard/ContractorActionCentre";
+import { reportLoadError } from "@/lib/loadError";
 
 interface ContractorRecord {
   id: string;
@@ -391,10 +392,11 @@ export default function ContractorsPage() {
 
       let profilesMap: Record<string, any> = {};
       if (contractorIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesLoadError } = await supabase
           .from("contractor_profiles")
           .select("*")
           .in("id", contractorIds);
+        reportLoadError("contractors:profiles", profilesLoadError);
         if (profiles) {
           profiles.forEach((p: any) => {
             profilesMap[p.id] = p;

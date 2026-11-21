@@ -14,6 +14,7 @@ import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { supabase } from "@/lib/supabaseClient";
 import { isDemoAccount } from "@/lib/demoMode";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
+import { reportLoadError } from "@/lib/loadError";
 
 const demoPriorityActions: PriorityAction[] = [
   {
@@ -185,11 +186,12 @@ export default function DashboardPage() {
       if (!session) return;
       if (!mountedRef.current) return;
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileLoadError } = await supabase
         .from("profiles")
         .select("account_type, full_name")
         .eq("id", session.user.id)
         .maybeSingle();
+      reportLoadError("dashboard:profile", profileLoadError);
 
       if (!mountedRef.current) return;
 
@@ -204,18 +206,20 @@ export default function DashboardPage() {
       }
 
       if (type === "owner-legacy") {
-        const { data: access } = await supabase
+        const { data: access, error: accessLoadError } = await supabase
           .from("owner_portal_access")
           .select("landlord_id")
           .eq("profile_id", session.user.id)
           .eq("is_active", true)
           .maybeSingle();
+        reportLoadError("dashboard:access", accessLoadError);
 
         if (!mountedRef.current) return;
 
         if (access) {
           const landlordId = (access as any).landlord_id;
-          const { data: props } = await supabase.from("properties").select("id").eq("landlord_id", landlordId);
+          const { data: props, error: propsLoadError } = await supabase.from("properties").select("id").eq("landlord_id", landlordId);
+          reportLoadError("dashboard:props", propsLoadError);
           if (!mountedRef.current) return;
           const propIds = (props || []).map((p: any) => p.id);
           const propCount = propIds.length;
@@ -226,7 +230,8 @@ export default function DashboardPage() {
           if (!mountedRef.current) return;
           const { count: tenantCount } = await supabase.from("tenants").select("id, tenancies!inner(property_id, status)", { count: "exact", head: true }).in("tenancies.property_id", propIds).eq("tenancies.status", "active");
           if (!mountedRef.current) return;
-          const { data: complianceItems } = await supabase.from("property_compliance_items").select("obligation_code, status").in("property_id", propIds);
+          const { data: complianceItems, error: complianceItemsLoadError } = await supabase.from("property_compliance_items").select("obligation_code, status").in("property_id", propIds);
+          reportLoadError("dashboard:complianceItems", complianceItemsLoadError);
           if (!mountedRef.current) return;
           const compList = (complianceItems as any[]) || [];
           const compOK = compList.filter((c: any) => c.status === "valid" || c.status === "compliant").length;
@@ -519,11 +524,12 @@ export default function DashboardPage() {
           return;
         }
         if (!active) return;
-        const { data: profile } = await supabase
+        const { data: profile, error: profileLoadError } = await supabase
           .from("profiles")
           .select("account_type, full_name")
           .eq("id", session.user.id)
           .maybeSingle();
+        reportLoadError("dashboard:profile", profileLoadError);
         if (!active) return;
         setAccountType((profile as any)?.account_type || null);
         setUserName((profile as any)?.full_name || session.user.email || "User");

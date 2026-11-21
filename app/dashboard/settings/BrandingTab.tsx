@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getPlanEntitlements } from "@/lib/entitlements";
 import { isDemoAccount } from "@/lib/demoMode";
+import { reportLoadError } from "@/lib/loadError";
 
 interface BrandingData {
   logoUrl: string;
@@ -38,11 +39,12 @@ export default function BrandingTab() {
 
       if (isDemoAccount()) {
         setAgencyId(DEMO_AGENCY_ID);
-        const { data } = await supabase
+        const { data, error: dataLoadError } = await supabase
           .from("agencies")
           .select("name, logo_url, favicon_url, primary_colour, secondary_colour, custom_domain")
           .eq("id", DEMO_AGENCY_ID)
           .maybeSingle();
+        reportLoadError("BrandingTab:data", dataLoadError);
 
         if (data) {
           setBranding({
@@ -64,11 +66,12 @@ export default function BrandingTab() {
         return;
       }
 
-      const { data: member } = await supabase
+      const { data: member, error: memberLoadError } = await supabase
         .from("agency_members")
         .select("agency_id")
         .eq("profile_id", session.user.id)
         .maybeSingle();
+      reportLoadError("BrandingTab:member", memberLoadError);
 
       if (!member) {
         setEntitled(false);
@@ -85,11 +88,12 @@ export default function BrandingTab() {
         return;
       }
 
-      const { data: agency } = await supabase
+      const { data: agency, error: agencyLoadError } = await supabase
         .from("agencies")
         .select("name, logo_url, favicon_url, primary_colour, secondary_colour, custom_domain")
         .eq("id", member.agency_id)
         .maybeSingle();
+      reportLoadError("BrandingTab:agency", agencyLoadError);
 
       if (agency) {
         setBranding({

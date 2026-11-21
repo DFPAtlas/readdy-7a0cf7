@@ -23,6 +23,7 @@ import ConversationDetailsDrawer from "@/components/dashboard/ConversationDetail
 import NewMessageWizard from "@/components/dashboard/NewMessageWizard";
 import CommunicationActionCentre from "@/components/dashboard/CommunicationActionCentre";
 import ReplyModal from "@/components/dashboard/ReplyModal";
+import { reportLoadError } from "@/lib/loadError";
 
 const seedConversations: Conversation[] = [
   {
@@ -243,7 +244,8 @@ export default function CommunicationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: msgs } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(50);
+      const { data: msgs, error: msgsLoadError } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(50);
+      reportLoadError("messages:msgs", msgsLoadError);
       if (msgs && msgs.length > 0) {
         const live: Conversation[] = [];
         const grouped = new Map<string, any[]>();
@@ -272,7 +274,8 @@ export default function CommunicationsPage() {
         });
         setConversations(live);
       }
-      const { data: ntf } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20);
+      const { data: ntf, error: ntfLoadError } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(20);
+      reportLoadError("messages:ntf", ntfLoadError);
       if (ntf && ntf.length > 0) {
         const acts: MessageActionItem[] = ntf.filter((n: any) => !n.is_read).map((n: any) => ({
           id: n.id, conversationId: n.id, type: "reply_required" as const, priority: "medium" as const,

@@ -22,6 +22,7 @@ import {
   Observation,
   RoomCheck,
 } from "./InspectionData";
+import { reportLoadError } from "@/lib/loadError";
 
 // The on-site inspection app is switched off until it saves to the database.
 const inspectionAppEnabled = isPathInLaunchScope("/mobile/property-check");
@@ -128,10 +129,11 @@ export default function InspectionsPage() {
 
         const propertyIds = [...new Set(inspData.map((i: any) => i.property_id))];
 
-        const { data: properties } = await supabase
+        const { data: properties, error: propertiesLoadError } = await supabase
           .from("properties")
           .select("id, line1, city, postcode")
           .in("id", propertyIds);
+        reportLoadError("inspections:properties", propertiesLoadError);
 
         const propMap = new Map<string, any>();
         (properties || []).forEach((p: any) => propMap.set(p.id, p));
@@ -216,12 +218,14 @@ export default function InspectionsPage() {
       if (demoMode) return;
       async function refetch() {
         try {
-          const { data: inspData } = await supabase
+          const { data: inspData, error: inspDataLoadError } = await supabase
             .from("inspections")
             .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, created_by, created_at, updated_at");
+          reportLoadError("inspections:inspData", inspDataLoadError);
           if (!inspData || inspData.length === 0) { setInspections([]); return; }
           const propertyIds = [...new Set(inspData.map((i: any) => i.property_id))];
-          const { data: properties } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+          const { data: properties, error: propertiesLoadError } = await supabase.from("properties").select("id, line1, city, postcode").in("id", propertyIds);
+          reportLoadError("inspections:properties", propertiesLoadError);
           const propMap = new Map<string, any>();
           (properties || []).forEach((p: any) => propMap.set(p.id, p));
           const built: LiveInspection[] = (inspData || []).map((i: any) => {

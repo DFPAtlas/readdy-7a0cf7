@@ -9,6 +9,7 @@ import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount } from "@/lib/demoMode";
 import { useEntitlements } from "@/lib/useEntitlements";
 import PropertyHealthScoreCard from "@/components/property/PropertyHealthScoreCard";
+import { reportLoadError } from "@/lib/loadError";
 
 const nationLabels: Record<string, string> = {
   england: "England",
@@ -97,10 +98,11 @@ export default function PropertiesPage() {
       return;
     }
     try {
-      const { data } = await supabase
+      const { data, error: dataLoadError } = await supabase
         .from("properties")
         .select("*")
         .order("created_at", { ascending: false });
+      reportLoadError("properties:data", dataLoadError);
 
       if (data && data.length > 0) {
         const summaries = await fetchPropertySummaries(supabase, data as any[]);

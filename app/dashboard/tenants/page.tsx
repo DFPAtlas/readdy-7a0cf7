@@ -11,6 +11,7 @@ import TenantQuickView from "@/components/dashboard/TenantQuickView";
 import { tenants as mockTenants, portalStatusBadge, portalStatusLabel, TenantRecord } from "./TenantsData";
 import { createTenant } from "@/lib/tenancyFlow";
 import { sendPortalInvite } from "@/lib/portalInvites";
+import { reportLoadError } from "@/lib/loadError";
 
 export default function TenantsPage() {
   const [search, setSearch] = useState("");
@@ -88,10 +89,11 @@ export default function TenantsPage() {
 
       const tenantIds = supabaseTenants.map((t) => t.id);
 
-      const { data: parties } = await supabase
+      const { data: parties, error: partiesLoadError } = await supabase
         .from("tenancy_parties")
         .select("tenant_id, tenancy_id")
         .in("tenant_id", tenantIds);
+      reportLoadError("tenants:parties", partiesLoadError);
 
       if (!active) return;
 
@@ -111,10 +113,11 @@ export default function TenantsPage() {
 
       if (!active) return;
 
-      const { data: portalAccess } = await supabase
+      const { data: portalAccess, error: portalAccessLoadError } = await supabase
         .from("tenant_portal_access")
         .select("tenant_id, is_active")
         .in("tenant_id", tenantIds);
+      reportLoadError("tenants:portalAccess", portalAccessLoadError);
 
       if (!active) return;
 
@@ -181,10 +184,11 @@ export default function TenantsPage() {
 
     const tenantIds = supabaseTenants.map((t) => t.id);
 
-    const { data: parties } = await supabase
+    const { data: parties, error: partiesLoadError } = await supabase
       .from("tenancy_parties")
       .select("tenant_id, tenancy_id")
       .in("tenant_id", tenantIds);
+    reportLoadError("tenants:parties", partiesLoadError);
 
     if (!mountedRef.current) return;
 
@@ -204,10 +208,11 @@ export default function TenantsPage() {
 
     if (!mountedRef.current) return;
 
-    const { data: portalAccess } = await supabase
+    const { data: portalAccess, error: portalAccessLoadError } = await supabase
       .from("tenant_portal_access")
       .select("tenant_id, is_active")
       .in("tenant_id", tenantIds);
+    reportLoadError("tenants:portalAccess", portalAccessLoadError);
 
     if (!mountedRef.current) return;
 

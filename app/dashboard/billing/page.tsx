@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getPlanEntitlements, PlanEntitlements, getPropertyLimit, getTeamLimit, getStorageLimit, SubscriptionPlan } from "@/lib/entitlements";
 import { isDemoAccount } from "@/lib/demoMode";
 import { getTotalStorageBytes, bytesToGB } from "@/lib/getStorageUsage";
+import { reportLoadError } from "@/lib/loadError";
 
 type BillingCycle = "monthly" | "annual";
 
@@ -199,12 +200,13 @@ function BillingContent() {
 
       if (nextEntitlements.subscription?.stripe_customer_id) {
         setInvoicesLoading(true);
-        const { data: billingData } = await supabase
+        const { data: billingData, error: billingDataLoadError } = await supabase
           .from("billing_events")
           .select("id, event_type, amount, stripe_invoice_id, metadata, created_at")
           .eq("profile_id", user.id)
           .order("created_at", { ascending: false })
           .limit(20);
+        reportLoadError("billing:billingData", billingDataLoadError);
         if (billingData) setInvoices(billingData);
         setInvoicesLoading(false);
       }
