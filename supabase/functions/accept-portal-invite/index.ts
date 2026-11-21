@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -37,6 +37,32 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim() || "unknown";
+  return req.headers.get("cf-connecting-ip") || "unknown";
+}
+
+// Shared limiter (migration 020). Fails open: if the check itself errors we
+// let the request through rather than lock real users out.
+async function underRateLimit(
+  admin: SupabaseClient,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("rate limit check failed", error.message);
+    return true;
+  }
+  return data !== false;
+}
+
 function fail(req: Request, code: string, error: string, status = 400) {
   return reply(req, { error, code }, status);
 }
@@ -60,6 +86,12 @@ serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SB_SERVICE_ROLE_KEY");
     if (!serviceKey) throw new Error("Service role key is not configured");
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+    // 30 checks per 10 minutes per IP is plenty for a real person and stops
+    // anyone hammering the endpoint with guessed tokens.
+    if (!(await underRateLimit(admin, `portal-invite-accept:ip:${clientIp(req)}`, 30, 600))) {
+      return fail(req, "rate_limited", "Too many attempts. Please wait a few minutes and try again.", 429);
+    }
 
     const body = await readBody(req);
     const mode = String(body.mode || "verify");

@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@4.1.2";
 
 // Public endpoint for the marketing site's contact and demo-request forms.
@@ -7,7 +7,8 @@ import { Resend } from "npm:resend@4.1.2";
 // LEAD_NOTIFY_EMAIL is set, emails a notification via Resend.
 //
 // Abuse controls: origin allowlist, field length limits, a honeypot field and
-// a per-email limit of 5 submissions per hour.
+// a per-email limit of 5 submissions per hour, plus a per-IP limit of 10 per
+// hour so a bot can't get round it by changing the email address.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_PER_EMAIL_PER_HOUR = 5;
@@ -39,6 +40,32 @@ function reply(req: Request, body: Record<string, unknown>, status = 200) {
 function text(value: unknown, max: number): string | null {
   const cleaned = String(value ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim();
   return cleaned ? cleaned.slice(0, max) : null;
+}
+
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim() || "unknown";
+  return req.headers.get("cf-connecting-ip") || "unknown";
+}
+
+// Shared limiter (migration 020). Fails open: if the check itself errors we
+// let the request through rather than lock real users out.
+async function underRateLimit(
+  admin: SupabaseClient,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("rate limit check failed", error.message);
+    return true;
+  }
+  return data !== false;
 }
 
 function escapeHtml(value: unknown): string {
@@ -93,6 +120,10 @@ Deno.serve(async (req) => {
   };
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+  if (!(await underRateLimit(admin, `lead:ip:${clientIp(req)}`, 10, 3600))) {
+    return reply(req, { success: false, error: "Too many submissions. Please try again later or email support@lethub.uk." }, 429);
+  }
 
   const since = new Date(Date.now() - 3_600_000).toISOString();
   const { count } = await admin
