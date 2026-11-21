@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@13";
@@ -85,7 +84,7 @@ serve(async (req: Request) => {
       return reply(req, { error: "No Stripe customer is linked to this account" }, 404);
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-16.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-08-16" });
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
       return_url: `${origin}/dashboard/billing`,

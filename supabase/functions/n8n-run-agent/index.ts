@@ -1,4 +1,3 @@
-// @ts-nocheck
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -151,11 +150,17 @@ Deno.serve(async (req: Request) => {
 
     if (!dispatch.ok) {
       await admin.from("platform_audit_log").insert({
-        event: "n8n_agent_run_failed",
-        actor_id: user.id,
-        actor_email: user.email,
-        actor_role: userRole,
-        details: { agent_key: agent.agent_key, status: dispatch.status, error: dispatch.error ?? null },
+        action: "n8n_agent_run_failed",
+        actor_profile_id: user.id,
+        target_table: "n8n_agents",
+        target_id: agent.id,
+        details: {
+          actor_email: user.email,
+          actor_role: userRole,
+          agent_key: agent.agent_key,
+          status: dispatch.status,
+          error: dispatch.error ?? null,
+        },
       });
       return json(502, { success: false, error: "Agent webhook dispatch failed", webhook_response: dispatch });
     }
@@ -168,11 +173,17 @@ Deno.serve(async (req: Request) => {
       .select("id")
       .single();
     await admin.from("platform_audit_log").insert({
-      event: "n8n_agent_run",
-      actor_id: user.id,
-      actor_email: user.email,
-      actor_role: userRole,
-      details: { agent_key: agent.agent_key, agent_name: agent.agent_name, run_id: runRecord?.id },
+      action: "n8n_agent_run",
+      actor_profile_id: user.id,
+      target_table: "n8n_agents",
+      target_id: agent.id,
+      details: {
+        actor_email: user.email,
+        actor_role: userRole,
+        agent_key: agent.agent_key,
+        agent_name: agent.agent_name,
+        run_id: runRecord?.id ?? null,
+      },
     });
 
     return json(200, {

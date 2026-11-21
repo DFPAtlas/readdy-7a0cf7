@@ -10,7 +10,23 @@ if (process.env.VERCEL_ENV === "production") {
   }
 }
 
+// Browser security headers. Production only: Readdy's editor previews the app
+// inside a frame, which these headers would block. A full Content-Security-
+// Policy isn't set yet because pages load icons, fonts and images from several
+// third-party hosts; frame-ancestors/object-src/base-uri are safe to enforce now.
+const securityHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    if (process.env.VERCEL_ENV !== "production") return [];
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // LetHub requires a Next.js server runtime. Authenticated dashboards, route
   // handlers and Supabase-backed UUID routes cannot be produced as a static export.
   images: {
