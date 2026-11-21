@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import DemoHelperTip from "@/components/dashboard/DemoHelperTip";
 import { isDemoAccount } from "@/lib/demoMode";
-import { isPathInLaunchScope } from "@/lib/launchScope";
 import { useEntitlements } from "@/lib/useEntitlements";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeSubscription } from "@/lib/realtime/useRealtimeSubscription";
@@ -23,9 +23,23 @@ import {
   RoomCheck,
 } from "./InspectionData";
 import { reportLoadError } from "@/lib/loadError";
+import {
+  INSPECTION_TYPES,
+  conditionLabel,
+  createInspection,
+  loadInspection,
+  roomConditionScore,
+  type FullInspection,
+} from "@/lib/inspections";
 
-// The on-site inspection app is switched off until it saves to the database.
-const inspectionAppEnabled = isPathInLaunchScope("/mobile/property-check");
+function liveRating(value: string | null | undefined): "Excellent" | "Good" | "Fair" | "Poor" | "—" {
+  return value === "Excellent" || value === "Good" || value === "Fair" || value === "Poor" ? value : "—";
+}
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 interface LiveInspection {
   id: string;
@@ -99,6 +113,7 @@ export default function InspectionsPage() {
   const [inspectors, setInspectors] = useState<any[]>([]);
   const { isReadOnly } = useEntitlements();
 
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     const demo = isDemoAccount();
     setDemoMode(demo);
@@ -115,7 +130,7 @@ export default function InspectionsPage() {
         setLoading(true);
         const { data: inspData, error: inspErr } = await supabase
           .from("inspections")
-          .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, created_by, created_at, updated_at");
+          .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, overall_rating, created_by, created_at, updated_at");
 
         if (inspErr) throw inspErr;
 
@@ -187,13 +202,13 @@ export default function InspectionsPage() {
             tenant: "—",
             tenantPhone: "—",
             landlord: "—",
-            overallRating: "—",
+            overallRating: liveRating(i.overall_rating),
             notes: i.inspector_notes || "",
             rooms: [],
             observations: [],
             followUpActions: [],
-            reportGenerated: !!(i.report_url),
-            reportDate: i.report_url ? formatDate(i.completed_date || i.scheduled_date) : undefined,
+            reportGenerated: i.status === "completed" || !!(i.report_url),
+            reportDate: i.status === "completed" || i.report_url ? formatDate(i.completed_date || i.scheduled_date) : undefined,
             photos: [],
           };
         });
@@ -209,7 +224,7 @@ export default function InspectionsPage() {
     }
 
     fetchData();
-  }, []);
+  }, [reloadKey]);
 
   useRealtimeSubscription({
     table: "inspections",
@@ -220,7 +235,7 @@ export default function InspectionsPage() {
         try {
           const { data: inspData, error: inspDataLoadError } = await supabase
             .from("inspections")
-            .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, created_by, created_at, updated_at");
+            .select("id, property_id, tenancy_id, title, inspection_type, status, scheduled_date, completed_date, inspector_name, inspector_notes, report_url, overall_rating, created_by, created_at, updated_at");
           reportLoadError("inspections:inspData", inspDataLoadError);
           if (!inspData || inspData.length === 0) { setInspections([]); return; }
           const propertyIds = [...new Set(inspData.map((i: any) => i.property_id))];
@@ -237,9 +252,9 @@ export default function InspectionsPage() {
               scheduledTime: "—", inspector: i.inspector_name || "Unassigned",
               inspectorId: `insp-${(i.inspector_name || "unassigned").toLowerCase().replace(/\s+/g, "-")}`,
               status: mapStatus(i.status), tenant: "—", tenantPhone: "—", landlord: "—",
-              overallRating: "—", notes: i.inspector_notes || "", rooms: [], observations: [],
-              followUpActions: [], reportGenerated: !!(i.report_url),
-              reportDate: i.report_url ? formatDate(i.completed_date || i.scheduled_date) : undefined, photos: [],
+              overallRating: liveRating(i.overall_rating), notes: i.inspector_notes || "", rooms: [], observations: [],
+              followUpActions: [], reportGenerated: i.status === "completed" || !!(i.report_url),
+              reportDate: i.status === "completed" || i.report_url ? formatDate(i.completed_date || i.scheduled_date) : undefined, photos: [],
             };
           });
           setInspections(built);
@@ -266,6 +281,122 @@ export default function InspectionsPage() {
   const openActions = inspections.reduce((sum, i) => sum + i.followUpActions.filter((a) => a.status !== "Completed").length, 0);
 
   const inspection = inspections.find((i) => i.id === selectedInspection);
+  const router = useRouter();
+
+  // Live detail view: rooms come from inspection_rooms for the selected inspection.
+  const [detail, setDetail] = useState<FullInspection | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  useEffect(() => {
+    setDetail(null);
+    if (!selectedInspection || demoMode) return;
+    let cancelled = false;
+    setDetailLoading(true);
+    loadInspection(supabase, selectedInspection)
+      .then((full) => {
+        if (!cancelled) setDetail(full);
+      })
+      .catch((err) => reportLoadError("inspections:detail", err))
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedInspection, demoMode]);
+
+  const detailRooms: RoomCheck[] = demoMode
+    ? inspection?.rooms || []
+    : (detail?.rooms || []).map((room) => ({
+        id: room.id,
+        name: room.name,
+        condition: conditionLabel(roomConditionScore(room)),
+        notes: [
+          room.items.filter((i) => i.status === "fail").map((i) => (i.note ? `${i.name}: ${i.note}` : i.name)).join("; "),
+          room.notes,
+        ].filter(Boolean).join(" — "),
+        checklist: [],
+        photos: [],
+      }));
+
+  // Scheduling form.
+  const [scheduleProperties, setScheduleProperties] = useState<{ id: string; label: string }[]>([]);
+  const [schedPropertyId, setSchedPropertyId] = useState("");
+  const [schedType, setSchedType] = useState("routine");
+  const [schedDate, setSchedDate] = useState(todayIso());
+  const [schedInspector, setSchedInspector] = useState("");
+  const [schedNotes, setSchedNotes] = useState("");
+  const [schedSaving, setSchedSaving] = useState(false);
+  const [schedError, setSchedError] = useState("");
+
+  useEffect(() => {
+    if (!showScheduleModal || demoMode) return;
+    setSchedError("");
+    let cancelled = false;
+    (async () => {
+      const { data: props, error: propsError } = await supabase
+        .from("properties")
+        .select("id, line1, city, postcode")
+        .order("line1", { ascending: true });
+      if (cancelled) return;
+      if (propsError) {
+        setSchedError("We couldn't load your properties. Close this and try again.");
+        return;
+      }
+      setScheduleProperties((props || []).map((p) => ({ id: p.id, label: [p.line1, p.city, p.postcode].filter(Boolean).join(", ") })));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && !cancelled) {
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+        if (!cancelled) setSchedInspector((current) => current || profile?.full_name || "");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showScheduleModal, demoMode]);
+
+  const submitSchedule = async (startNow: boolean) => {
+    if (demoMode) {
+      handleSchedule();
+      return;
+    }
+    if (!schedPropertyId) {
+      setSchedError("Choose a property.");
+      return;
+    }
+    if (!startNow && !schedDate) {
+      setSchedError("Choose a date.");
+      return;
+    }
+    setSchedSaving(true);
+    setSchedError("");
+    try {
+      const id = await createInspection(supabase, {
+        propertyId: schedPropertyId,
+        type: schedType,
+        scheduledDate: startNow ? todayIso() : schedDate,
+        inspectorName: schedInspector,
+        notes: schedNotes,
+        startNow,
+      });
+      setShowScheduleModal(false);
+      setSchedPropertyId("");
+      setSchedNotes("");
+      if (startNow) {
+        router.push(`/dashboard/inspections/${id}/conduct`);
+        return;
+      }
+      setReloadKey((k) => k + 1);
+      setToastMessage("Inspection scheduled.");
+      setShowSuccessToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setShowSuccessToast(false), 3000);
+    } catch (err) {
+      const message = err && typeof err === "object" && "message" in err && typeof err.message === "string" ? err.message : "";
+      setSchedError(message ? `Couldn't save the inspection: ${message}` : "Couldn't save the inspection. Try again.");
+    } finally {
+      setSchedSaving(false);
+    }
+  };
 
   const handleStartInspection = () => {
     setToastMessage("Inspection started. Mobile form ready.");
@@ -497,23 +628,23 @@ export default function InspectionsPage() {
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {item.status === "Scheduled" && inspectionAppEnabled && (
+                            {item.status === "Scheduled" && (
                               <Link
-                                href={`/mobile/property-check?inspection_id=${item.id}`}
+                                href={`/dashboard/inspections/${item.id}/conduct`}
                                 className="text-xs font-medium text-[#C28A78] hover:underline"
                               >
                                 Start
                               </Link>
                             )}
-                            {item.status === "In Progress" && inspectionAppEnabled && (
+                            {item.status === "In Progress" && (
                               <Link
-                                href={`/mobile/property-check?inspection_id=${item.id}`}
+                                href={`/dashboard/inspections/${item.id}/conduct`}
                                 className="text-xs font-medium text-[#D4A85C] hover:underline"
                               >
                                 Continue
                               </Link>
                             )}
-                            {item.status === "Completed" && !item.reportGenerated && (
+                            {item.status === "Completed" && demoMode && !item.reportGenerated && (
                               <button
                                 onClick={() => setShowReportModal(true)}
                                 className="text-xs font-medium text-[#8A9FB0] hover:underline"
@@ -521,13 +652,21 @@ export default function InspectionsPage() {
                                 Report
                               </button>
                             )}
-                            {item.status === "Completed" && item.reportGenerated && (
+                            {item.status === "Completed" && demoMode && item.reportGenerated && (
                               <button
                                 onClick={() => setSelectedInspection(item.id)}
                                 className="text-xs font-medium text-[#C28A78] hover:underline"
                               >
                                 View
                               </button>
+                            )}
+                            {item.status === "Completed" && !demoMode && (
+                              <Link
+                                href={`/dashboard/inspections/${item.id}/report`}
+                                className="text-xs font-medium text-[#C28A78] hover:underline"
+                              >
+                                Report
+                              </Link>
                             )}
                             <button
                               onClick={() => setSelectedInspection(item.id)}
@@ -621,10 +760,15 @@ export default function InspectionsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">{inspection.type}</span>
-                  {inspection.reportGenerated && (
-                    <button className="text-xs font-semibold text-white border border-white/30 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                      <i className="ri-download-line mr-1"></i>PDF
-                    </button>
+                  {!demoMode && (inspection.status === "Scheduled" || inspection.status === "In Progress") && (
+                    <Link href={`/dashboard/inspections/${inspection.id}/conduct`} className="text-xs font-semibold text-white border border-white/30 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                      <i className="ri-play-line mr-1"></i>{inspection.status === "Scheduled" ? "Start" : "Continue"}
+                    </Link>
+                  )}
+                  {!demoMode && (
+                    <Link href={`/dashboard/inspections/${inspection.id}/report`} className="text-xs font-semibold text-white border border-white/30 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                      <i className="ri-file-text-line mr-1"></i>Report
+                    </Link>
                   )}
                   <button onClick={() => setSelectedInspection(null)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
                     <i className="ri-close-line text-white text-base"></i>
@@ -654,11 +798,15 @@ export default function InspectionsPage() {
                 </div>
               )}
 
-              {inspection.rooms.length > 0 ? (
+              {detailLoading ? (
+                <div className="bg-[#F8F6F2] rounded-xl p-4 text-center">
+                  <p className="text-xs text-[#94A3B8]">Loading rooms…</p>
+                </div>
+              ) : detailRooms.length > 0 ? (
                 <div>
                   <p className="text-sm font-semibold text-[#3A3F3A] mb-3">Room Checklist</p>
                   <div className="space-y-3">
-                    {inspection.rooms.map((room) => (
+                    {detailRooms.map((room) => (
                       <div key={room.id} className="bg-[#F8F6F2] rounded-xl p-4 border border-[#D5D9D5]">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
@@ -749,10 +897,10 @@ export default function InspectionsPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">Schedule Inspection</h3>
-                    <p className="text-xs text-white/70">Set date, property and inspector</p>
+                    <p className="text-xs text-white/70">Book it for later, or start it now on this device</p>
                   </div>
                 </div>
-                <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors" aria-label="Close">
                   <i className="ri-close-line text-white text-base"></i>
                 </button>
               </div>
@@ -760,28 +908,39 @@ export default function InspectionsPage() {
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {propertiesForInspection.map((p) => (
-                    <label key={p.id} className="flex items-center gap-3 p-3 bg-[#F8F6F2] rounded-xl cursor-pointer border-2 border-transparent hover:border-[#7A9A7E]/40 transition-colors">
-                      <div className="w-5 h-5 rounded border-2 border-[#D5D9D5] flex items-center justify-center flex-shrink-0">
-                        <div className="w-3 h-3 rounded-sm bg-[#7A9A7E]"></div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#3A3F3A]">{p.name}</p>
-                        <p className="text-xs text-[#687068]">{p.address} · {p.tenant}</p>
-                      </div>
-                    </label>
+                <label htmlFor="sched-property" className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Property</label>
+                <select
+                  id="sched-property"
+                  value={schedPropertyId}
+                  onChange={(e) => setSchedPropertyId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E]"
+                >
+                  <option value="">Choose a property…</option>
+                  {(demoMode ? propertiesForInspection.map((p) => ({ id: p.id, label: `${p.name}, ${p.address}` })) : scheduleProperties).map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
                   ))}
-                </div>
+                </select>
+                {!demoMode && scheduleProperties.length === 0 && !schedError && (
+                  <p className="text-xs text-[#94A3B8] mt-1.5">No properties yet – add one under Properties first.</p>
+                )}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspection Type</label>
+                <p className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspection Type</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {inspectionTypes.map((type) => (
-                    <button key={type} className="py-2.5 text-xs font-semibold border-2 border-[#D5D9D5] rounded-xl text-[#687068] hover:border-[#7A9A7E] hover:text-[#7A9A7E] transition-colors bg-[#FAFAF8]">
-                      {type}
+                  {INSPECTION_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setSchedType(type.value)}
+                      aria-pressed={schedType === type.value}
+                      className={`py-2.5 text-xs font-semibold border-2 rounded-xl transition-colors ${
+                        schedType === type.value
+                          ? "border-[#7A9A7E] text-[#5A7A5E] bg-[#7A9A7E]/10"
+                          : "border-[#D5D9D5] text-[#687068] bg-[#FAFAF8] hover:border-[#7A9A7E]"
+                      }`}
+                    >
+                      {type.label}
                     </button>
                   ))}
                 </div>
@@ -789,43 +948,77 @@ export default function InspectionsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Date</label>
-                  <input type="date" defaultValue="2026-07-01" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] transition-colors" />
+                  <label htmlFor="sched-date" className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Date</label>
+                  <input
+                    id="sched-date"
+                    type="date"
+                    value={schedDate}
+                    onChange={(e) => setSchedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E]"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Time</label>
-                  <input type="time" defaultValue="14:00" className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] transition-colors" />
+                  <label htmlFor="sched-inspector" className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspector</label>
+                  <input
+                    id="sched-inspector"
+                    value={schedInspector}
+                    onChange={(e) => setSchedInspector(e.target.value)}
+                    maxLength={120}
+                    list="sched-inspectors"
+                    placeholder="Name"
+                    className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E]"
+                  />
+                  <datalist id="sched-inspectors">
+                    {inspectors.map((i) => (
+                      <option key={i.id} value={i.name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Inspector</label>
-                <div className="space-y-2">
-                  {inspectors.map((i) => (
-                    <label key={i.id} className="flex items-center gap-3 p-3 bg-[#F8F6F2] rounded-xl cursor-pointer border-2 border-transparent hover:border-[#7A9A7E]/40 transition-colors">
-                      <div className="w-5 h-5 rounded border-2 border-[#D5D9D5] flex items-center justify-center flex-shrink-0">
-                        <div className="w-3 h-3 rounded-sm bg-[#7A9A7E]"></div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#3A3F3A]">{i.name}</p>
-                        <p className="text-xs text-[#687068]">{i.role}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                <label htmlFor="sched-notes" className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Notes</label>
+                <textarea
+                  id="sched-notes"
+                  value={schedNotes}
+                  onChange={(e) => setSchedNotes(e.target.value)}
+                  maxLength={1000}
+                  placeholder="Access arrangements, anything to check specifically…"
+                  rows={3}
+                  className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] resize-none placeholder:text-[#94A3B8]"
+                ></textarea>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-[#687068] mb-1.5 block uppercase tracking-wide">Notes</label>
-                <textarea placeholder="Any special instructions for the inspector..." rows={3} className="w-full px-3.5 py-2.5 border-2 border-[#D5D9D5] rounded-xl text-sm text-[#3A3F3A] bg-[#FAFAF8] focus:outline-none focus:border-[#7A9A7E] resize-none transition-colors placeholder:text-[#94A3B8]"></textarea>
-              </div>
+              {schedError && <p className="text-sm text-[#C46868]" role="alert">{schedError}</p>}
 
-              <div className="flex items-center gap-3 pt-1">
-                <button onClick={handleSchedule} className="flex-1 py-3 text-sm font-semibold text-white bg-[#7A9A7E] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 flex items-center justify-center"><i className="ri-calendar-check-line text-sm"></i></div>
-                  Schedule Inspection
+              <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => void submitSchedule(false)}
+                  disabled={schedSaving}
+                  className="flex-1 py-3 text-sm font-semibold text-white bg-[#7A9A7E] rounded-xl hover:bg-[#143828] transition-colors whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <i className="ri-calendar-check-line text-sm"></i>
+                  {schedSaving ? "Saving…" : "Schedule"}
                 </button>
-                <button onClick={() => setShowScheduleModal(false)} className="flex-1 py-3 text-sm font-semibold text-[#687068] border-2 border-[#D5D9D5] rounded-xl hover:bg-[#F8F6F2] hover:border-[#7A9A7E] transition-colors whitespace-nowrap">Cancel</button>
+                {!demoMode && (
+                  <button
+                    type="button"
+                    onClick={() => void submitSchedule(true)}
+                    disabled={schedSaving}
+                    className="flex-1 py-3 text-sm font-semibold text-[#5A7A5E] border-2 border-[#7A9A7E] rounded-xl hover:bg-[#7A9A7E]/10 transition-colors whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    <i className="ri-play-line text-sm"></i>
+                    Start now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="py-3 px-4 text-sm font-semibold text-[#687068] border-2 border-[#D5D9D5] rounded-xl hover:bg-[#F8F6F2] transition-colors whitespace-nowrap"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>

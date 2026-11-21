@@ -58,9 +58,8 @@ const OTHER_DISABLED_PREFIXES = ["/mobile", "/contractor/dashboard"];
 
 /**
  * Prototype routes inside an otherwise-disabled area that do use live data.
- * /mobile/property-check was here, but it lists hard-coded sample properties
- * and discards completed inspections without saving them, so it stays off
- * until it reads and writes the inspections table.
+ * (The old /mobile/property-check prototype is replaced by
+ * /dashboard/inspections/[id]/conduct and redirects there.)
  */
 const OTHER_ENABLED_EXCEPTIONS: string[] = [];
 
@@ -87,6 +86,8 @@ export function isPathInLaunchScope(pathname: string, scope: LaunchScope = LAUNC
 /** Where to send someone who requests an out-of-scope route. */
 export function launchScopeFallback(pathname: string): string {
   if (matchesPrefix(pathname, "/contractor/dashboard")) return "/dashboard/contractor";
+  // The old prototype inspection app; inspections now run from the dashboard.
+  if (matchesPrefix(pathname, "/mobile/property-check")) return "/dashboard/inspections";
   if (matchesPrefix(pathname, "/mobile")) return "/login";
   return "/dashboard";
 }
