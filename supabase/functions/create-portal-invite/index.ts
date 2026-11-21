@@ -61,6 +61,19 @@ async function underRateLimit(
   return data !== false;
 }
 
+// Agencies whose trial or plan has lapsed are read-only. The database
+// enforces that for direct writes; this function writes with the service
+// role, so it applies the same rule (is_account_read_only) itself.
+async function accountIsReadOnly(supabaseUrl: string, anonKey: string, token: string): Promise<boolean> {
+  const caller = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+  const { data, error } = await caller.rpc("is_account_read_only");
+  if (error) throw error;
+  return data === true;
+}
+
 function fail(req: Request, status: number, code: string, error: string) {
   return reply(req, { success: false, code, error }, status);
 }
@@ -174,6 +187,11 @@ Deno.serve(async (req: Request) => {
     const role = String(profile.role || "");
     if (!ALLOWED_ROLES.has(role)) {
       return fail(req, 403, "ROLE_NOT_ALLOWED", "Your role is not permitted to issue portal invitations.");
+    }
+
+    if (role !== "platform_admin" && (await accountIsReadOnly(supabaseUrl, anonKey, token))) {
+      return fail(req, 402, "SUBSCRIPTION_INACTIVE",
+        "Your plan or trial has ended, so your account is read-only. Choose a plan under Billing to keep issuing portal invitations.");
     }
 
     let body: Record<string, unknown> = {};
